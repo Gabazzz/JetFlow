@@ -1,48 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
-import Header from './components/Header';
 import DashboardView from './components/DashboardView';
 import KanbanView from './components/KanbanView';
 import ClientsListView from './components/ClientsListView';
-import Client360View from './components/Client360View';
-import AgendaView from './components/AgendaView';
-import TarefasView from './components/TarefasView';
-import LembretesView from './components/LembretesView';
+import ClientDetailView from './components/ClientDetailView';
+import ConfiguracoesView from './components/ConfiguracoesView';
 
-import { initialClients } from './data/clients';
-import { initialTasks } from './data/tasks';
-import { initialAgendaEvents } from './data/agenda';
-import { initialTasksList } from './data/tarefas';
-import { initialReminders } from './data/lembretes';
-
-import { AlertCircle, HelpCircle } from 'lucide-react';
+import { 
+  initialProfile, 
+  initialPlans, 
+  initialModules, 
+  initialAvailableOffers, 
+  initialClients 
+} from './data/data';
 
 export default function App() {
-  const [clients, setClients] = useState(initialClients);
-  const [tasks, setTasks] = useState(initialTasks);
   const [currentRoute, setCurrentRoute] = useState('dashboard');
+  
+  // Application Local State (Single source of truth)
+  const [profile, setProfile] = useState(initialProfile);
+  const [plans, setPlans] = useState(initialPlans);
+  const [modules, setModules] = useState(initialModules);
+  const [offers, setOffers] = useState(initialAvailableOffers);
+  const [clients, setClients] = useState(initialClients);
 
-  // Phase 2 States
-  const [agendaEvents, setAgendaEvents] = useState(initialAgendaEvents);
-  const [tasksList, setTasksList] = useState(initialTasksList);
-  const [reminders, setReminders] = useState(initialReminders);
-
-  // Simple Hash-based Router
+  // Hash-based simple routing
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
       if (!hash || hash === '#/') {
         setCurrentRoute('dashboard');
       } else {
-        // Remove '#/' from hash
         const route = hash.replace(/^#\//, '');
         setCurrentRoute(route);
       }
     };
 
-    // Listen for hashchange
     window.addEventListener('hashchange', handleHashChange);
-    // Trigger once on load
     handleHashChange();
 
     return () => {
@@ -55,164 +49,132 @@ export default function App() {
     setCurrentRoute(route);
   };
 
-  // State Mutators
-  // 1. Toggle dashboard task completion
-  const handleToggleTask = (taskId) => {
-    setTasks(prevTasks => 
-      prevTasks.map(task => 
-        task.id === taskId ? { ...task, completed: !task.completed } : task
-      )
-    );
+  // State Mutators — Profile
+  const handleUpdateProfile = (updatedProfile) => {
+    setProfile(updatedProfile);
   };
 
-  // 2. Update client stage (for drag & drop)
-  const handleUpdateClientStage = (clientId, newStage) => {
-    setClients(prevClients => 
-      prevClients.map(client => {
-        if (client.id === clientId) {
-          const oldStage = client.stage;
-          if (oldStage === newStage) return client;
-          
-          // Add a new activity log entry for the stage change
-          const newLog = {
-            author: "Gabriel Almeida",
-            date: "Hoje " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            content: `Moveu o cliente de "${oldStage}" para "${newStage}"`
-          };
-          return {
-            ...client,
-            stage: newStage,
-            logs: [newLog, ...client.logs]
-          };
-        }
-        return client;
-      })
-    );
+  // State Mutators — Plans
+  const handleAddPlan = (newPlan) => {
+    setPlans(prev => [...prev, newPlan]);
   };
 
-  // 3. Update client checklist re-actively
-  const handleUpdateClientChecklist = (clientId, moduleKey, itemIndex, newValue) => {
-    setClients(prevClients => 
-      prevClients.map(client => {
-        if (client.id === clientId) {
-          const updatedChecklist = [...client.checklists[moduleKey]];
-          const item = updatedChecklist[itemIndex];
-          const oldChecked = item.checked;
-          
-          if (oldChecked === newValue) return client;
-
-          updatedChecklist[itemIndex] = { ...item, checked: newValue };
-
-          // Add activity log
-          const newLog = {
-            author: "Gabriel Almeida",
-            date: "Hoje " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            content: `${newValue ? 'Marcou' : 'Desmarcou'} "${item.label}" como concluída`
-          };
-
-          return {
-            ...client,
-            checklists: {
-              ...client.checklists,
-              [moduleKey]: updatedChecklist
-            },
-            logs: [newLog, ...client.logs]
-          };
-        }
-        return client;
-      })
-    );
-  };
-
-  // 4. Mark next action as completed
-  const handleUpdateNextAction = (clientId, completed) => {
-    if (!completed) return;
-    setClients(prevClients => 
-      prevClients.map(client => {
-        if (client.id === clientId) {
-          const actionText = client.nextAction;
-          if (actionText === '—') return client;
-
-          const newLog = {
-            author: "Gabriel Almeida",
-            date: "Hoje " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            content: `Concluiu a ação: "${actionText}"`
-          };
-
-          return {
-            ...client,
-            nextAction: '—',
-            deadline: 'Concluído',
-            logs: [newLog, ...client.logs]
-          };
-        }
-        return client;
-      })
-    );
-  };
-
-  // ==========================
-  // PHASE 2 STATE HANDLERS
-  // ==========================
-
-  // Agenda Event addition
-  const handleAddAgendaEvent = (newEvent) => {
-    setAgendaEvents(prev => [...prev, newEvent]);
-  };
-
-  // Tasks screen list task toggle completion
-  const handleToggleTaskListTask = (taskId) => {
-    setTasksList(prev => prev.map(t => 
-      t.id === taskId ? { ...t, completed: !t.completed } : t
-    ));
-  };
-
-  // Reminders screen list actions
-  const handleAddReminder = (newReminder) => {
-    setReminders(prev => [...prev, newReminder]);
-  };
-
-  const handleDismissReminder = (reminderId) => {
-    setReminders(prev => prev.filter(r => r.id !== reminderId));
-  };
-
-  // "Adiar 1h" shifts period category from 'hoje' -> 'amanha', 'amanha' -> 'proximos' and increases time by 1 hour
-  const handleDelayReminder = (reminderId) => {
-    setReminders(prev => prev.map(rem => {
-      if (rem.id === reminderId) {
-        let nextCategory = rem.category;
-        if (rem.category === 'hoje') {
-          nextCategory = 'amanha';
-        } else if (rem.category === 'amanha') {
-          nextCategory = 'proximos';
-        }
-
-        // Add 1 hour to the clock time
-        let timeString = rem.time;
-        try {
-          const [h, m] = rem.time.split(':').map(Number);
-          const nextH = (h + 1) % 24;
-          timeString = `${nextH.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-        } catch(e) {}
-
-        return {
-          ...rem,
-          category: nextCategory,
-          time: timeString
-        };
+  const handleEditPlan = (id, newName) => {
+    setPlans(prev => prev.map(p => p.id === id ? { ...p, name: newName } : p));
+    // Synchronize renamed plan on clients
+    setClients(prev => prev.map(c => {
+      const oldPlanObj = plans.find(p => p.id === id);
+      if (oldPlanObj && c.plan === oldPlanObj.name) {
+        return { ...c, plan: newName };
       }
-      return rem;
+      return c;
     }));
   };
 
-  // Render active view
+  const handleRemovePlan = (id) => {
+    setPlans(prev => prev.filter(p => p.id !== id));
+  };
+
+  // State Mutators — Modules
+  const handleAddModule = (newModule) => {
+    setModules(prev => [...prev, newModule]);
+  };
+
+  const handleEditModule = (id, newName) => {
+    setModules(prev => prev.map(m => m.id === id ? { ...m, name: newName } : m));
+    // Synchronize renamed modules on clients activeModules list
+    setClients(prev => prev.map(c => {
+      const oldModObj = modules.find(m => m.id === id);
+      if (oldModObj && c.activeModules.includes(oldModObj.name)) {
+        return {
+          ...c,
+          activeModules: c.activeModules.map(mName => mName === oldModObj.name ? newName : mName)
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleRemoveModule = (id) => {
+    const targetModule = modules.find(m => m.id === id);
+    setModules(prev => prev.filter(m => m.id !== id));
+    // Remove deleted module from clients
+    if (targetModule) {
+      setClients(prev => prev.map(c => ({
+        ...c,
+        activeModules: c.activeModules.filter(mName => mName !== targetModule.name)
+      })));
+    }
+  };
+
+  // State Mutators — Offers
+  const handleAddOffer = (newOffer) => {
+    setOffers(prev => [...prev, newOffer]);
+  };
+
+  const handleEditOffer = (id, newName) => {
+    setOffers(prev => prev.map(o => o.id === id ? { ...o, name: newName } : o));
+    // Synchronize renamed offer on clients interestOffers list
+    setClients(prev => prev.map(c => {
+      const oldOfferObj = offers.find(o => o.id === id);
+      if (oldOfferObj) {
+        return {
+          ...c,
+          interestOffers: c.interestOffers.map(io => io.name === oldOfferObj.name ? { ...io, name: newName } : io)
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleRemoveOffer = (id) => {
+    const targetOffer = offers.find(o => o.id === id);
+    setOffers(prev => prev.filter(o => o.id !== id));
+    // Remove deleted offer from clients
+    if (targetOffer) {
+      setClients(prev => prev.map(c => ({
+        ...c,
+        interestOffers: c.interestOffers.filter(io => io.name !== targetOffer.name)
+      })));
+    }
+  };
+
+  // State Mutators — Clients
+  const handleAddClient = (newClient) => {
+    setClients(prev => [newClient, ...prev]);
+  };
+
+  const handleUpdateClient = (clientId, fieldsToUpdate) => {
+    setClients(prev => prev.map(c => 
+      c.id === clientId ? { ...c, ...fieldsToUpdate } : c
+    ));
+  };
+
+  const handleUpdateClientStage = (clientId, newStage) => {
+    setClients(prev => prev.map(c => 
+      c.id === clientId ? { ...c, stage: newStage } : c
+    ));
+  };
+
+  const handleUpdateClientNextAction = (clientId, newNextAction) => {
+    setClients(prev => prev.map(c => 
+      c.id === clientId ? { ...c, nextAction: newNextAction } : c
+    ));
+  };
+
+  const handleUpdateClientReminder = (clientId, reminderObj) => {
+    setClients(prev => prev.map(c => 
+      c.id === clientId ? { ...c, reminder: reminderObj } : c
+    ));
+  };
+
+  // Routing render helper
   const renderView = () => {
     if (currentRoute === 'dashboard') {
       return (
         <DashboardView 
           clients={clients} 
-          tasks={tasks} 
-          onToggleTask={handleToggleTask} 
+          onUpdateClientReminder={handleUpdateClientReminder}
           onNavigate={handleNavigate}
         />
       );
@@ -222,9 +184,9 @@ export default function App() {
       return (
         <KanbanView 
           clients={clients} 
-          onUpdateClientStage={handleUpdateClientStage} 
-          onUpdateClientChecklist={handleUpdateClientChecklist}
-          onUpdateNextAction={handleUpdateNextAction}
+          onUpdateClientStage={handleUpdateClientStage}
+          onUpdateClientNextAction={handleUpdateClientNextAction}
+          onNavigate={handleNavigate}
         />
       );
     }
@@ -233,118 +195,91 @@ export default function App() {
       return (
         <ClientsListView 
           clients={clients} 
+          plans={plans}
+          modules={modules}
+          onAddClient={handleAddClient}
           onNavigate={handleNavigate}
         />
       );
     }
 
-    // Phase 2 views
-    if (currentRoute === 'agenda') {
-      return (
-        <AgendaView 
-          clients={clients}
-          agendaEvents={agendaEvents}
-          onAddEvent={handleAddAgendaEvent}
-          onNavigate={handleNavigate}
-        />
-      );
-    }
-
-    if (currentRoute === 'tarefas') {
-      return (
-        <TarefasView 
-          clients={clients}
-          tasks={tasksList}
-          onToggleTask={handleToggleTaskListTask}
-          onNavigate={handleNavigate}
-        />
-      );
-    }
-
-    if (currentRoute === 'lembretes') {
-      return (
-        <LembretesView 
-          clients={clients}
-          reminders={reminders}
-          onAddReminder={handleAddReminder}
-          onDismissReminder={handleDismissReminder}
-          onDelayReminder={handleDelayReminder}
-          onNavigate={handleNavigate}
-        />
-      );
-    }
-
-    // Dynamic routing: clients/:id
+    // Dynamic Route: clientes/:id
     if (currentRoute.startsWith('clientes/')) {
       const clientId = currentRoute.split('/')[1];
       const client = clients.find(c => c.id === clientId);
       if (client) {
         return (
-          <div>
-            <button 
-              className="btn-action-outline" 
-              style={{ marginBottom: '16px' }}
-              onClick={() => handleNavigate('clientes')}
-            >
-              ← Voltar para lista de clientes
-            </button>
-            <Client360View 
-              client={client} 
-              onUpdateChecklist={(mod, itemIdx, val) => handleUpdateClientChecklist(client.id, mod, itemIdx, val)}
-              onUpdateNextAction={(completed) => handleUpdateNextAction(client.id, completed)}
-            />
+          <ClientDetailView 
+            client={client}
+            plans={plans}
+            modules={modules}
+            availableOffers={offers}
+            onUpdateClient={handleUpdateClient}
+            onNavigate={handleNavigate}
+          />
+        );
+      } else {
+        return (
+          <div className="empty-state">
+            <span className="empty-state-icon">⚠️</span>
+            <p>Cliente não encontrado.</p>
+            <button className="btn-secondary" onClick={() => handleNavigate('clientes')}>Voltar para lista</button>
           </div>
         );
       }
     }
 
-    // Placeholders for Configurações
-    const placeholderRoutes = ['configuracoes'];
-    if (placeholderRoutes.includes(currentRoute)) {
+    if (currentRoute === 'configuracoes') {
       return (
-        <div className="placeholder-container">
-          <HelpCircle className="placeholder-icon" style={{ animation: 'bounce 2s infinite' }} />
-          <h2 className="placeholder-title">Configurações (Em breve)</h2>
-          <p className="placeholder-text">
-            Esta funcionalidade está planejada para a Fase 3 do JetFlow e não está ativa nesta entrega do frontend navegável.
-          </p>
-          <button className="btn-back-home" onClick={() => handleNavigate('dashboard')}>
-            Voltar para o Dashboard
-          </button>
-        </div>
+        <ConfiguracoesView 
+          profile={profile}
+          onUpdateProfile={handleUpdateProfile}
+          plans={plans}
+          onAddPlan={handleAddPlan}
+          onEditPlan={handleEditPlan}
+          onRemovePlan={handleRemovePlan}
+          modules={modules}
+          onAddModule={handleAddModule}
+          onEditModule={handleEditModule}
+          onRemoveModule={handleRemoveModule}
+          offers={offers}
+          onAddOffer={handleAddOffer}
+          onEditOffer={handleEditOffer}
+          onRemoveOffer={handleRemoveOffer}
+        />
       );
     }
 
     // 404 Fallback
     return (
-      <div className="placeholder-container">
-        <AlertCircle className="placeholder-icon" />
-        <h2 className="placeholder-title">Página não encontrada (404)</h2>
-        <p className="placeholder-text">A rota especificada não existe.</p>
-        <button className="btn-back-home" onClick={() => handleNavigate('dashboard')}>
-          Voltar para o Dashboard
-        </button>
+      <div className="empty-state">
+        <span className="empty-state-icon">⚠️</span>
+        <p>Página não encontrada.</p>
+        <button className="btn-secondary" onClick={() => handleNavigate('dashboard')}>Ir para o Dashboard</button>
       </div>
     );
   };
 
   const getPageTitle = () => {
-    if (currentRoute === 'dashboard') return 'Dashboard';
+    if (currentRoute === 'dashboard') return 'Dashboard Geral';
     if (currentRoute === 'kanban') return 'Quadro Kanban';
-    if (currentRoute === 'clientes') return 'Clientes em Implantação';
-    if (currentRoute.startsWith('clientes/')) return 'Cliente 360';
-    if (currentRoute === 'agenda') return 'Agenda do Especialista';
-    if (currentRoute === 'tarefas') return 'Central de Tarefas';
-    if (currentRoute === 'lembretes') return 'Lembretes Manuais';
-    if (currentRoute === 'configuracoes') return 'Configurações';
-    return 'Navegação';
+    if (currentRoute === 'clientes') return 'Lista de Clientes';
+    if (currentRoute.startsWith('clientes/')) return 'Detalhes do Cliente';
+    if (currentRoute === 'configuracoes') return 'Configurações do Sistema';
+    return 'JetFlow';
   };
 
   return (
-    <div className="app-container">
-      <Sidebar currentRoute={currentRoute} onNavigate={handleNavigate} />
-      <main className="main-content">
-        <Header title={getPageTitle()} />
+    <div className="app-layout">
+      <Sidebar 
+        currentRoute={currentRoute} 
+        onNavigate={handleNavigate} 
+        profile={profile} 
+      />
+      <main className="main-container">
+        <div className="view-header">
+          <h2 className="view-title">{getPageTitle()}</h2>
+        </div>
         {renderView()}
       </main>
     </div>

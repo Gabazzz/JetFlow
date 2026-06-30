@@ -1,232 +1,391 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Calendar as CalendarIcon, 
-  Users, 
-  CheckSquare, 
-  AlertCircle, 
-  RefreshCw, 
-  BookOpen,
-  CheckCircle2
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, Users, CheckSquare, AlertTriangle, Edit2, Trash2, X, ArrowRight } from 'lucide-react';
 
-export default function DashboardView({ clients, tasks, onToggleTask, onNavigate }) {
-  const [isLoading, setIsLoading] = useState(true);
+export default function DashboardView({ clients, onUpdateClientReminder, onNavigate }) {
+  const [activeModal, setActiveModal] = useState(null); // null, 'reunioes', 'ativos', 'tarefas', 'criticos'
+  const [editingReminderClient, setEditingReminderClient] = useState(null); // client object
+  const [editReminderText, setEditReminderText] = useState('');
+  const [editReminderDeadline, setEditReminderDeadline] = useState('');
+  const [dismissingClientIds, setDismissingClientIds] = useState([]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 8000); // 800ms as requested
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Metrics Data setup
-  const meetingsTodayCount = tasks.filter(t => t.type === 'Reunião').length;
-  const activeClientsCount = clients.filter(c => c.stage !== 'Finalizado').length;
-  const pendingTasksCount = tasks.filter(t => !t.completed).length;
-  const lateClientsCount = clients.filter(c => c.attentionStatus === 'Atrasado').length;
-  const pendingFollowupsCount = clients.filter(c => c.nextAction && c.nextAction.toLowerCase().includes('follow-up')).length;
-  const trainingTodayCount = tasks.filter(t => t.type === 'Treinamento').length;
-
-  const metrics = [
-    { title: 'Reuniões hoje', value: meetingsTodayCount, icon: CalendarIcon, status: 'positive' },
-    { title: 'Clientes ativos', value: activeClientsCount, icon: Users, status: 'positive' },
-    { title: 'Próximas tarefas', value: pendingTasksCount, icon: CheckSquare, status: 'positive' },
-    { title: 'Clientes atrasados', value: lateClientsCount, icon: AlertCircle, status: 'critical' },
-    { title: 'Follow-ups pendentes', value: pendingFollowupsCount, icon: RefreshCw, status: 'attention' },
-    { title: 'Treinamentos hoje', value: trainingTodayCount, icon: BookOpen, status: 'positive' },
-  ];
-
-  // Attention clients list
-  const attentionClients = clients.filter(c => c.attentionStatus);
-
-  // Generate calendar days for June 2026 (June 1st is Monday, 30 days)
-  const renderCalendarDays = () => {
-    const days = [];
-    // June 1 2026 is Monday, so no empty cells at the start if starting grid from Monday.
-    // If grid starts on Sunday, we need 1 empty cell. Let's make it start on Sunday.
-    // Empty cell for Sunday:
-    days.push(<div key="empty-0" className="calendar-day empty"></div>);
-    
-    for (let i = 1; i <= 30; i++) {
-      const isToday = i === 29; // June 29, 2026 is today's mock date based on metadata
-      const hasMeeting = i === 9 || i === 15 || i === 22 || i === 29;
-      
-      days.push(
-        <div 
-          key={`day-${i}`} 
-          className={`calendar-day ${isToday ? 'today' : ''} ${hasMeeting ? 'has-meeting' : ''}`}
-          title={isToday ? 'Hoje' : hasMeeting ? 'Dia com reuniões' : ''}
-        >
-          {i}
-        </div>
-      );
+  // Calculations for today (2026-06-30)
+  const todayStr = '2026-06-30';
+  
+  // Meetings today
+  const meetingsToday = [];
+  clients.forEach(c => {
+    if (c.meetings) {
+      c.meetings.forEach(m => {
+        if (m.date === todayStr) {
+          meetingsToday.push({
+            clientName: c.name,
+            clientId: c.id,
+            ...m
+          });
+        }
+      });
     }
-    return days;
+  });
+
+  // Active clients (all that are not 'Finalizado')
+  const activeClients = clients.filter(c => c.stage !== 'Finalizado');
+
+  // Pending tasks
+  const pendingTasks = [];
+  clients.forEach(c => {
+    if (c.tasks) {
+      c.tasks.forEach(t => {
+        pendingTasks.push({
+          clientName: c.name,
+          clientId: c.id,
+          ...t
+        });
+      });
+    }
+  });
+
+  // Critical clients
+  const criticalClients = clients.filter(c => c.criticality === 'Crítico');
+
+  // Reminders (clients with active reminder)
+  const clientReminders = clients.filter(c => c.reminder && c.reminder.text);
+
+  // Top 3 critical clients for SLA summary (ordered by Criticality priority: Crítico, Atenção, Estável)
+  const getCriticalityScore = (crit) => {
+    if (crit === 'Crítico') return 3;
+    if (crit === 'Atenção') return 2;
+    return 1;
+  };
+  const slaClients = [...clients]
+    .sort((a, b) => getCriticalityScore(b.criticality) - getCriticalityScore(a.criticality))
+    .slice(0, 3);
+
+  // Edit reminder handler
+  const handleOpenEditReminder = (client) => {
+    setEditingReminderClient(client);
+    setEditReminderText(client.reminder?.text || '');
+    setEditReminderDeadline(client.reminder?.deadline || '');
   };
 
-  if (isLoading) {
-    return (
-      <div className="dashboard-grid">
-        {/* Metric Cards Skeleton */}
-        <div className="metrics-container">
-          {Array(6).fill(0).map((_, idx) => (
-            <div key={idx} className="metric-card skeleton" style={{ minHeight: '100px' }}>
-              <div className="metric-header">
-                <div className="skeleton-text" style={{ width: '60px' }}></div>
-                <div className="skeleton-avatar" style={{ width: '16px', height: '16px' }}></div>
-              </div>
-              <div className="skeleton-card-value" style={{ marginTop: '8px' }}></div>
-            </div>
-          ))}
-        </div>
+  const handleSaveReminder = (e) => {
+    e.preventDefault();
+    if (!editingReminderClient) return;
+    onUpdateClientReminder(editingReminderClient.id, {
+      text: editReminderText,
+      deadline: editReminderDeadline
+    });
+    setEditingReminderClient(null);
+  };
 
-        {/* Content Skeleton */}
-        <div className="dashboard-content-layout">
-          <div className="dashboard-section skeleton" style={{ minHeight: '400px' }}>
-            <div className="skeleton-title"></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
-              {Array(5).fill(0).map((_, idx) => (
-                <div key={idx} className="skeleton-text" style={{ height: '50px', borderRadius: '8px' }}></div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div className="dashboard-section skeleton" style={{ minHeight: '220px' }}>
-              <div className="skeleton-title"></div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
-                {Array(3).fill(0).map((_, idx) => (
-                  <div key={idx} className="skeleton-text" style={{ height: '40px', borderRadius: '8px' }}></div>
-                ))}
-              </div>
-            </div>
-            <div className="calendar-card skeleton" style={{ minHeight: '220px' }}></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleDismissReminder = (clientId) => {
+    setDismissingClientIds(prev => [...prev, clientId]);
+    setTimeout(() => {
+      onUpdateClientReminder(clientId, null);
+      setDismissingClientIds(prev => prev.filter(id => id !== clientId));
+    }, 150);
+  };
 
   return (
-    <div className="dashboard-grid">
-      {/* Metric Cards */}
-      <section className="metrics-container" aria-label="Métricas de Desempenho">
-        {metrics.map((m, idx) => {
-          const Icon = m.icon;
-          return (
-            <div key={idx} className={`metric-card ${m.status}`}>
-              <div className="metric-header">
-                <span className="metric-title">{m.title}</span>
-                <Icon className="metric-icon" />
-              </div>
-              <span className="metric-value">{m.value}</span>
-            </div>
-          );
-        })}
-      </section>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', width: '100%' }}>
+      {/* Top KPI Grid */}
+      <div className="grid-cards">
+        <button className="kpi-card" onClick={() => setActiveModal('reunioes')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <span className="kpi-label">Reuniões Hoje</span>
+            <Calendar size={18} style={{ color: 'var(--green-primary)' }} />
+          </div>
+          <span className="kpi-value">{meetingsToday.length}</span>
+          <span className="kpi-subtitle">Agendadas para hoje</span>
+        </button>
 
-      {/* Main dashboard content */}
-      <div className="dashboard-content-layout">
-        {/* Left Column: Activities of the Day */}
+        <button className="kpi-card" onClick={() => setActiveModal('ativos')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <span className="kpi-label">Clientes Ativos</span>
+            <Users size={18} style={{ color: 'var(--green-primary)' }} />
+          </div>
+          <span className="kpi-value">{activeClients.length}</span>
+          <span className="kpi-subtitle">Em processo de onboarding</span>
+        </button>
+
+        <button className="kpi-card" onClick={() => setActiveModal('tarefas')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <span className="kpi-label">Próximas Tarefas</span>
+            <CheckSquare size={18} style={{ color: 'var(--green-primary)' }} />
+          </div>
+          <span className="kpi-value">{pendingTasks.length}</span>
+          <span className="kpi-subtitle">Pendentes nos checklists</span>
+        </button>
+
+        <button className="kpi-card" onClick={() => setActiveModal('criticos')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <span className="kpi-label">Clientes Críticos</span>
+            <AlertTriangle size={18} style={{ color: 'var(--badge-red)' }} />
+          </div>
+          <span className="kpi-value">{criticalClients.length}</span>
+          <span className="kpi-subtitle">SLA crítico ou em atenção</span>
+        </button>
+      </div>
+
+      {/* Main Dashboard Section */}
+      <div className="dashboard-layout">
+        {/* Left Side: Reminders */}
         <div className="dashboard-section">
           <div className="section-header">
-            <h2 className="section-title">
-              <CheckSquare className="nav-icon" style={{ color: 'var(--green-primary)' }} />
-              Atividades do dia
-            </h2>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>June 29, 2026</span>
+            <h3 className="section-title">Lembretes Ativos</h3>
           </div>
-
-          <div className="activity-list">
-            {tasks.map((task) => (
-              <div key={task.id} className="activity-item">
-                <div className="activity-left">
-                  <span className="activity-time">{task.time}</span>
-                  <span className={`badge ${task.type.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}>
-                    {task.type}
-                  </span>
-                  <div className="activity-info">
-                    <span className="activity-title-text" style={{ textDecoration: task.completed ? 'line-through' : 'none', color: task.completed ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
-                      {task.title}
-                    </span>
-                    <span className="activity-meta">
-                      Cliente:{' '}
-                      <span 
-                        className="client-name-link" 
-                        onClick={() => onNavigate(`clientes/${task.clientId}`)}
-                      >
-                        {task.clientName}
-                      </span>
-                      {' · '}Responsável: {task.responsible}
-                    </span>
-                  </div>
-                </div>
-                <button 
-                  className={`btn-done ${task.completed ? 'completed' : ''}`}
-                  onClick={() => onToggleTask(task.id)}
-                >
-                  {task.completed ? 'Concluído ✓' : 'Marcar como feito'}
-                </button>
+          <div className="reminders-list">
+            {clientReminders.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon">🔔</span>
+                <p>Nenhum lembrete ativo no momento.</p>
               </div>
-            ))}
+            ) : (
+              clientReminders.map(client => {
+                const isDismissing = dismissingClientIds.includes(client.id);
+                return (
+                  <div 
+                    key={client.id} 
+                    className={`reminder-item ${isDismissing ? 'item-fadeout' : ''}`}
+                  >
+                    <div className="reminder-info">
+                      <span className="reminder-client">{client.name}</span>
+                      <p className="reminder-desc">{client.reminder.text}</p>
+                      <span className="reminder-time">Prazo: {client.reminder.deadline || 'Sem prazo'}</span>
+                    </div>
+                    <div className="actions-group">
+                      <button 
+                        className="btn-icon" 
+                        onClick={() => handleOpenEditReminder(client)}
+                        title="Editar lembrete"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button 
+                        className="btn-danger-icon" 
+                        onClick={() => handleDismissReminder(client.id)}
+                        title="Dispensar lembrete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
-        {/* Right Column: Needs Attention & Calendar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Need Attention */}
-          <div className="dashboard-section">
-            <div className="section-header">
-              <h2 className="section-title">
-                <AlertCircle className="nav-icon" style={{ color: 'var(--color-critical)' }} />
-                Atenção necessária
-              </h2>
-            </div>
-
-            <div className="attention-list">
-              {attentionClients.map((client) => (
-                <div key={client.id} className="attention-item">
-                  <div className="attention-top">
-                    <span 
-                      className="client-name-link attention-client" 
-                      onClick={() => onNavigate(`clientes/${client.id}`)}
-                    >
-                      {client.name}
-                    </span>
-                    <span className={`badge ${client.attentionStatus === 'Atrasado' ? 'atrasado' : 'sem-update'}`}>
-                      {client.attentionStatus}
-                    </span>
-                  </div>
-                  <div className="attention-middle">
-                    <span>⚠️ {client.daysWithoutUpdate} dias sem update</span>
-                  </div>
-                  <div className="attention-action">
-                    <span>⚡ Próxima ação: <strong>{client.attentionAction}</strong></span>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Right Side: SLA Resumido */}
+        <div className="dashboard-section">
+          <div className="section-header">
+            <h3 className="section-title">Resumo de SLA (Mais Críticos)</h3>
           </div>
+          <div className="sla-list">
+            {slaClients.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon">📊</span>
+                <p>Nenhum cliente cadastrado.</p>
+              </div>
+            ) : (
+              slaClients.map(client => {
+                let badgeClass = 'badge-estavel';
+                if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
+                if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
 
-          {/* Calendar */}
-          <div className="calendar-card">
-            <div className="calendar-header">
-              <span className="calendar-title">Junho 2026</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Hoje: 29</span>
-            </div>
-            <div className="calendar-grid">
-              <div className="calendar-day-name">D</div>
-              <div className="calendar-day-name">S</div>
-              <div className="calendar-day-name">T</div>
-              <div className="calendar-day-name">Q</div>
-              <div className="calendar-day-name">Q</div>
-              <div className="calendar-day-name">S</div>
-              <div className="calendar-day-name">S</div>
-              {renderCalendarDays()}
-            </div>
+                return (
+                  <div key={client.id} className="sla-item">
+                    <div className="sla-client-row">
+                      <span 
+                        className="sla-client-name"
+                        onClick={() => onNavigate(`clientes/${client.id}`)}
+                      >
+                        {client.name}
+                      </span>
+                      <span className={`badge ${badgeClass}`}>{client.criticality}</span>
+                    </div>
+                    <div className="sla-action-box">
+                      <div className="sla-action-title">Próxima Ação:</div>
+                      <div>{client.nextAction || 'Nenhuma ação definida'}</div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
+
+      {/* KPI Card Details Modal */}
+      {activeModal && (
+        <div className="modal-overlay" onClick={() => setActiveModal(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                {activeModal === 'reunioes' && 'Reuniões Agendadas para Hoje'}
+                {activeModal === 'ativos' && 'Clientes em Onboarding Ativo'}
+                {activeModal === 'tarefas' && 'Checklist: Próximas Tarefas'}
+                {activeModal === 'criticos' && 'Clientes em Estado Crítico'}
+              </h3>
+              <button className="btn-icon" onClick={() => setActiveModal(null)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              {activeModal === 'reunioes' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {meetingsToday.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)' }}>Nenhuma reunião agendada para hoje.</p>
+                  ) : (
+                    meetingsToday.map(m => (
+                      <div 
+                        key={m.id} 
+                        style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
+                      >
+                        <div>
+                          <strong 
+                            style={{ cursor: 'pointer', color: 'var(--green-primary)' }}
+                            onClick={() => { setActiveModal(null); onNavigate(`clientes/${m.clientId}`); }}
+                          >
+                            {m.clientName}
+                          </strong>
+                          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>{m.title}</div>
+                        </div>
+                        <span style={{ color: 'var(--green-primary)', fontWeight: '600' }}>{m.time}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeModal === 'ativos' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {activeClients.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)' }}>Nenhum cliente em onboarding ativo.</p>
+                  ) : (
+                    activeClients.map(c => (
+                      <div 
+                        key={c.id} 
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
+                      >
+                        <div>
+                          <strong 
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => { setActiveModal(null); onNavigate(`clientes/${c.id}`); }}
+                          >
+                            {c.name}
+                          </strong>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>Plano: {c.plan}</div>
+                        </div>
+                        <span style={{ fontSize: '12px', backgroundColor: 'var(--border-color)', padding: '4px 8px', borderRadius: '4px' }}>{c.stage}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeModal === 'tarefas' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {pendingTasks.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)' }}>Nenhuma tarefa pendente nos checklists.</p>
+                  ) : (
+                    pendingTasks.map(t => (
+                      <div 
+                        key={t.id} 
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
+                      >
+                        <div>
+                          <span style={{ fontSize: '14px' }}>{t.text}</span>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                            Cliente:{' '}
+                            <span 
+                              style={{ color: 'var(--green-primary)', cursor: 'pointer' }}
+                              onClick={() => { setActiveModal(null); onNavigate(`clientes/${t.clientId}`); }}
+                            >
+                              {t.clientName}
+                            </span>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'var(--badge-yellow)' }}>Até {t.deadline}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeModal === 'criticos' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {criticalClients.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)' }}>Nenhum cliente em estado crítico. Bom trabalho!</p>
+                  ) : (
+                    criticalClients.map(c => (
+                      <div 
+                        key={c.id} 
+                        style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong 
+                            style={{ cursor: 'pointer', color: 'var(--badge-red)' }}
+                            onClick={() => { setActiveModal(null); onNavigate(`clientes/${c.id}`); }}
+                          >
+                            {c.name}
+                          </strong>
+                          <span className="badge badge-critico">{c.criticality}</span>
+                        </div>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{c.criticalityJustification || 'Sem justificativa preenchida.'}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setActiveModal(null)}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Reminder Modal */}
+      {editingReminderClient && (
+        <div className="modal-overlay" onClick={() => setEditingReminderClient(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Editar Lembrete de {editingReminderClient.name}</h3>
+              <button className="btn-icon" onClick={() => setEditingReminderClient(null)}>
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveReminder}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Texto do Lembrete</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={editReminderText}
+                    onChange={e => setEditReminderText(e.target.value)}
+                    placeholder="Descrição do lembrete..."
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Prazo de Resolução</label>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    value={editReminderDeadline}
+                    onChange={e => setEditReminderDeadline(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setEditingReminderClient(null)}>Cancelar</button>
+                <button type="submit" className="btn-primary">Salvar Alterações</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,170 +1,154 @@
 import React, { useState } from 'react';
-import { initialClients } from '../data/clients';
-import { AlertCircle, User, Calendar, CheckSquare, Zap, FolderOpen } from 'lucide-react';
-import Client360View from './Client360View';
+import { Edit2, Check, X } from 'lucide-react';
 
-const COLUMNS = [
-  "Novo",
-  "Kickoff",
-  "Configuração",
-  "Integrações",
-  "Treinamento",
-  "Acompanhamento",
-  "Finalizado"
-];
+export default function KanbanView({ 
+  clients, 
+  onUpdateClientStage, 
+  onUpdateClientNextAction, 
+  onNavigate 
+}) {
+  const columns = ['Novo', 'Kickoff', 'Configuração', 'Treinamento', 'Finalizado'];
+  const [editingClientId, setEditingClientId] = useState(null);
+  const [nextActionValue, setNextActionValue] = useState('');
 
-export default function KanbanView({ clients, onUpdateClientStage, onUpdateClientChecklist, onUpdateNextAction }) {
-  const [draggedClientId, setDraggedClientId] = useState(null);
-  const [activeColumnDragOver, setActiveColumnDragOver] = useState(null);
-  const [selectedClientId, setSelectedClientId] = useState(null);
-
-  // Drag and Drop handlers
+  // Drag and Drop Handlers
   const handleDragStart = (e, clientId) => {
-    setDraggedClientId(clientId);
     e.dataTransfer.setData('text/plain', clientId);
-    // Add opacity styling to element immediately
-    setTimeout(() => {
-      const element = document.getElementById(`card-${clientId}`);
-      if (element) element.classList.add('dragging');
-    }, 0);
   };
 
-  const handleDragEnd = () => {
-    const element = document.getElementById(`card-${draggedClientId}`);
-    if (element) element.classList.remove('dragging');
-    setDraggedClientId(null);
-    setActiveColumnDragOver(null);
-  };
-
-  const handleDragOver = (e, column) => {
+  const handleDragOver = (e) => {
     e.preventDefault();
-    if (activeColumnDragOver !== column) {
-      setActiveColumnDragOver(column);
-    }
   };
 
-  const handleDragLeave = () => {
-    setActiveColumnDragOver(null);
-  };
-
-  const handleDrop = (e, column) => {
+  const handleDrop = (e, targetStage) => {
     e.preventDefault();
-    const clientId = e.dataTransfer.getData('text/plain') || draggedClientId;
+    const clientId = e.dataTransfer.getData('text/plain');
     if (clientId) {
-      onUpdateClientStage(clientId, column);
+      onUpdateClientStage(clientId, targetStage);
     }
-    setDraggedClientId(null);
-    setActiveColumnDragOver(null);
   };
 
-  const handleCardClick = (clientId) => {
-    setSelectedClientId(clientId);
+  // Inline Next Action Edit Handlers
+  const startEditing = (e, client) => {
+    e.stopPropagation(); // Prevent navigating to detail
+    setEditingClientId(client.id);
+    setNextActionValue(client.nextAction || '');
   };
 
-  const handleCloseDrawer = () => {
-    setSelectedClientId(null);
+  const cancelEditing = (e) => {
+    e.stopPropagation();
+    setEditingClientId(null);
   };
 
-  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const saveNextAction = (e, clientId) => {
+    e.stopPropagation();
+    onUpdateClientNextAction(clientId, nextActionValue);
+    setEditingClientId(null);
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-      <div className="kanban-container">
-        {COLUMNS.map((column) => {
-          const columnClients = clients.filter(c => c.stage === column);
-          const isOver = activeColumnDragOver === column;
+    <div className="kanban-board">
+      {columns.map((columnName) => {
+        const columnClients = clients.filter(c => c.stage === columnName);
 
-          return (
-            <div
-              key={column}
-              className={`kanban-column ${isOver ? 'drag-over' : ''}`}
-              onDragOver={(e) => handleDragOver(e, column)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, column)}
-            >
-              <div className="column-header">
-                <span className="column-title">{column}</span>
-                <span className="column-count">{columnClients.length}</span>
-              </div>
+        return (
+          <div 
+            key={columnName} 
+            className="kanban-column"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, columnName)}
+          >
+            <div className="column-header">
+              <span className="column-title">{columnName}</span>
+              <span className="column-count">{columnClients.length}</span>
+            </div>
 
-              <div className="column-cards-container">
-                {columnClients.length === 0 ? (
-                  <div className="column-empty">
-                    <FolderOpen className="column-empty-icon" />
-                    <span>Nenhum cliente nesta etapa</span>
-                  </div>
-                ) : (
-                  columnClients.map((client) => (
+            <div className="column-cards">
+              {columnClients.length === 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100px', border: '2px dashed var(--border-color)', borderRadius: 'var(--radius)', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                  Sem clientes
+                </div>
+              ) : (
+                columnClients.map((client) => {
+                  let badgeClass = 'badge-estavel';
+                  if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
+                  if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
+
+                  const isEditingThis = editingClientId === client.id;
+
+                  return (
                     <div
                       key={client.id}
-                      id={`card-${client.id}`}
                       className="kanban-card"
                       draggable
                       onDragStart={(e) => handleDragStart(e, client.id)}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => handleCardClick(client.id)}
+                      onClick={() => onNavigate(`clientes/${client.id}`)}
                     >
-                      <div className="card-top">
-                        <span className={`badge ${
-                          client.priority === 'Alta' ? 'badge-priority-alta' : 
-                          client.priority === 'Média' ? 'badge-priority-media' : 
-                          'badge-priority-baixa'
-                        }`}>
-                          {client.priority}
-                        </span>
-                        {client.modules.map(mod => (
-                          <span key={mod} className="badge-module">{mod}</span>
-                        ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <span className="kanban-card-title">{client.name}</span>
+                        <span className={`badge ${badgeClass}`} style={{ fontSize: '9px', padding: '2px 6px' }}>{client.criticality}</span>
                       </div>
 
-                      <h3 className="card-title">{client.name}</h3>
-
-                      <div className="card-meta">
-                        <span style={{ display: 'flex', alignPosition: 'center', gap: '4px', alignItems: 'center' }}>
-                          <User size={12} />
-                          {client.owner.split(' ')[0]}
-                        </span>
-                        <span style={{ display: 'flex', alignPosition: 'center', gap: '4px', alignItems: 'center' }}>
-                          <Calendar size={12} />
-                          {client.deadline}
-                        </span>
+                      <div className="kanban-card-meta">
+                        <span>Plano: <strong>{client.plan}</strong></span>
                       </div>
 
-                      <div className="card-divider" />
-
-                      <div className="card-action">
-                        <Zap size={12} style={{ color: 'var(--green-primary)' }} />
-                        <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                          Próxima ação: {client.nextAction}
-                        </span>
+                      {/* Next Action Box */}
+                      <div 
+                        className="kanban-card-action"
+                        onClick={(e) => e.stopPropagation()} // Prevent card navigation when editing next action
+                      >
+                        {!isEditingThis ? (
+                          <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', flex: 1 }}>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Próxima Ação:</span>
+                              <span style={{ fontSize: '12px', fontWeight: '500' }} title={client.nextAction}>{client.nextAction || 'Definir ação...'}</span>
+                            </div>
+                            <button 
+                              className="btn-icon" 
+                              style={{ width: '24px', height: '24px', flexShrink: 0 }}
+                              onClick={(e) => startEditing(e, client)}
+                              title="Editar ação"
+                            >
+                              <Edit2 size={10} />
+                            </button>
+                          </>
+                        ) : (
+                          <div style={{ display: 'flex', width: '100%', gap: '6px', alignItems: 'center' }}>
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              style={{ flex: 1, padding: '4px 8px', fontSize: '12px', height: '28px' }}
+                              value={nextActionValue}
+                              onChange={(e) => setNextActionValue(e.target.value)}
+                              placeholder="Nova ação..."
+                              autoFocus
+                            />
+                            <button 
+                              className="btn-icon" 
+                              style={{ width: '28px', height: '28px', color: 'var(--green-primary)', flexShrink: 0 }}
+                              onClick={(e) => saveNextAction(e, client.id)}
+                            >
+                              <Check size={12} />
+                            </button>
+                            <button 
+                              className="btn-icon" 
+                              style={{ width: '28px', height: '28px', color: 'var(--badge-red)', flexShrink: 0 }}
+                              onClick={cancelEditing}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
+                  );
+                })
+              )}
             </div>
-          );
-        })}
-      </div>
-
-      {/* Drawer Overlay */}
-      <div 
-        className={`drawer-overlay ${selectedClientId ? 'open' : ''}`}
-        onClick={handleCloseDrawer}
-      />
-
-      {/* Slide-out Drawer */}
-      <div className={`drawer ${selectedClientId ? 'open' : ''}`}>
-        {selectedClient && (
-          <Client360View 
-            client={selectedClient} 
-            isDrawer={true} 
-            onClose={handleCloseDrawer} 
-            onUpdateChecklist={(mod, itemIdx, val) => onUpdateClientChecklist(selectedClient.id, mod, itemIdx, val)}
-            onUpdateNextAction={(completed) => onUpdateNextAction(selectedClient.id, completed)}
-          />
-        )}
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

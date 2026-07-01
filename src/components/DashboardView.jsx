@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Calendar, Users, CheckSquare, AlertTriangle, Edit2, Trash2, X, Plus } from 'lucide-react';
+import { Calendar, Users, CheckSquare, AlertTriangle, Edit2, Trash2, X, Plus, Phone, Mail } from 'lucide-react';
 import { parseBRDate, getDateStatus, toBRDate } from '../utils';
+import CustomDatePicker from './CustomDatePicker';
 
 export default function DashboardView({ 
   clients, 
@@ -241,12 +242,10 @@ export default function DashboardView({
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            <input 
-              type="date" 
-              className="form-input"
+            <CustomDatePicker
               value={quickDate}
-              onChange={e => setQuickDate(e.target.value)}
-              style={{ flex: 1, minWidth: '120px' }}
+              onChange={setQuickDate}
+              placeholder="DD/MM/AAAA"
               required
             />
             <button type="submit" className="btn-primary" style={{ padding: '8px 14px', height: '38px', flexShrink: 0 }}>
@@ -328,37 +327,63 @@ export default function DashboardView({
           </div>
         </div>
 
-        {/* Right Side: SLA Resumido */}
+        {/* Right Side: Precisam de Atenção */}
         <div className="dashboard-section">
           <div className="section-header">
-            <h3 className="section-title">Resumo de SLA (Mais Críticos)</h3>
+            <h3 className="section-title">Precisam de Atenção</h3>
           </div>
-          <div className="sla-list">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {slaClients.length === 0 ? (
-              <div className="empty-state">
-                <span className="empty-state-icon">📊</span>
-                <p>Nenhum cliente cadastrado.</p>
-              </div>
+              <div className="empty-state"><span className="empty-state-icon">📊</span><p>Nenhum cliente cadastrado.</p></div>
             ) : (
               slaClients.map(client => {
                 let badgeClass = 'badge-estavel';
                 if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
                 if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
 
+                // Days since last contact
+                const lastContact = client.lastContacts?.[0];
+                let daysSince = '—';
+                if (lastContact) {
+                  try {
+                    const diff = parseBRDate(todayStr).getTime() - parseBRDate(lastContact.date).getTime();
+                    const days = Math.round(diff / (1000 * 60 * 60 * 24));
+                    daysSince = days === 0 ? 'Hoje' : `${days} dia${days > 1 ? 's' : ''}`;
+                  } catch(e) {}
+                }
+
+                // Avatar initials
+                const initials = client.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
                 return (
-                  <div key={client.id} className="sla-item">
-                    <div className="sla-client-row">
-                      <span 
-                        className="sla-client-name"
+                  <div key={client.id} className="at-risk-card">
+                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: client.criticality === 'Crítico' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: client.criticality === 'Crítico' ? 'var(--badge-red)' : 'var(--badge-yellow)' }}>{initials}</span>
+                    </div>
+                    <div className="at-risk-details">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="at-risk-name" onClick={() => onNavigate(`clientes/${client.id}`)}>{client.name}</span>
+                        <span className={`badge ${badgeClass}`} style={{ fontSize: '9px' }}>{client.criticality}</span>
+                      </div>
+                      <span className="at-risk-days">Último contato: {daysSince}</span>
+                      <span className="at-risk-action">{client.nextAction || 'Nenhuma ação definida'}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                      <button
+                        className="btn-primary"
+                        style={{ padding: '4px 8px', fontSize: '11px', gap: '4px' }}
+                        onClick={() => onRegisterContact(client.id, 'Contato registrado via painel de atenção')}
+                        title="Registrar contato"
+                      >
+                        <Phone size={11} /><span>Ligar</span>
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        style={{ padding: '4px 8px', fontSize: '11px', gap: '4px' }}
                         onClick={() => onNavigate(`clientes/${client.id}`)}
                       >
-                        {client.name}
-                      </span>
-                      <span className={`badge ${badgeClass}`}>{client.criticality}</span>
-                    </div>
-                    <div className="sla-action-box">
-                      <div className="sla-action-title">Próxima Ação:</div>
-                      <div>{client.nextAction || 'Nenhuma ação definida'}</div>
+                        <Mail size={11} /><span>Ver</span>
+                      </button>
                     </div>
                   </div>
                 );
@@ -547,11 +572,9 @@ export default function DashboardView({
                 )}
                 <div className="form-group">
                   <label className="form-label">Prazo</label>
-                  <input 
-                    type="date" 
-                    className="form-input" 
+                  <CustomDatePicker
                     value={editDeadline}
-                    onChange={e => setEditDeadline(e.target.value)}
+                    onChange={setEditDeadline}
                     required
                   />
                 </div>

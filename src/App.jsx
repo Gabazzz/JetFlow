@@ -11,7 +11,8 @@ import {
   initialPlans, 
   initialModules, 
   initialAvailableOffers, 
-  initialClients 
+  initialClients,
+  initialStages
 } from './data/data';
 
 import { 
@@ -30,6 +31,7 @@ export default function App() {
   const [modules, setModules] = useState(initialModules);
   const [offers, setOffers] = useState(initialAvailableOffers);
   const [clients, setClients] = useState(initialClients);
+  const [stages, setStages] = useState(initialStages);
 
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -201,6 +203,40 @@ export default function App() {
     }));
   };
 
+  // Stage Mutators
+  const handleAddStage = (stageName) => {
+    setStages(prev => [...prev, stageName]);
+  };
+
+  const handleEditStage = (oldName, newName) => {
+    setStages(prev => prev.map(s => s === oldName ? newName : s));
+    setClients(prev => prev.map(c => c.stage === oldName ? { ...c, stage: newName } : c));
+  };
+
+  const handleRemoveStage = (stageName) => {
+    setStages(prev => prev.filter(s => s !== stageName));
+  };
+
+  const handleReorderStages = (newOrder) => {
+    setStages(newOrder);
+  };
+
+  // Checklist handler
+  const handleUpdateClientChecklist = (clientId, moduleName, checklistItems) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          checklists: {
+            ...(c.checklists || {}),
+            [moduleName]: checklistItems
+          }
+        };
+      }
+      return c;
+    }));
+  };
+
   // Custom client reminder handlers
   const handleAddClientReminder = (clientId, title, description, deadline, criticality) => {
     setClients(prev => prev.map(c => {
@@ -300,7 +336,8 @@ export default function App() {
     if (currentRoute === 'kanban') {
       return (
         <KanbanView 
-          clients={clients} 
+          clients={clients}
+          stages={stages}
           onUpdateClientStage={handleUpdateClientStage}
           onUpdateClientNextAction={handleUpdateClientNextAction}
           onNavigate={handleNavigate}
@@ -334,12 +371,14 @@ export default function App() {
             client={client}
             plans={plans}
             modules={modules}
+            stages={stages}
             availableOffers={offers}
             onUpdateClient={handleUpdateClient}
             onRegisterContact={handleRegisterContact}
             onAddReminder={handleAddClientReminder}
             onEditReminder={handleEditClientReminder}
             onRemoveReminder={handleRemoveClientReminder}
+            onUpdateChecklist={handleUpdateClientChecklist}
             onNavigate={handleNavigate}
           />
         );
@@ -371,6 +410,11 @@ export default function App() {
           onAddOffer={handleAddOffer}
           onEditOffer={handleEditOffer}
           onRemoveOffer={handleRemoveOffer}
+          stages={stages}
+          onAddStage={handleAddStage}
+          onEditStage={handleEditStage}
+          onRemoveStage={handleRemoveStage}
+          onReorderStages={handleReorderStages}
         />
       );
     }
@@ -398,7 +442,8 @@ export default function App() {
       <Sidebar 
         currentRoute={currentRoute} 
         onNavigate={handleNavigate} 
-        profile={profile} 
+        profile={profile}
+        clients={clients}
       />
       <main className="main-container">
         <div className="view-header">

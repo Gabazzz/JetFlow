@@ -1226,3 +1226,688 @@ button, input, select, textarea {
   border: 1px solid var(--border-color);
 }
 
+/* ============================================================
+   JetFlow Prompt B Custom Styles
+   ============================================================ */
+
+/* Custom Date Picker */
+.datepicker-dropdown {
+  position: absolute;
+  top: 42px;
+  left: 0;
+  background-color: #1B1B1B;
+  border: 1px solid #2E2E2E;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  z-index: 1100;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeIn 150ms ease-out;
+}
+
+.datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.datepicker-month-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.datepicker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.datepicker-weekday {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.datepicker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.datepicker-day {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.datepicker-day:hover {
+  background-color: var(--surface-hover);
+}
+
+.datepicker-other-month {
+  color: #444444 !important;
+}
+
+.datepicker-today {
+  border-color: var(--green-primary) !important;
+  color: var(--green-primary);
+}
+
+.datepicker-selected {
+  background-color: var(--green-primary) !important;
+  color: #000000 !important;
+  font-weight: 600;
+}
+
+/* Kanban Reformulated Card */
+.kanban-card-responsible {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.kanban-card-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.kanban-card-module-pill {
+  font-size: 10px;
+  background-color: #2E2E2E;
+  color: #888888;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.kanban-card-divider {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 12px 0;
+}
+
+.kanban-card-footer {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 8px;
+}
+
+.kanban-card-footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kanban-card-footer-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kanban-card-footer-val {
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.kanban-card-action-green {
+  color: var(--green-primary);
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+
+.kanban-card-action-green:hover {
+  background-color: rgba(101, 255, 75, 0.05);
+}
+
+.kanban-card-textarea {
+  width: 100%;
+  background-color: #1B1B1B;
+  border: 1px solid var(--green-primary);
+  border-radius: 4px;
+  color: var(--text-primary);
+  padding: 4px 6px;
+  font-size: 12px;
+  resize: vertical;
+}
+
+/* Sidebar Search Box */
+.sidebar-search-container {
+  position: relative;
+  margin: 8px 8px 16px 8px;
+}
+
+.sidebar-search-input {
+  width: 100%;
+  background-color: #2E2E2E;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 12px 8px 32px;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: var(--transition);
+}
+
+.sidebar-search-input:focus {
+  outline: none;
+  border-color: var(--green-primary);
+}
+
+.sidebar-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+
+.sidebar-search-dropdown {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  right: 0;
+  background-color: var(--card-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-search-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  transition: var(--transition);
+}
+
+.sidebar-search-item:hover {
+  background-color: var(--surface-hover);
+}
+
+.sidebar-search-item:last-child {
+  border-bottom: none;
+}
+
+/* Sidebar Links Rápidos Accordion */
+.sidebar-links-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+
+.sidebar-links-header:hover {
+  color: var(--text-primary);
+  background-color: var(--surface-hover);
+}
+
+.sidebar-links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 16px;
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border-color);
+}
+
+.sidebar-link-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 12px;
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+
+.sidebar-link-item:hover {
+  color: var(--text-primary);
+  background-color: var(--surface-hover);
+}
+
+/* Onboarding Horizontal Step Tracker Timeline */
+.timeline-tracker-container {
+  background-color: var(--card-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.timeline-tracker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.timeline-tracker-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.timeline-tracker-progress-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green-primary);
+}
+
+.timeline-tracker-steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.timeline-tracker-line-bg {
+  position: absolute;
+  left: 2%;
+  right: 2%;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  background-color: var(--border-color);
+  z-index: 1;
+}
+
+.timeline-tracker-line-fill {
+  position: absolute;
+  left: 2%;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  background-color: var(--green-primary);
+  z-index: 2;
+  transition: width 300ms ease-in-out;
+}
+
+.timeline-tracker-step-node {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline-tracker-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--card-surface);
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.timeline-tracker-circle-completed {
+  background-color: var(--green-primary);
+  border-color: var(--green-primary);
+  color: #000;
+}
+
+.timeline-tracker-circle-active {
+  border-color: var(--green-primary);
+  box-shadow: 0 0 10px rgba(101, 255, 75, 0.6);
+  animation: pulseNode 1.5s infinite;
+}
+
+@keyframes pulseNode {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(101, 255, 75, 0.4);
+  }
+  70% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 8px rgba(101, 255, 75, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(101, 255, 75, 0);
+  }
+}
+
+.timeline-tracker-step-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: var(--card-surface);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.timeline-tracker-step-node-active .timeline-tracker-step-label {
+  color: var(--green-primary);
+  font-weight: 600;
+}
+
+/* Accordion for Module checklists */
+.accordion-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.accordion-item {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background-color: var(--card-surface);
+  overflow: hidden;
+}
+
+.accordion-trigger {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  transition: var(--transition);
+}
+
+.accordion-trigger:hover {
+  background-color: var(--surface-hover);
+}
+
+.accordion-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.accordion-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.accordion-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.accordion-progress-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.accordion-content {
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeIn 150ms ease-out;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.checklist-item input {
+  accent-color: var(--green-primary);
+  cursor: pointer;
+}
+
+/* Vertical activity log timeline */
+.vertical-timeline {
+  position: relative;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.vertical-timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background-color: var(--border-color);
+}
+
+.vertical-timeline-node {
+  position: relative;
+  display: flex;
+  gap: 12px;
+}
+
+.vertical-timeline-dot {
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background-color: var(--card-surface);
+  border: 2px solid var(--green-primary);
+  z-index: 2;
+}
+
+.vertical-timeline-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--border-color);
+  color: var(--green-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.vertical-timeline-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.vertical-timeline-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.observation-text {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* Dashboard Activities Daily List */
+.daily-activity-item {
+  padding: 16px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.daily-activity-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.daily-activity-main-line {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.daily-activity-date-badge {
+  background-color: var(--border-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: 8px;
+}
+
+.daily-activity-sub-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* At-risk clients sidebar widget */
+.at-risk-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  align-items: center;
+}
+
+.at-risk-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.at-risk-name {
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.at-risk-name:hover {
+  color: var(--green-primary);
+}
+
+.at-risk-days {
+  font-size: 11px;
+  color: var(--badge-red);
+  font-weight: 600;
+}
+
+.at-risk-action {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Settings Kanban Stage List Reorder */
+.settings-kanban-stage-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: grab;
+}
+
+.settings-kanban-stage-row:active {
+  cursor: grabbing;
+}
+
+/* Inline Creator inside list */
+.settings-inline-add-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--bg-primary);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius);
+  animation: fadeIn 150ms ease-out;
+}
+
+/* Detail header status color dot */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+.status-dot-green {
+  background-color: var(--green-primary);
+  box-shadow: 0 0 6px var(--green-primary);
+}
+.status-dot-red {
+  background-color: var(--badge-red);
+  box-shadow: 0 0 6px var(--badge-red);
+}
+.status-dot-yellow {
+  background-color: var(--badge-yellow);
+  box-shadow: 0 0 6px var(--badge-yellow);
+}
+
+/* Last contact history block */
+.last-contact-block {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+

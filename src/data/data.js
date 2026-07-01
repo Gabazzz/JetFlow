@@ -35,6 +35,46 @@ export const initialAvailableOffers = [
   { id: 'off7', name: 'Multi-atendentes' },
 ];
 
+export const initialStages = ['Novo', 'Kickoff', 'Configuração', 'Treinamento', 'Finalizado'];
+
+// Checklists templates per module
+export const moduleChecklistsTemplate = {
+  'WhatsApp Business': [
+    { label: 'Aprovação do número BSP', checked: true },
+    { label: 'Configuração de perfil comercial', checked: true },
+    { label: 'Disparo de teste de homologação', checked: false }
+  ],
+  'CRM Integrado': [
+    { label: 'Mapeamento de campos personalizados', checked: true },
+    { label: 'Integração de webhooks no CRM', checked: false },
+    { label: 'Teste de sincronização de leads', checked: false }
+  ],
+  'Automação de Fluxos': [
+    { label: 'Definição de regras de automação', checked: false },
+    { label: 'Configuração de mensagens automáticas', checked: false },
+    { label: 'Teste de gatilhos operacionais', checked: false }
+  ],
+  'IA Conversacional': [
+    { label: 'Definição do Prompt de sistema', checked: false },
+    { label: 'Configuração de base de conhecimento', checked: false },
+    { label: 'Homologação de respostas da IA', checked: false }
+  ],
+  'Relatórios Avançados': [
+    { label: 'Criação de dashboards customizados', checked: false },
+    { label: 'Configuração de relatórios automáticos', checked: false }
+  ],
+  'Chatbot Builder': [
+    { label: 'Desenho da árvore de decisão', checked: true },
+    { label: 'Configuração de opções de menu', checked: false },
+    { label: 'Teste de transbordo humano', checked: false }
+  ],
+  'API Oficial': [
+    { label: 'Configuração do WABA', checked: true },
+    { label: 'Verificação da conta Meta Business', checked: true },
+    { label: 'Configuração de webhook oficial', checked: false }
+  ]
+};
+
 // Today in system = 30/06/2026
 export const initialClients = [
   {
@@ -54,6 +94,37 @@ export const initialClients = [
     stage: 'Kickoff',
     nextAction: 'Agendar treinamento da equipe comercial',
     nextContactDate: '01/07/2026', // Critical -> 1 day from 30/06
+    lastUpdated: {
+      date: '30/06/2026',
+      time: '17:45',
+      user: 'Gabriel Almeida'
+    },
+    lastContacts: [
+      { date: '30/06/2026', obs: 'Reunião de alinhamento com equipe de TI. Pendente liberação de portas na VPN.' },
+      { date: '28/06/2026', obs: 'Contato telefônico com Marcos sobre instabilidade no webhook.' }
+    ],
+    activityHistory: [
+      { avatar: 'GA', name: 'Gabriel Almeida', action: 'Criou o cliente no sistema', date: '30/06/2026 às 10:00', isObservation: false },
+      { avatar: 'GA', name: 'Gabriel Almeida', action: 'Observação do cliente: O cliente solicitou urgência na configuração do WhatsApp.', date: '30/06/2026 às 11:30', isObservation: true },
+      { avatar: 'GA', name: 'Gabriel Almeida', action: 'Marcou etapa Kickoff no Kanban', date: '30/06/2026 às 14:00', isObservation: false }
+    ],
+    checklists: {
+      'WhatsApp Business': [
+        { label: 'Aprovação do número BSP', checked: true },
+        { label: 'Configuração de perfil comercial', checked: true },
+        { label: 'Disparo de teste de homologação', checked: false }
+      ],
+      'CRM Integrado': [
+        { label: 'Mapeamento de campos personalizados', checked: true },
+        { label: 'Integração de webhooks no CRM', checked: false },
+        { label: 'Teste de sincronização de leads', checked: false }
+      ],
+      'Automação de Fluxos': [
+        { label: 'Definição de regras de automação', checked: false },
+        { label: 'Configuração de mensagens automáticas', checked: false },
+        { label: 'Teste de gatilhos operacionais', checked: false }
+      ]
+    },
     reminders: [
       {
         id: 'r_c1_1',
@@ -103,13 +174,51 @@ export const initialClients = [
     entryDate: '20/05/2026',
     responsible: 'Gabriel Almeida',
     plan: 'Enterprise',
-    activeModules: ['WhatsApp Business', 'CRM Integrado', 'Chatbot Builder', 'Relatórios Avançados', 'API Oficial'], // Has API Oficial
+    activeModules: ['WhatsApp Business', 'CRM Integrado', 'Chatbot Builder', 'Relatórios Avançados', 'API Oficial'],
     criticality: 'Atenção',
     criticalityJustification: 'Treinamento da equipe atrasado. Cliente solicitou adiamento por 10 dias por demanda interna.',
     observations: 'Grande empresa de varejo. Contato principal: Fernanda Souza (TI). Reuniões preferencialmente por Google Meet.',
     stage: 'Treinamento',
     nextAction: 'Realizar treinamento da equipe de vendas (25 pessoas)',
     nextContactDate: '02/07/2026', // Atenção -> 2 days from 30/06
+    lastUpdated: {
+      date: '30/06/2026',
+      time: '16:00',
+      user: 'Gabriel Almeida'
+    },
+    lastContacts: [
+      { date: '29/06/2026', obs: 'Fernanda solicitou adiamento do treinamento para o dia 05/07.' }
+    ],
+    activityHistory: [
+      { avatar: 'GA', name: 'Gabriel Almeida', action: 'Adicionou o cliente Nexus', date: '20/05/2026 às 09:00', isObservation: false },
+      { avatar: 'GA', name: 'Gabriel Almeida', action: 'Observação do cliente: O cliente solicitou material em PDF sobre Chatbots.', date: '29/06/2026 às 15:30', isObservation: true }
+    ],
+    checklists: {
+      'WhatsApp Business': [
+        { label: 'Aprovação do número BSP', checked: true },
+        { label: 'Configuração de perfil comercial', checked: true },
+        { label: 'Disparo de teste de homologação', checked: true }
+      ],
+      'CRM Integrado': [
+        { label: 'Mapeamento de campos personalizados', checked: true },
+        { label: 'Integração de webhooks no CRM', checked: true },
+        { label: 'Teste de sincronização de leads', checked: false }
+      ],
+      'Chatbot Builder': [
+        { label: 'Desenho da árvore de decisão', checked: true },
+        { label: 'Configuração de opções de menu', checked: false },
+        { label: 'Teste de transbordo humano', checked: false }
+      ],
+      'Relatórios Avançados': [
+        { label: 'Criação de dashboards customizados', checked: false },
+        { label: 'Configuração de relatórios automáticos', checked: false }
+      ],
+      'API Oficial': [
+        { label: 'Configuração do WABA', checked: true },
+        { label: 'Verificação da conta Meta Business', checked: true },
+        { label: 'Configuração de webhook oficial', checked: false }
+      ]
+    },
     reminders: [
       {
         id: 'r_c2_1',
@@ -167,6 +276,29 @@ export const initialClients = [
     stage: 'Configuração',
     nextAction: 'Finalizar configuração dos fluxos de automação de agendamento',
     nextContactDate: '03/07/2026', // Estável -> 3 days from 30/06
+    lastUpdated: {
+      date: '28/06/2026',
+      time: '11:00',
+      user: 'Gabriel Almeida'
+    },
+    lastContacts: [
+      { date: '28/06/2026', obs: 'Validação técnica concluída com sucesso nas automações.' }
+    ],
+    activityHistory: [
+      { avatar: 'GA', name: 'Gabriel Almeida', action: 'Cadastrou clínica no sistema', date: '10/06/2026 às 11:00', isObservation: false }
+    ],
+    checklists: {
+      'WhatsApp Business': [
+        { label: 'Aprovação do número BSP', checked: true },
+        { label: 'Configuração de perfil comercial', checked: true },
+        { label: 'Disparo de teste de homologação', checked: false }
+      ],
+      'Automação de Fluxos': [
+        { label: 'Definição de regras de automação', checked: true },
+        { label: 'Configuração de mensagens automáticas', checked: true },
+        { label: 'Teste de gatilhos operacionais', checked: false }
+      ]
+    },
     reminders: [
       {
         id: 'r_c3_1',
@@ -211,6 +343,29 @@ export const initialClients = [
     stage: 'Novo',
     nextAction: 'Coleta de dados da API legada',
     nextContactDate: '03/07/2026',
+    lastUpdated: {
+      date: '15/06/2026',
+      time: '14:20',
+      user: 'Gabriel Almeida'
+    },
+    lastContacts: [
+      { date: '15/06/2026', obs: 'Cliente integrado, aguardando documentação da API legada.' }
+    ],
+    activityHistory: [
+      { avatar: 'GA', name: 'Gabriel Almeida', action: 'Importou dados Saúde Fácil', date: '15/06/2026 às 14:20', isObservation: false }
+    ],
+    checklists: {
+      'WhatsApp Business': [
+        { label: 'Aprovação do número BSP', checked: false },
+        { label: 'Configuração de perfil comercial', checked: false },
+        { label: 'Disparo de teste de homologação', checked: false }
+      ],
+      'IA Conversacional': [
+        { label: 'Definição do Prompt de sistema', checked: false },
+        { label: 'Configuração de base de conhecimento', checked: false },
+        { label: 'Homologação de respostas da IA', checked: false }
+      ]
+    },
     reminders: [],
     quickLinks: {
       crm: '',

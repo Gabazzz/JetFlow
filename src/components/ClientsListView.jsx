@@ -1,9 +1,27 @@
 import React, { useState } from 'react';
-import { Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X, List, Kanban, Check } from 'lucide-react';
+import KanbanView from './KanbanView';
+import { calculateNextContactDate } from '../utils';
 
-export default function ClientsListView({ clients, plans, modules, onAddClient, onNavigate }) {
+export default function ClientsListView({ 
+  clients, 
+  plans, 
+  modules, 
+  onAddClient, 
+  onNavigate,
+  onUpdateClientStage,
+  onUpdateClientNextAction,
+  onUpdateClientCriticality,
+  onRegisterContact
+}) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState('lista'); // 'lista' or 'kanban'
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Popover State: { clientId, type: 'contato' | 'acao' | 'criticidade' }
+  const [activePopover, setActivePopover] = useState(null);
+  const [popoverObs, setPopoverObs] = useState('');
+  const [popoverAction, setPopoverAction] = useState('');
 
   // Form State for new client
   const [name, setName] = useState('');
@@ -11,7 +29,7 @@ export default function ClientsListView({ clients, plans, modules, onAddClient, 
   const [email, setEmail] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [cnpj, setCnpj] = useState('');
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [entryDate, setEntryDate] = useState('30/06/2026'); // DD/MM/AAAA default
   const [selectedPlan, setSelectedPlan] = useState('');
   const [selectedModules, setSelectedModules] = useState([]);
   const [criticality, setCriticality] = useState('Estável');
@@ -32,7 +50,6 @@ export default function ClientsListView({ clients, plans, modules, onAddClient, 
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
-    // Set default plan if available
     if (plans.length > 0) {
       setSelectedPlan(plans[0].name);
     }
@@ -40,13 +57,12 @@ export default function ClientsListView({ clients, plans, modules, onAddClient, 
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    // Reset Form
     setName('');
     setPhone('');
     setEmail('');
     setWhatsapp('');
     setCnpj('');
-    setEntryDate(new Date().toISOString().slice(0, 10));
+    setEntryDate('30/06/2026');
     setSelectedModules([]);
     setCriticality('Estável');
     setJustification('');
@@ -57,6 +73,9 @@ export default function ClientsListView({ clients, plans, modules, onAddClient, 
     e.preventDefault();
     if (!name.trim()) return;
 
+    // Auto calculate next contact date based on criticality
+    const nextContact = calculateNextContactDate(criticality, '30/06/2026');
+
     const newClient = {
       id: `c_${Date.now()}`,
       name,
@@ -65,27 +84,69 @@ export default function ClientsListView({ clients, plans, modules, onAddClient, 
       email,
       cnpj,
       entryDate,
-      responsible: 'Gabriel Almeida', // Default logged-in specialist
+      responsible: 'Gabriel Almeida',
       plan: selectedPlan,
       activeModules: selectedModules,
       criticality,
       criticalityJustification: justification,
       observations,
-      stage: 'Novo', // Starts in the first column of Kanban
+      stage: 'Novo',
       nextAction: 'Reunião de kickoff pendente',
-      reminder: null,
-      interestOffers: [],
+      nextContactDate: nextContact,
+      reminders: [],
+      quickLinks: {
+        crm: '',
+        discordIntegration: '',
+        discordSupport: [],
+        site: '',
+        deskPlatformUrl: '',
+        deskPlatformEmail: ''
+      },
       meetings: [],
-      tasks: []
+      tasks: [],
+      interestOffers: []
     };
 
     onAddClient(newClient);
     handleCloseModal();
   };
 
+  const handleOpenPopover = (clientId, type, currentVal = '') => {
+    setActivePopover({ clientId, type });
+    if (type === 'contato') {
+      setPopoverObs('');
+    } else if (type === 'acao') {
+      setPopoverAction(currentVal);
+    }
+  };
+
+  const handleConfirmContact = (clientId) => {
+    onRegisterContact(clientId, popoverObs);
+    setActivePopover(null);
+  };
+
+  const handleConfirmAction = (clientId) => {
+    onUpdateClientNextAction(clientId, popoverAction);
+    setActivePopover(null);
+  };
+
+  const handleConfirmCriticality = (clientId, newCrit) => {
+    onUpdateClientCriticality(clientId, newCrit);
+    setActivePopover(null);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
-      {/* Search and Action Row */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', position: 'relative' }}>
+      
+      {/* Click-away blocker overlay for popovers */}
+      {activePopover && (
+        <div 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, cursor: 'default' }}
+          onClick={() => setActivePopover(null)}
+        />
+      )}
+
+      {/* Top search, toggle and creation row */}
       <div className="search-bar-row">
         <div className="search-input-wrapper">
           <Search size={16} className="search-icon" />
@@ -97,60 +158,200 @@ export default function ClientsListView({ clients, plans, modules, onAddClient, 
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
+
+        {/* List / Kanban Mode Toggle */}
+        <div className="toggle-group">
+          <button 
+            className={`toggle-btn ${viewMode === 'lista' ? 'active' : ''}`}
+            onClick={() => setViewMode('lista')}
+          >
+            <List size={14} />
+            <span>Lista</span>
+          </button>
+          <button 
+            className={`toggle-btn ${viewMode === 'kanban' ? 'active' : ''}`}
+            onClick={() => setViewMode('kanban')}
+          >
+            <Kanban size={14} />
+            <span>Kanban</span>
+          </button>
+        </div>
+
         <button className="btn-primary" onClick={handleOpenModal}>
           <Plus size={16} />
           <span>Novo Cliente</span>
         </button>
       </div>
 
-      {/* Clients Table / List */}
-      <div className="table-container">
-        {filteredClients.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-state-icon">👥</span>
-            <p>Nenhum cliente encontrado.</p>
-          </div>
-        ) : (
-          <table className="client-table">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Plano</th>
-                <th>Módulos Ativos</th>
-                <th>Criticidade</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredClients.map(client => {
-                let badgeClass = 'badge-estavel';
-                if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
-                if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
+      {/* Conditional View Rendering */}
+      {viewMode === 'kanban' ? (
+        <KanbanView 
+          clients={filteredClients}
+          onUpdateClientStage={onUpdateClientStage}
+          onUpdateClientNextAction={onUpdateClientNextAction}
+          onNavigate={onNavigate}
+        />
+      ) : (
+        <div className="table-container" style={{ overflow: 'visible' }}>
+          {filteredClients.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-state-icon">👥</span>
+              <p>Nenhum cliente encontrado.</p>
+            </div>
+          ) : (
+            <table className="client-table" style={{ width: '100%' }}>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Plano</th>
+                  <th>Módulos Ativos</th>
+                  <th>Criticidade</th>
+                  <th style={{ textAlign: 'right', width: '280px' }}>Ações Rápidas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredClients.map(client => {
+                  let badgeClass = 'badge-estavel';
+                  if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
+                  if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
 
-                return (
-                  <tr key={client.id} onClick={() => onNavigate(`clientes/${client.id}`)}>
-                    <td style={{ fontWeight: '600' }}>{client.name}</td>
-                    <td>{client.plan}</td>
-                    <td>
-                      <div className="module-pills">
-                        {client.activeModules && client.activeModules.length > 0 ? (
-                          client.activeModules.map(mod => (
-                            <span key={mod} className="module-pill">{mod}</span>
-                          ))
-                        ) : (
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Nenhum</span>
+                  const isPopoverActive = activePopover && activePopover.clientId === client.id;
+
+                  return (
+                    <tr key={client.id} onClick={() => onNavigate(`clientes/${client.id}`)}>
+                      <td style={{ fontWeight: '600' }}>{client.name}</td>
+                      <td>{client.plan}</td>
+                      <td>
+                        <div className="module-pills">
+                          {client.activeModules && client.activeModules.length > 0 ? (
+                            client.activeModules.map(mod => (
+                              <span key={mod} className="module-pill">{mod}</span>
+                            ))
+                          ) : (
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Nenhum</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${badgeClass}`}>{client.criticality}</span>
+                      </td>
+
+                      {/* Hover Actions Menu Cell */}
+                      <td style={{ position: 'relative', width: '280px', zIndex: isPopoverActive ? 1000 : 10 }}>
+                        <div className="row-actions">
+                          <button 
+                            className="btn-secondary" 
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            onClick={(e) => { e.stopPropagation(); handleOpenPopover(client.id, 'contato'); }}
+                          >
+                            Registrar Contato
+                          </button>
+                          <button 
+                            className="btn-secondary" 
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            onClick={(e) => { e.stopPropagation(); handleOpenPopover(client.id, 'acao', client.nextAction); }}
+                          >
+                            Próxima Ação
+                          </button>
+                          <button 
+                            className="btn-secondary" 
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            onClick={(e) => { e.stopPropagation(); handleOpenPopover(client.id, 'criticidade'); }}
+                          >
+                            Criticidade
+                          </button>
+                          <button 
+                            className="btn-secondary" 
+                            style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--green-primary)' }}
+                            onClick={(e) => { e.stopPropagation(); onNavigate(`clientes/${client.id}`); }}
+                          >
+                            Detalhes →
+                          </button>
+                        </div>
+
+                        {/* Inline Popovers */}
+                        {isPopoverActive && (
+                          <div 
+                            className="quick-popover" 
+                            style={{ right: '10px', top: '40px' }}
+                            onClick={(e) => e.stopPropagation()} // Prevent row click navigation
+                          >
+                            {activePopover.type === 'contato' && (
+                              <>
+                                <span className="form-label" style={{ fontWeight: '600' }}>Registrar Contato</span>
+                                <textarea 
+                                  className="form-textarea" 
+                                  rows="2"
+                                  placeholder="O que foi tratado? (opcional)"
+                                  value={popoverObs}
+                                  onChange={e => setPopoverObs(e.target.value)}
+                                  style={{ width: '100%', fontSize: '12px' }}
+                                />
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setActivePopover(null)}>Cancelar</button>
+                                  <button className="btn-primary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => handleConfirmContact(client.id)}>Confirmar</button>
+                                </div>
+                              </>
+                            )}
+
+                            {activePopover.type === 'acao' && (
+                              <>
+                                <span className="form-label" style={{ fontWeight: '600' }}>Editar Próxima Ação</span>
+                                <input 
+                                  type="text" 
+                                  className="form-input"
+                                  value={popoverAction}
+                                  onChange={e => setPopoverAction(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') handleConfirmAction(client.id); }}
+                                  style={{ width: '100%', fontSize: '12px', height: '32px' }}
+                                  autoFocus
+                                />
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setActivePopover(null)}>Cancelar</button>
+                                  <button className="btn-primary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => handleConfirmAction(client.id)}>Salvar</button>
+                                </div>
+                              </>
+                            )}
+
+                            {activePopover.type === 'criticidade' && (
+                              <>
+                                <span className="form-label" style={{ fontWeight: '600', marginBottom: '4px' }}>Alterar Criticidade</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <button 
+                                    className="btn-secondary" 
+                                    style={{ justifyContent: 'center', color: 'var(--badge-red)' }} 
+                                    onClick={() => handleConfirmCriticality(client.id, 'Crítico')}
+                                  >
+                                    Crítico (1 dia)
+                                  </button>
+                                  <button 
+                                    className="btn-secondary" 
+                                    style={{ justifyContent: 'center', color: 'var(--badge-yellow)' }} 
+                                    onClick={() => handleConfirmCriticality(client.id, 'Atenção')}
+                                  >
+                                    Atenção (2 dias)
+                                  </button>
+                                  <button 
+                                    className="btn-secondary" 
+                                    style={{ justifyContent: 'center', color: 'var(--badge-green)' }} 
+                                    onClick={() => handleConfirmCriticality(client.id, 'Estável')}
+                                  >
+                                    Estável (3 dias)
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`badge ${badgeClass}`}>{client.criticality}</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       {/* Novo Cliente Modal */}
       {isModalOpen && (
@@ -219,10 +420,11 @@ export default function ClientsListView({ clients, plans, modules, onAddClient, 
                   <div className="form-group">
                     <label className="form-label">Data de Entrada</label>
                     <input 
-                      type="date" 
+                      type="text" 
                       className="form-input" 
                       value={entryDate} 
                       onChange={e => setEntryDate(e.target.value)} 
+                      placeholder="DD/MM/AAAA"
                     />
                   </div>
                   <div className="form-group">

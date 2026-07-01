@@ -14,6 +14,13 @@ import {
   initialClients 
 } from './data/data';
 
+import { 
+  calculateNextContactDate, 
+  getDateStatus 
+} from './utils';
+
+import { Bell, X } from 'lucide-react';
+
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState('dashboard');
   
@@ -23,6 +30,8 @@ export default function App() {
   const [modules, setModules] = useState(initialModules);
   const [offers, setOffers] = useState(initialAvailableOffers);
   const [clients, setClients] = useState(initialClients);
+
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Hash-based simple routing
   useEffect(() => {
@@ -61,7 +70,6 @@ export default function App() {
 
   const handleEditPlan = (id, newName) => {
     setPlans(prev => prev.map(p => p.id === id ? { ...p, name: newName } : p));
-    // Synchronize renamed plan on clients
     setClients(prev => prev.map(c => {
       const oldPlanObj = plans.find(p => p.id === id);
       if (oldPlanObj && c.plan === oldPlanObj.name) {
@@ -82,7 +90,6 @@ export default function App() {
 
   const handleEditModule = (id, newName) => {
     setModules(prev => prev.map(m => m.id === id ? { ...m, name: newName } : m));
-    // Synchronize renamed modules on clients activeModules list
     setClients(prev => prev.map(c => {
       const oldModObj = modules.find(m => m.id === id);
       if (oldModObj && c.activeModules.includes(oldModObj.name)) {
@@ -98,7 +105,6 @@ export default function App() {
   const handleRemoveModule = (id) => {
     const targetModule = modules.find(m => m.id === id);
     setModules(prev => prev.filter(m => m.id !== id));
-    // Remove deleted module from clients
     if (targetModule) {
       setClients(prev => prev.map(c => ({
         ...c,
@@ -114,7 +120,6 @@ export default function App() {
 
   const handleEditOffer = (id, newName) => {
     setOffers(prev => prev.map(o => o.id === id ? { ...o, name: newName } : o));
-    // Synchronize renamed offer on clients interestOffers list
     setClients(prev => prev.map(c => {
       const oldOfferObj = offers.find(o => o.id === id);
       if (oldOfferObj) {
@@ -130,7 +135,6 @@ export default function App() {
   const handleRemoveOffer = (id) => {
     const targetOffer = offers.find(o => o.id === id);
     setOffers(prev => prev.filter(o => o.id !== id));
-    // Remove deleted offer from clients
     if (targetOffer) {
       setClients(prev => prev.map(c => ({
         ...c,
@@ -162,11 +166,121 @@ export default function App() {
     ));
   };
 
-  const handleUpdateClientReminder = (clientId, reminderObj) => {
-    setClients(prev => prev.map(c => 
-      c.id === clientId ? { ...c, reminder: reminderObj } : c
-    ));
+  // Contact cycle handler: updates nextContactDate automatically starting from 30/06/2026
+  const handleRegisterContact = (clientId, obsText = '') => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        const nextContact = calculateNextContactDate(c.criticality, '30/06/2026');
+        const nextMeet = {
+          id: `meet_${Date.now()}`,
+          date: '30/06/2026',
+          time: '12:00',
+          title: obsText.trim() ? `Contato: ${obsText}` : 'Contato periódico realizado'
+        };
+        return {
+          ...c,
+          nextContactDate: nextContact,
+          meetings: [nextMeet, ...(c.meetings || [])]
+        };
+      }
+      return c;
+    }));
   };
+
+  const handleUpdateClientCriticality = (clientId, newCriticality) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        const nextContact = calculateNextContactDate(newCriticality, '30/06/2026');
+        return {
+          ...c,
+          criticality: newCriticality,
+          nextContactDate: nextContact
+        };
+      }
+      return c;
+    }));
+  };
+
+  // Custom client reminder handlers
+  const handleAddClientReminder = (clientId, title, description, deadline, criticality) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        const newReminder = {
+          id: `r_${Date.now()}`,
+          title,
+          description,
+          deadline,
+          criticality
+        };
+        return {
+          ...c,
+          reminders: [...(c.reminders || []), newReminder]
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleEditClientReminder = (clientId, reminderId, updatedFields) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          reminders: c.reminders.map(r => r.id === reminderId ? { ...r, ...updatedFields } : r)
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleRemoveClientReminder = (clientId, reminderId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          reminders: c.reminders.filter(r => r.id !== reminderId)
+        };
+      }
+      return c;
+    }));
+  };
+
+  // Gather overdue or today's notifications
+  const alertNotifications = [];
+  clients.forEach(c => {
+    // 1. SLA contact reminders
+    if (c.nextContactDate) {
+      const status = getDateStatus(c.nextContactDate, '30/06/2026');
+      if (status === 'overdue' || status === 'today') {
+        alertNotifications.push({
+          id: `cycle_${c.id}`,
+          type: 'cycle',
+          clientId: c.id,
+          clientName: c.name,
+          title: `SLA: Contato Periódico (${c.criticality})`,
+          deadline: c.nextContactDate,
+          status
+        });
+      }
+    }
+    // 2. Custom reminders
+    if (c.reminders) {
+      c.reminders.forEach(r => {
+        const status = getDateStatus(r.deadline, '30/06/2026');
+        if (status === 'overdue' || status === 'today') {
+          alertNotifications.push({
+            id: r.id,
+            type: 'custom',
+            clientId: c.id,
+            clientName: c.name,
+            title: r.title,
+            deadline: r.deadline,
+            status
+          });
+        }
+      });
+    }
+  });
 
   // Routing render helper
   const renderView = () => {
@@ -174,7 +288,10 @@ export default function App() {
       return (
         <DashboardView 
           clients={clients} 
-          onUpdateClientReminder={handleUpdateClientReminder}
+          onAddReminder={handleAddClientReminder}
+          onUpdateReminder={handleEditClientReminder}
+          onRemoveReminder={handleRemoveClientReminder}
+          onRegisterContact={handleRegisterContact}
           onNavigate={handleNavigate}
         />
       );
@@ -199,6 +316,10 @@ export default function App() {
           modules={modules}
           onAddClient={handleAddClient}
           onNavigate={handleNavigate}
+          onUpdateClientStage={handleUpdateClientStage}
+          onUpdateClientNextAction={handleUpdateClientNextAction}
+          onUpdateClientCriticality={handleUpdateClientCriticality}
+          onRegisterContact={handleRegisterContact}
         />
       );
     }
@@ -215,6 +336,10 @@ export default function App() {
             modules={modules}
             availableOffers={offers}
             onUpdateClient={handleUpdateClient}
+            onRegisterContact={handleRegisterContact}
+            onAddReminder={handleAddClientReminder}
+            onEditReminder={handleEditClientReminder}
+            onRemoveReminder={handleRemoveClientReminder}
             onNavigate={handleNavigate}
           />
         );
@@ -250,7 +375,6 @@ export default function App() {
       );
     }
 
-    // 404 Fallback
     return (
       <div className="empty-state">
         <span className="empty-state-icon">⚠️</span>
@@ -279,6 +403,72 @@ export default function App() {
       <main className="main-container">
         <div className="view-header">
           <h2 className="view-title">{getPageTitle()}</h2>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* Notification Bell */}
+            <div className="notification-wrapper">
+              <button 
+                className="notification-bell" 
+                onClick={() => setShowNotifications(!showNotifications)}
+                title="Central de Alertas de Contatos e Lembretes"
+              >
+                <Bell size={20} />
+                {alertNotifications.length > 0 && (
+                  <span className="notification-badge">{alertNotifications.length}</span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <>
+                  <div 
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
+                    onClick={() => setShowNotifications(false)}
+                  />
+                  <div className="notification-dropdown" onClick={(e) => e.stopPropagation()}>
+                    <div className="notification-header">
+                      <span>Lembretes Vencidos ou Hoje ({alertNotifications.length})</span>
+                      <button className="btn-icon" style={{ width: '24px', height: '24px' }} onClick={() => setShowNotifications(false)}>
+                        <X size={12} />
+                      </button>
+                    </div>
+                    <div className="notification-list">
+                      {alertNotifications.length === 0 ? (
+                        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                          Nenhum lembrete atrasado ou vencendo hoje.
+                        </div>
+                      ) : (
+                        alertNotifications.map(item => (
+                          <div key={item.id} className="notification-item">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <strong style={{ color: 'var(--text-primary)' }}>{item.clientName}</strong>
+                              <span className={item.status === 'overdue' ? 'date-overdue' : 'date-today'} style={{ fontSize: '11px' }}>
+                                {item.status === 'overdue' ? 'Atrasado' : 'Hoje'} ({item.deadline})
+                              </span>
+                            </div>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{item.title}</span>
+                            <button 
+                              className="btn-primary" 
+                              style={{ padding: '4px 8px', fontSize: '11px', alignSelf: 'flex-start', marginTop: '4px' }}
+                              onClick={() => {
+                                if (item.type === 'custom') {
+                                  handleRemoveClientReminder(item.clientId, item.id);
+                                } else {
+                                  handleRegisterContact(item.clientId, 'Contato de ciclo registrado');
+                                }
+                                alert('Contato registrado com sucesso!');
+                              }}
+                            >
+                              Registrar Contato
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
         {renderView()}
       </main>

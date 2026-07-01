@@ -1,15 +1,32 @@
 import React, { useState } from 'react';
-import { Calendar, Users, CheckSquare, AlertTriangle, Edit2, Trash2, X, ArrowRight } from 'lucide-react';
+import { Calendar, Users, CheckSquare, AlertTriangle, Edit2, Trash2, X, Plus } from 'lucide-react';
+import { parseBRDate, getDateStatus, toBRDate } from '../utils';
 
-export default function DashboardView({ clients, onUpdateClientReminder, onNavigate }) {
+export default function DashboardView({ 
+  clients, 
+  onAddReminder, 
+  onUpdateReminder, 
+  onRemoveReminder, 
+  onRegisterContact, 
+  onNavigate 
+}) {
   const [activeModal, setActiveModal] = useState(null); // null, 'reunioes', 'ativos', 'tarefas', 'criticos'
-  const [editingReminderClient, setEditingReminderClient] = useState(null); // client object
-  const [editReminderText, setEditReminderText] = useState('');
-  const [editReminderDeadline, setEditReminderDeadline] = useState('');
-  const [dismissingClientIds, setDismissingClientIds] = useState([]);
+  
+  // Quick Reminder Form State
+  const [quickTitle, setQuickTitle] = useState('');
+  const [quickClientId, setQuickClientId] = useState('');
+  const [quickDate, setQuickDate] = useState('');
 
-  // Calculations for today (2026-06-30)
-  const todayStr = '2026-06-30';
+  // Editing reminder state
+  const [editingReminder, setEditingReminder] = useState(null); // { clientId, id, type, title, description, deadline, criticality }
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDeadline, setEditDeadline] = useState('');
+  const [editCriticality, setEditCriticality] = useState('Normal');
+
+  const [dismissingReminderIds, setDismissingReminderIds] = useState([]);
+
+  const todayStr = '30/06/2026';
   
   // Meetings today
   const meetingsToday = [];
@@ -27,7 +44,7 @@ export default function DashboardView({ clients, onUpdateClientReminder, onNavig
     }
   });
 
-  // Active clients (all that are not 'Finalizado')
+  // Active clients
   const activeClients = clients.filter(c => c.stage !== 'Finalizado');
 
   // Pending tasks
@@ -47,10 +64,7 @@ export default function DashboardView({ clients, onUpdateClientReminder, onNavig
   // Critical clients
   const criticalClients = clients.filter(c => c.criticality === 'Crítico');
 
-  // Reminders (clients with active reminder)
-  const clientReminders = clients.filter(c => c.reminder && c.reminder.text);
-
-  // Top 3 critical clients for SLA summary (ordered by Criticality priority: Crítico, Atenção, Estável)
+  // Top 3 critical clients for SLA summary
   const getCriticalityScore = (crit) => {
     if (crit === 'Crítico') return 3;
     if (crit === 'Atenção') return 2;
@@ -60,28 +74,98 @@ export default function DashboardView({ clients, onUpdateClientReminder, onNavig
     .sort((a, b) => getCriticalityScore(b.criticality) - getCriticalityScore(a.criticality))
     .slice(0, 3);
 
-  // Edit reminder handler
-  const handleOpenEditReminder = (client) => {
-    setEditingReminderClient(client);
-    setEditReminderText(client.reminder?.text || '');
-    setEditReminderDeadline(client.reminder?.deadline || '');
-  };
+  // Merge Custom Reminders and SLA Automatic Cycles
+  const mergedReminders = [];
+  clients.forEach(c => {
+    // 1. Custom reminders
+    if (c.reminders) {
+      c.reminders.forEach(r => {
+        mergedReminders.push({
+          id: r.id,
+          type: 'custom',
+          clientId: c.id,
+          clientName: c.name,
+          title: r.title,
+          description: r.description,
+          deadline: r.deadline,
+          criticality: r.criticality // Urgente / Normal / Baixo
+        });
+      });
+    }
+    // 2. SLA Automatic Cycles
+    if (c.nextContactDate) {
+      mergedReminders.push({
+        id: `cycle_${c.id}`,
+        type: 'cycle',
+        clientId: c.id,
+        clientName: c.name,
+        title: `Contato Periódico (${c.criticality})`,
+        description: `Contato periódico a cada ${c.criticality === 'Crítico' ? '1 dia' : c.criticality === 'Atenção' ? '2 dias' : '3 dias'}`,
+        deadline: c.nextContactDate,
+        criticality: c.criticality === 'Crítico' ? 'Urgente' : c.criticality === 'Atenção' ? 'Normal' : 'Baixo'
+      });
+    }
+  });
 
-  const handleSaveReminder = (e) => {
+  // Sort by deadline (closer/overdue first)
+  mergedReminders.sort((a, b) => {
+    return parseBRDate(a.deadline).getTime() - parseBRDate(b.deadline).getTime();
+  });
+
+  // Quick Reminder submit
+  const handleQuickAddReminder = (e) => {
     e.preventDefault();
-    if (!editingReminderClient) return;
-    onUpdateClientReminder(editingReminderClient.id, {
-      text: editReminderText,
-      deadline: editReminderDeadline
-    });
-    setEditingReminderClient(null);
+    if (!quickTitle.trim() || !quickClientId || !quickDate) return;
+
+    // Convert date string from ISO date selector (YYYY-MM-DD) to BR format (DD/MM/AAAA)
+    const brFormattedDate = toBRDate(quickDate);
+
+    onAddReminder(quickClientId, quickTitle, '', brFormattedDate, 'Normal');
+    setQuickTitle('');
+    setQuickClientId('');
+    setQuickDate('');
   };
 
-  const handleDismissReminder = (clientId) => {
-    setDismissingClientIds(prev => [...prev, clientId]);
+  const handleOpenEditReminder = (item) => {
+    setEditingReminder(item);
+    setEditTitle(item.title);
+    setEditDescription(item.description || '');
+    // Convert BR format to ISO format for input date field
+    const [day, month, year] = item.deadline.split('/');
+    setEditDeadline(`${year}-${month}-${day}`);
+    setEditCriticality(item.criticality);
+  };
+
+  const handleSaveEditReminder = (e) => {
+    e.preventDefault();
+    if (!editingReminder) return;
+
+    const brFormattedDate = toBRDate(editDeadline);
+
+    if (editingReminder.type === 'custom') {
+      onUpdateReminder(editingReminder.clientId, editingReminder.id, {
+        title: editTitle,
+        description: editDescription,
+        deadline: brFormattedDate,
+        criticality: editCriticality
+      });
+    } else {
+      // Edit cycle contact date directly
+      onRegisterContact(editingReminder.clientId, 'Ajustado data de ciclo manualmente');
+    }
+    setEditingReminder(null);
+  };
+
+  const handleDismissReminder = (item) => {
+    setDismissingReminderIds(prev => [...prev, item.id]);
     setTimeout(() => {
-      onUpdateClientReminder(clientId, null);
-      setDismissingClientIds(prev => prev.filter(id => id !== clientId));
+      if (item.type === 'custom') {
+        onRemoveReminder(item.clientId, item.id);
+      } else {
+        // Dismiss cycle contacts means register the contact done
+        onRegisterContact(item.clientId, 'Contato de ciclo registrado');
+      }
+      setDismissingReminderIds(prev => prev.filter(id => id !== item.id));
     }, 150);
   };
 
@@ -129,41 +213,110 @@ export default function DashboardView({ clients, onUpdateClientReminder, onNavig
       {/* Main Dashboard Section */}
       <div className="dashboard-layout">
         {/* Left Side: Reminders */}
-        <div className="dashboard-section">
+        <div className="dashboard-section" style={{ minWidth: '0' }}>
           <div className="section-header">
             <h3 className="section-title">Lembretes Ativos</h3>
           </div>
+
+          {/* Quick Reminder Bar */}
+          <form onSubmit={handleQuickAddReminder} className="quick-reminder-bar">
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="O que precisa ser feito?" 
+              value={quickTitle}
+              onChange={e => setQuickTitle(e.target.value)}
+              style={{ flex: 2, minWidth: '150px' }}
+              required
+            />
+            <select 
+              className="form-select" 
+              value={quickClientId}
+              onChange={e => setQuickClientId(e.target.value)}
+              style={{ flex: 1, minWidth: '120px' }}
+              required
+            >
+              <option value="">Selecionar cliente...</option>
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <input 
+              type="date" 
+              className="form-input"
+              value={quickDate}
+              onChange={e => setQuickDate(e.target.value)}
+              style={{ flex: 1, minWidth: '120px' }}
+              required
+            />
+            <button type="submit" className="btn-primary" style={{ padding: '8px 14px', height: '38px', flexShrink: 0 }}>
+              <Plus size={14} />
+              <span>Adicionar</span>
+            </button>
+          </form>
+
+          {/* Reminders List */}
           <div className="reminders-list">
-            {clientReminders.length === 0 ? (
+            {mergedReminders.length === 0 ? (
               <div className="empty-state">
                 <span className="empty-state-icon">🔔</span>
                 <p>Nenhum lembrete ativo no momento.</p>
               </div>
             ) : (
-              clientReminders.map(client => {
-                const isDismissing = dismissingClientIds.includes(client.id);
+              mergedReminders.map(item => {
+                const isDismissing = dismissingReminderIds.includes(item.id);
+                const status = getDateStatus(item.deadline, todayStr);
+                
+                let statusClass = 'date-future';
+                if (status === 'overdue') statusClass = 'date-overdue';
+                else if (status === 'today') statusClass = 'date-today';
+
+                let criticalityBadgeClass = 'badge-estavel';
+                if (item.criticality === 'Urgente') criticalityBadgeClass = 'badge-critico';
+                if (item.criticality === 'Normal') criticalityBadgeClass = 'badge-atencao';
+
                 return (
                   <div 
-                    key={client.id} 
+                    key={item.id} 
                     className={`reminder-item ${isDismissing ? 'item-fadeout' : ''}`}
                   >
                     <div className="reminder-info">
-                      <span className="reminder-client">{client.name}</span>
-                      <p className="reminder-desc">{client.reminder.text}</p>
-                      <span className="reminder-time">Prazo: {client.reminder.deadline || 'Sem prazo'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span 
+                          className="reminder-client" 
+                          style={{ cursor: 'pointer', color: 'var(--green-primary)' }}
+                          onClick={() => onNavigate(`clientes/${item.clientId}`)}
+                        >
+                          {item.clientName}
+                        </span>
+                        <span className={`badge ${criticalityBadgeClass}`} style={{ fontSize: '9px', padding: '2px 4px' }}>
+                          {item.criticality}
+                        </span>
+                        {item.type === 'cycle' && <span className="cycle-badge">Ciclo SLA</span>}
+                      </div>
+                      <p className="reminder-desc" style={{ fontWeight: '500', color: 'var(--text-primary)', marginTop: '4px' }}>{item.title}</p>
+                      {item.description && <p className="reminder-desc" style={{ fontSize: '12px' }}>{item.description}</p>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                        {status === 'overdue' && <AlertTriangle size={12} className="date-overdue" />}
+                        <span className={statusClass} style={{ fontSize: '12px' }}>
+                          Prazo: {item.deadline} {status === 'overdue' ? '(Atrasado)' : status === 'today' ? '(Hoje)' : ''}
+                        </span>
+                      </div>
                     </div>
                     <div className="actions-group">
-                      <button 
-                        className="btn-icon" 
-                        onClick={() => handleOpenEditReminder(client)}
-                        title="Editar lembrete"
-                      >
-                        <Edit2 size={14} />
-                      </button>
+                      {item.type === 'custom' && (
+                        <button 
+                          className="btn-icon" 
+                          onClick={() => handleOpenEditReminder(item)}
+                          title="Editar lembrete"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      )}
                       <button 
                         className="btn-danger-icon" 
-                        onClick={() => handleDismissReminder(client.id)}
-                        title="Dispensar lembrete"
+                        onClick={() => handleDismissReminder(item)}
+                        title={item.type === 'custom' ? 'Concluir lembrete' : 'Registrar contato feito'}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -346,41 +499,66 @@ export default function DashboardView({ clients, onUpdateClientReminder, onNavig
       )}
 
       {/* Edit Reminder Modal */}
-      {editingReminderClient && (
-        <div className="modal-overlay" onClick={() => setEditingReminderClient(null)}>
+      {editingReminder && (
+        <div className="modal-overlay" onClick={() => setEditingReminder(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Editar Lembrete de {editingReminderClient.name}</h3>
-              <button className="btn-icon" onClick={() => setEditingReminderClient(null)}>
+              <h3 className="modal-title">Editar Lembrete</h3>
+              <button className="btn-icon" onClick={() => setEditingReminder(null)}>
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleSaveReminder}>
+            <form onSubmit={handleSaveEditReminder}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Texto do Lembrete</label>
+                  <label className="form-label">Título do Lembrete</label>
                   <input 
                     type="text" 
                     className="form-input" 
-                    value={editReminderText}
-                    onChange={e => setEditReminderText(e.target.value)}
-                    placeholder="Descrição do lembrete..."
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
                     required
                   />
                 </div>
+                {editingReminder.type === 'custom' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Descrição</label>
+                      <textarea 
+                        className="form-textarea" 
+                        rows="2"
+                        value={editDescription}
+                        onChange={e => setEditDescription(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Criticidade</label>
+                      <select 
+                        className="form-select" 
+                        value={editCriticality}
+                        onChange={e => setEditCriticality(e.target.value)}
+                      >
+                        <option value="Urgente">Urgente</option>
+                        <option value="Normal">Normal</option>
+                        <option value="Baixo">Baixo</option>
+                      </select>
+                    </div>
+                  </>
+                )}
                 <div className="form-group">
-                  <label className="form-label">Prazo de Resolução</label>
+                  <label className="form-label">Prazo</label>
                   <input 
                     type="date" 
                     className="form-input" 
-                    value={editReminderDeadline}
-                    onChange={e => setEditReminderDeadline(e.target.value)}
+                    value={editDeadline}
+                    onChange={e => setEditDeadline(e.target.value)}
+                    required
                   />
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setEditingReminderClient(null)}>Cancelar</button>
-                <button type="submit" className="btn-primary">Salvar Alterações</button>
+                <button type="button" className="btn-secondary" onClick={() => setEditingReminder(null)}>Cancelar</button>
+                <button type="submit" className="btn-primary">Salvar</button>
               </div>
             </form>
           </div>

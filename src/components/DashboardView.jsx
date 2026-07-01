@@ -300,12 +300,13 @@ export default function DashboardView({
                             gap: '6px'
                           }}
                           onClick={() => {
-                            onRegisterContact(m.clientId, `Reunião concluída: ${m.title}`);
-                            alert('Contato registrado e ciclo atualizado!');
+                            onRegisterContact(m.clientId, `Atividade concluída: ${m.title}`);
+                            alert('Atividade marcada como concluída!');
                           }}
+                          title="Marcar como concluído"
                         >
-                          <Phone size={11} />
-                          <span>Ligar para cliente às {m.time}</span>
+                          <CheckSquare size={13} />
+                          <span>Concluir</span>
                         </button>
                       </div>
                     </div>
@@ -468,10 +469,13 @@ export default function DashboardView({
                             alignItems: 'center',
                             gap: '4px'
                           }}
-                          onClick={() => onRegisterContact(client.id, `Ligar para ${client.name} realizado`)}
+                          onClick={() => {
+                            onRegisterContact(client.id, `Acompanhamento concluído: ${client.nextAction}`);
+                            alert('Lembrete concluído!');
+                          }}
                         >
-                          <Phone size={10} />
-                          <span>Ligar agora</span>
+                          <CheckSquare size={11} />
+                          <span>Concluir</span>
                         </button>
                       </div>
                     </div>
@@ -481,49 +485,6 @@ export default function DashboardView({
             </div>
           </div>
 
-          {/* Banner: Automatize seu Follow-up (matching the green banner card in Image 3) */}
-          <div 
-            style={{ 
-              backgroundColor: 'var(--green-primary)', 
-              color: '#000', 
-              borderRadius: '8px', 
-              padding: '20px', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '12px',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <Sparkles size={24} strokeWidth={2.5} style={{ color: '#000' }} />
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: '800', margin: 0 }}>Automatize seu Follow-up</h4>
-              <p style={{ fontSize: '12px', fontWeight: '600', opacity: 0.8, margin: 0, lineHeight: '1.4' }}>
-                Reduza em 40% o tempo gasto com clientes atrasados.
-              </p>
-            </div>
-
-            <button 
-              style={{ 
-                backgroundColor: '#000', 
-                color: '#fff', 
-                fontWeight: '700', 
-                fontSize: '11px', 
-                padding: '8px 16px', 
-                borderRadius: '6px', 
-                border: 'none',
-                cursor: 'pointer',
-                alignSelf: 'flex-start',
-                marginTop: '4px'
-              }}
-              onClick={() => alert('IA Follow-up ativada!')}
-            >
-              Ativar IA
-            </button>
-          </div>
 
           {/* Widget: Visão Mensal Calendar Grid */}
           <div 

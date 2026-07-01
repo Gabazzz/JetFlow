@@ -1910,4 +1910,114 @@ button, input, select, textarea {
   gap: 6px;
 }
 
+/* High Fidelity Clients List Table Adjustments */
+.clients-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  background-color: #161616;
+  border: 1px solid #252525;
+  border-radius: 8px;
+}
+
+.clients-table th {
+  background-color: #111;
+  color: #555;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #252525;
+}
+
+.clients-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #252525;
+  vertical-align: middle;
+  color: #fff;
+  font-size: 13px;
+}
+
+.clients-table tr:hover td {
+  background-color: var(--surface-hover);
+}
+
+.clients-table tr:last-child td {
+  border-bottom: none;
+}
+
+.stage-pill-list {
+  font-size: 11px;
+  background-color: #1E1E1E;
+  color: #aaa;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  border: 1px solid #252525;
+}
+
+.module-tag-small {
+  font-size: 10px;
+  background-color: #2E2E2E;
+  color: #888;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.hover-actions-overlay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity 150ms ease-in-out;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.clients-table tr:hover .hover-actions-overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.btn-action-small {
+  background-color: #2E2E2E;
+  border: 1px solid #3E3E3E;
+  color: #ccc !important;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 150ms ease-in-out;
+}
+
+.btn-action-small:hover {
+  background-color: var(--green-primary);
+  border-color: var(--green-primary);
+  color: #000 !important;
+}
+
+.btn-action-small-arrow {
+  background-color: #1E351F;
+  border: 1px solid rgba(101, 255, 75, 0.3);
+  color: var(--green-primary) !important;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 150ms ease-in-out;
+}
+
+.btn-action-small-arrow:hover {
+  background-color: var(--green-primary);
+  border-color: var(--green-primary);
+  color: #000 !important;
+}
+
+
 

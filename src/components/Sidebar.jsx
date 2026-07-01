@@ -170,42 +170,7 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
         <div>
           <span className="sidebar-section-title" style={{ padding: '0 16px', fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>Suporte</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {/* Links Rápidos Accordion */}
-            <div>
-              <div className="sidebar-links-header" onClick={() => setLinksExpanded(!linksExpanded)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <LinkIcon size={18} />
-                  <span>Links rápidos</span>
-                </div>
-                {linksExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </div>
 
-              {linksExpanded && (
-                <div className="sidebar-links-list">
-                  {allLinks.length === 0 ? (
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '8px 12px' }}>
-                      Nenhum link cadastrado.
-                    </span>
-                  ) : (
-                    allLinks.slice(0, 10).map((link, idx) => (
-                      <a
-                        key={idx}
-                        href={link.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="sidebar-link-item"
-                        title={link.label}
-                      >
-                        <ExternalLink size={11} style={{ flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {link.label}
-                        </span>
-                      </a>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
 
             <button
               className={`nav-item ${currentRoute === 'configuracoes' ? 'active' : ''}`}

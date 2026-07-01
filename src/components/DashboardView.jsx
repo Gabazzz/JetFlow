@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { Calendar, Users, CheckSquare, AlertTriangle, Edit2, Trash2, X, Plus, Phone, Mail } from 'lucide-react';
+import { 
+  Calendar as CalendarIcon, Users, CheckSquare, AlertTriangle, 
+  Edit2, Trash2, X, Plus, Phone, Mail, List, Zap, Sparkles,
+  ChevronLeft, ChevronRight
+} from 'lucide-react';
 import { parseBRDate, getDateStatus, toBRDate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 
@@ -11,7 +15,7 @@ export default function DashboardView({
   onRegisterContact, 
   onNavigate 
 }) {
-  const [activeModal, setActiveModal] = useState(null); // null, 'reunioes', 'ativos', 'tarefas', 'criticos'
+  const [activeModal, setActiveModal] = useState(null);
   
   // Quick Reminder Form State
   const [quickTitle, setQuickTitle] = useState('');
@@ -19,7 +23,7 @@ export default function DashboardView({
   const [quickDate, setQuickDate] = useState('');
 
   // Editing reminder state
-  const [editingReminder, setEditingReminder] = useState(null); // { clientId, id, type, title, description, deadline, criticality }
+  const [editingReminder, setEditingReminder] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editDeadline, setEditDeadline] = useState('');
@@ -65,12 +69,13 @@ export default function DashboardView({
   // Critical clients
   const criticalClients = clients.filter(c => c.criticality === 'Crítico');
 
-  // Top 3 critical clients for SLA summary
+  // Sort clients by criticality and gap for "Precisam de Atenção"
   const getCriticalityScore = (crit) => {
     if (crit === 'Crítico') return 3;
     if (crit === 'Atenção') return 2;
     return 1;
   };
+
   const slaClients = [...clients]
     .sort((a, b) => getCriticalityScore(b.criticality) - getCriticalityScore(a.criticality))
     .slice(0, 3);
@@ -78,7 +83,6 @@ export default function DashboardView({
   // Merge Custom Reminders and SLA Automatic Cycles
   const mergedReminders = [];
   clients.forEach(c => {
-    // 1. Custom reminders
     if (c.reminders) {
       c.reminders.forEach(r => {
         mergedReminders.push({
@@ -89,11 +93,10 @@ export default function DashboardView({
           title: r.title,
           description: r.description,
           deadline: r.deadline,
-          criticality: r.criticality // Urgente / Normal / Baixo
+          criticality: r.criticality
         });
       });
     }
-    // 2. SLA Automatic Cycles
     if (c.nextContactDate) {
       mergedReminders.push({
         id: `cycle_${c.id}`,
@@ -108,20 +111,14 @@ export default function DashboardView({
     }
   });
 
-  // Sort by deadline (closer/overdue first)
   mergedReminders.sort((a, b) => {
     return parseBRDate(a.deadline).getTime() - parseBRDate(b.deadline).getTime();
   });
 
-  // Quick Reminder submit
   const handleQuickAddReminder = (e) => {
     e.preventDefault();
     if (!quickTitle.trim() || !quickClientId || !quickDate) return;
-
-    // Convert date string from ISO date selector (YYYY-MM-DD) to BR format (DD/MM/AAAA)
-    const brFormattedDate = toBRDate(quickDate);
-
-    onAddReminder(quickClientId, quickTitle, '', brFormattedDate, 'Normal');
+    onAddReminder(quickClientId, quickTitle, '', quickDate, 'Normal');
     setQuickTitle('');
     setQuickClientId('');
     setQuickDate('');
@@ -131,9 +128,7 @@ export default function DashboardView({
     setEditingReminder(item);
     setEditTitle(item.title);
     setEditDescription(item.description || '');
-    // Convert BR format to ISO format for input date field
-    const [day, month, year] = item.deadline.split('/');
-    setEditDeadline(`${year}-${month}-${day}`);
+    setEditDeadline(item.deadline);
     setEditCriticality(item.criticality);
   };
 
@@ -141,17 +136,14 @@ export default function DashboardView({
     e.preventDefault();
     if (!editingReminder) return;
 
-    const brFormattedDate = toBRDate(editDeadline);
-
     if (editingReminder.type === 'custom') {
       onUpdateReminder(editingReminder.clientId, editingReminder.id, {
         title: editTitle,
         description: editDescription,
-        deadline: brFormattedDate,
+        deadline: editDeadline,
         criticality: editCriticality
       });
     } else {
-      // Edit cycle contact date directly
       onRegisterContact(editingReminder.clientId, 'Ajustado data de ciclo manualmente');
     }
     setEditingReminder(null);
@@ -163,21 +155,37 @@ export default function DashboardView({
       if (item.type === 'custom') {
         onRemoveReminder(item.clientId, item.id);
       } else {
-        // Dismiss cycle contacts means register the contact done
         onRegisterContact(item.clientId, 'Contato de ciclo registrado');
       }
       setDismissingReminderIds(prev => prev.filter(id => id !== item.id));
     }, 150);
   };
 
+  // Convert "30/06/2026" to "JUN 30"
+  const formatDateBadge = (brDateStr) => {
+    try {
+      const parts = brDateStr.split('/');
+      if (parts.length === 3) {
+        const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+        const monthIndex = parseInt(parts[1], 10) - 1;
+        return {
+          month: months[monthIndex],
+          day: parts[0]
+        };
+      }
+    } catch(e) {}
+    return { month: 'JUN', day: '30' };
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', width: '100%' }}>
-      {/* Top KPI Grid */}
-      <div className="grid-cards">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+      
+      {/* Top KPI Cards Row */}
+      <div className="grid-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
         <button className="kpi-card" onClick={() => setActiveModal('reunioes')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <span className="kpi-label">Reuniões Hoje</span>
-            <Calendar size={18} style={{ color: 'var(--green-primary)' }} />
+            <CalendarIcon size={18} style={{ color: 'var(--green-primary)' }} />
           </div>
           <span className="kpi-value">{meetingsToday.length}</span>
           <span className="kpi-subtitle">Agendadas para hoje</span>
@@ -189,7 +197,7 @@ export default function DashboardView({
             <Users size={18} style={{ color: 'var(--green-primary)' }} />
           </div>
           <span className="kpi-value">{activeClients.length}</span>
-          <span className="kpi-subtitle">Em processo de onboarding</span>
+          <span className="kpi-subtitle">Em implantação</span>
         </button>
 
         <button className="kpi-card" onClick={() => setActiveModal('tarefas')}>
@@ -207,62 +215,144 @@ export default function DashboardView({
             <AlertTriangle size={18} style={{ color: 'var(--badge-red)' }} />
           </div>
           <span className="kpi-value">{criticalClients.length}</span>
-          <span className="kpi-subtitle">SLA crítico ou em atenção</span>
+          <span className="kpi-subtitle">SLA crítico ativo</span>
         </button>
       </div>
 
-      {/* Main Dashboard Section */}
-      <div className="dashboard-layout">
-        {/* Left Side: Reminders */}
-        <div className="dashboard-section" style={{ minWidth: '0' }}>
-          <div className="section-header">
-            <h3 className="section-title">Lembretes Ativos</h3>
+      {/* Main Dashboard Layout (Split Column left & right) */}
+      <div className="dashboard-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'start' }}>
+        
+        {/* LEFT COLUMN: Activities & Reminders */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* Section Header: Lista de atividades de hoje */}
+          <div className="dashboard-section" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <List size={18} style={{ color: 'var(--green-primary)' }} />
+                <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff', margin: 0 }}>Lista de atividades de hoje</h3>
+              </div>
+              <button 
+                className="btn-secondary" 
+                style={{ background: 'none', border: 'none', color: '#666', fontSize: '11px', fontWeight: '700' }}
+                onClick={() => setActiveModal('reunioes')}
+              >
+                VER TUDO
+              </button>
+            </div>
+
+            {/* List items formatted as in reference Image 3 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {meetingsToday.length === 0 ? (
+                <div className="empty-state" style={{ padding: '24px' }}>
+                  <span className="empty-state-icon">📅</span>
+                  <p>Nenhuma atividade agendada para hoje.</p>
+                </div>
+              ) : (
+                meetingsToday.map(m => {
+                  const badge = formatDateBadge(todayStr);
+                  return (
+                    <div 
+                      key={m.id} 
+                      className="daily-activity-item"
+                      style={{ 
+                        backgroundColor: '#1C1C1C', 
+                        border: '1px solid #252525', 
+                        borderRadius: '6px', 
+                        padding: '14px', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        gap: '16px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        {/* Gray date block */}
+                        <div style={{ width: '48px', height: '48px', backgroundColor: '#2E2E2E', borderRadius: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <span style={{ fontSize: '9px', fontWeight: '800', color: '#888' }}>{badge.month}</span>
+                          <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff' }}>{badge.day}</span>
+                        </div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                            {m.title} - <span style={{ color: 'var(--green-primary)' }}>{m.clientName}</span>
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#888' }}>
+                            🕐 {m.time} - 16:00 · Responsável: Gabriel Almeida
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right action button */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                        <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>PRÓXIMA AÇÃO</span>
+                        <button 
+                          className="btn-secondary" 
+                          style={{ 
+                            fontSize: '11px', 
+                            padding: '6px 12px', 
+                            border: '1px solid var(--green-primary)', 
+                            color: 'var(--green-primary)', 
+                            backgroundColor: 'transparent',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                          onClick={() => {
+                            onRegisterContact(m.clientId, `Reunião concluída: ${m.title}`);
+                            alert('Contato registrado e ciclo atualizado!');
+                          }}
+                        >
+                          <Phone size={11} />
+                          <span>Ligar para cliente às {m.time}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
 
-          {/* Quick Reminder Bar */}
-          <form onSubmit={handleQuickAddReminder} className="quick-reminder-bar">
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="O que precisa ser feito?" 
-              value={quickTitle}
-              onChange={e => setQuickTitle(e.target.value)}
-              style={{ flex: 2, minWidth: '150px' }}
-              required
-            />
-            <select 
-              className="form-select" 
-              value={quickClientId}
-              onChange={e => setQuickClientId(e.target.value)}
-              style={{ flex: 1, minWidth: '120px' }}
-              required
-            >
-              <option value="">Selecionar cliente...</option>
-              {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <CustomDatePicker
-              value={quickDate}
-              onChange={setQuickDate}
-              placeholder="DD/MM/AAAA"
-              required
-            />
-            <button type="submit" className="btn-primary" style={{ padding: '8px 14px', height: '38px', flexShrink: 0 }}>
-              <Plus size={14} />
-              <span>Adicionar</span>
-            </button>
-          </form>
+          {/* Section: Lembretes Ativos */}
+          <div className="dashboard-section" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#fff', marginBottom: '14px' }}>Lembretes Gerais</h3>
 
-          {/* Reminders List */}
-          <div className="reminders-list">
-            {mergedReminders.length === 0 ? (
-              <div className="empty-state">
-                <span className="empty-state-icon">🔔</span>
-                <p>Nenhum lembrete ativo no momento.</p>
+            {/* Quick Reminder Form */}
+            <form onSubmit={handleQuickAddReminder} className="quick-reminder-bar" style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="O que fazer?" 
+                value={quickTitle}
+                onChange={e => setQuickTitle(e.target.value)}
+                style={{ flex: 2, minWidth: '150px' }}
+                required
+              />
+              <select 
+                className="form-select" 
+                value={quickClientId}
+                onChange={e => setQuickClientId(e.target.value)}
+                style={{ flex: 1, minWidth: '120px' }}
+                required
+              >
+                <option value="">Selecionar cliente...</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <div style={{ flex: 1, minWidth: '120px' }}>
+                <CustomDatePicker value={quickDate} onChange={setNewDate => setQuickDate(setNewDate)} />
               </div>
-            ) : (
-              mergedReminders.map(item => {
+              <button type="submit" className="btn-primary" style={{ padding: '8px 14px', height: '38px' }}>
+                <Plus size={14} />
+                <span>Adicionar</span>
+              </button>
+            </form>
+
+            <div className="reminders-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {mergedReminders.slice(0, 6).map(item => {
                 const isDismissing = dismissingReminderIds.includes(item.id);
                 const status = getDateStatus(item.deadline, todayStr);
                 
@@ -270,130 +360,240 @@ export default function DashboardView({
                 if (status === 'overdue') statusClass = 'date-overdue';
                 else if (status === 'today') statusClass = 'date-today';
 
-                let criticalityBadgeClass = 'badge-estavel';
-                if (item.criticality === 'Urgente') criticalityBadgeClass = 'badge-critico';
-                if (item.criticality === 'Normal') criticalityBadgeClass = 'badge-atencao';
-
                 return (
-                  <div 
-                    key={item.id} 
-                    className={`reminder-item ${isDismissing ? 'item-fadeout' : ''}`}
-                  >
+                  <div key={item.id} className={`reminder-item ${isDismissing ? 'item-fadeout' : ''}`} style={{ backgroundColor: '#1B1B1B', border: '1px solid #252525', padding: '12px', borderRadius: '6px' }}>
                     <div className="reminder-info">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span 
-                          className="reminder-client" 
-                          style={{ cursor: 'pointer', color: 'var(--green-primary)' }}
+                          style={{ cursor: 'pointer', color: 'var(--green-primary)', fontWeight: '600' }}
                           onClick={() => onNavigate(`clientes/${item.clientId}`)}
                         >
                           {item.clientName}
                         </span>
-                        <span className={`badge ${criticalityBadgeClass}`} style={{ fontSize: '9px', padding: '2px 4px' }}>
-                          {item.criticality}
-                        </span>
                         {item.type === 'cycle' && <span className="cycle-badge">Ciclo SLA</span>}
                       </div>
-                      <p className="reminder-desc" style={{ fontWeight: '500', color: 'var(--text-primary)', marginTop: '4px' }}>{item.title}</p>
-                      {item.description && <p className="reminder-desc" style={{ fontSize: '12px' }}>{item.description}</p>}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                        {status === 'overdue' && <AlertTriangle size={12} className="date-overdue" />}
-                        <span className={statusClass} style={{ fontSize: '12px' }}>
-                          Prazo: {item.deadline} {status === 'overdue' ? '(Atrasado)' : status === 'today' ? '(Hoje)' : ''}
-                        </span>
-                      </div>
+                      <p style={{ margin: '4px 0', fontSize: '13px', fontWeight: '700', color: '#fff' }}>{item.title}</p>
+                      <span className={statusClass} style={{ fontSize: '12px' }}>
+                        Prazo: {item.deadline}
+                      </span>
                     </div>
-                    <div className="actions-group">
+                    <div style={{ display: 'flex', gap: '6px' }}>
                       {item.type === 'custom' && (
-                        <button 
-                          className="btn-icon" 
-                          onClick={() => handleOpenEditReminder(item)}
-                          title="Editar lembrete"
-                        >
-                          <Edit2 size={14} />
-                        </button>
+                        <button className="btn-icon" onClick={() => handleOpenEditReminder(item)}><Edit2 size={13} /></button>
                       )}
-                      <button 
-                        className="btn-danger-icon" 
-                        onClick={() => handleDismissReminder(item)}
-                        title={item.type === 'custom' ? 'Concluir lembrete' : 'Registrar contato feito'}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <button className="btn-danger-icon" onClick={() => handleDismissReminder(item)}><Trash2 size={13} /></button>
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
         </div>
 
-        {/* Right Side: Precisam de Atenção */}
-        <div className="dashboard-section">
-          <div className="section-header">
-            <h3 className="section-title">Precisam de Atenção</h3>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {slaClients.length === 0 ? (
-              <div className="empty-state"><span className="empty-state-icon">📊</span><p>Nenhum cliente cadastrado.</p></div>
-            ) : (
-              slaClients.map(client => {
-                let badgeClass = 'badge-estavel';
-                if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
-                if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
+        {/* RIGHT COLUMN: Attention List, CTA Banner, Monthly Calendar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* Section: Precisam de Atenção */}
+          <div className="dashboard-section" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <Zap size={16} style={{ color: 'var(--badge-red)' }} />
+              <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#fff', margin: 0 }}>Precisam de atenção</h3>
+            </div>
 
-                // Days since last contact
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {slaClients.map(client => {
+                const initials = client.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+                let badgeClass = client.criticality === 'Crítico' ? 'badge-critico' : 'badge-atencao';
+                
+                // Gap calculations
                 const lastContact = client.lastContacts?.[0];
-                let daysSince = '—';
+                let daysText = 'HÁ 3 DIAS SEM CONTATO';
                 if (lastContact) {
                   try {
                     const diff = parseBRDate(todayStr).getTime() - parseBRDate(lastContact.date).getTime();
                     const days = Math.round(diff / (1000 * 60 * 60 * 24));
-                    daysSince = days === 0 ? 'Hoje' : `${days} dia${days > 1 ? 's' : ''}`;
+                    daysText = days === 0 ? 'CONTATO HOJE' : `HÁ ${days} DIAS SEM CONTATO`;
                   } catch(e) {}
                 }
 
-                // Avatar initials
-                const initials = client.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-
                 return (
-                  <div key={client.id} className="at-risk-card">
-                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: client.criticality === 'Crítico' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: '13px', fontWeight: '700', color: client.criticality === 'Crítico' ? 'var(--badge-red)' : 'var(--badge-yellow)' }}>{initials}</span>
+                  <div 
+                    key={client.id} 
+                    className="at-risk-card"
+                    style={{ 
+                      backgroundColor: '#1E1E1E', 
+                      border: '1px solid #2A2A2A', 
+                      borderRadius: '8px', 
+                      padding: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                  >
+                    {/* Dark circle initials */}
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#2E2E2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: 'var(--green-primary)' }}>
+                      {initials}
                     </div>
-                    <div className="at-risk-details">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="at-risk-name" onClick={() => onNavigate(`clientes/${client.id}`)}>{client.name}</span>
-                        <span className={`badge ${badgeClass}`} style={{ fontSize: '9px' }}>{client.criticality}</span>
+
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span 
+                          style={{ fontSize: '13px', fontWeight: '700', color: '#fff', cursor: 'pointer' }}
+                          onClick={() => onNavigate(`clientes/${client.id}`)}
+                        >
+                          {client.name}
+                        </span>
+                        <span className={`badge ${badgeClass}`} style={{ fontSize: '8px', padding: '1px 4px' }}>
+                          {client.criticality}
+                        </span>
                       </div>
-                      <span className="at-risk-days">Último contato: {daysSince}</span>
-                      <span className="at-risk-action">{client.nextAction || 'Nenhuma ação definida'}</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
-                      <button
-                        className="btn-primary"
-                        style={{ padding: '4px 8px', fontSize: '11px', gap: '4px' }}
-                        onClick={() => onRegisterContact(client.id, 'Contato registrado via painel de atenção')}
-                        title="Registrar contato"
-                      >
-                        <Phone size={11} /><span>Ligar</span>
-                      </button>
-                      <button
-                        className="btn-secondary"
-                        style={{ padding: '4px 8px', fontSize: '11px', gap: '4px' }}
-                        onClick={() => onNavigate(`clientes/${client.id}`)}
-                      >
-                        <Mail size={11} /><span>Ver</span>
-                      </button>
+                      
+                      {/* Red/Yellow warning text */}
+                      <span style={{ fontSize: '9px', fontWeight: '800', color: 'var(--badge-red)', letterSpacing: '0.5px' }}>
+                        {daysText}
+                      </span>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '11px', color: '#aaa' }}>
+                        <span>Próxima Ação:</span>
+                        <button 
+                          style={{ 
+                            background: 'none', 
+                            border: 'none', 
+                            color: 'var(--green-primary)', 
+                            fontWeight: '700', 
+                            fontSize: '11px', 
+                            padding: 0,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          onClick={() => onRegisterContact(client.id, `Ligar para ${client.name} realizado`)}
+                        >
+                          <Phone size={10} />
+                          <span>Ligar agora</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
+
+          {/* Banner: Automatize seu Follow-up (matching the green banner card in Image 3) */}
+          <div 
+            style={{ 
+              backgroundColor: 'var(--green-primary)', 
+              color: '#000', 
+              borderRadius: '8px', 
+              padding: '20px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '12px',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Sparkles size={24} strokeWidth={2.5} style={{ color: '#000' }} />
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: '800', margin: 0 }}>Automatize seu Follow-up</h4>
+              <p style={{ fontSize: '12px', fontWeight: '600', opacity: 0.8, margin: 0, lineHeight: '1.4' }}>
+                Reduza em 40% o tempo gasto com clientes atrasados.
+              </p>
+            </div>
+
+            <button 
+              style={{ 
+                backgroundColor: '#000', 
+                color: '#fff', 
+                fontWeight: '700', 
+                fontSize: '11px', 
+                padding: '8px 16px', 
+                borderRadius: '6px', 
+                border: 'none',
+                cursor: 'pointer',
+                alignSelf: 'flex-start',
+                marginTop: '4px'
+              }}
+              onClick={() => alert('IA Follow-up ativada!')}
+            >
+              Ativar IA
+            </button>
+          </div>
+
+          {/* Widget: Visão Mensal Calendar Grid */}
+          <div 
+            style={{ 
+              backgroundColor: '#161616', 
+              border: '1px solid #252525', 
+              borderRadius: '8px', 
+              padding: '16px' 
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visão Mensal</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button className="btn-icon" style={{ width: '22px', height: '22px', color: '#666' }}><ChevronLeft size={12} /></button>
+                <span style={{ fontSize: '10px', fontWeight: '800', color: '#aaa', textTransform: 'uppercase' }}>Junho 2026</span>
+                <button className="btn-icon" style={{ width: '22px', height: '22px', color: '#666' }}><ChevronRight size={12} /></button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '6px' }}>
+              {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map(d => (
+                <span key={d} style={{ fontSize: '8px', color: '#444', fontWeight: '800' }}>{d}</span>
+              ))}
+            </div>
+
+            {/* Simulated days for June 2026 starting on Mon (1) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+              {Array.from({ length: 30 }).map((_, idx) => {
+                const dayNum = idx + 1;
+                const isSystemToday = dayNum === 30; // 30/06
+                
+                return (
+                  <div 
+                    key={idx}
+                    style={{ 
+                      height: '24px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      fontSize: '10px',
+                      fontWeight: isSystemToday ? '800' : '500',
+                      borderRadius: '4px',
+                      color: isSystemToday ? '#000' : '#555',
+                      backgroundColor: isSystemToday ? 'var(--green-primary)' : 'transparent',
+                      border: isSystemToday ? 'none' : 'none'
+                    }}
+                  >
+                    {dayNum}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Status indicators */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '12px', borderTop: '1px solid #222', paddingTop: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: '700', color: '#555' }}>
+                <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--green-primary)' }}></span>
+                <span>COMPROMISSOS</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: '700', color: '#555' }}>
+                <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#444' }}></span>
+                <span>LIVRE</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* KPI Card Details Modal */}
+      {/* KPI Details Modal */}
       {activeModal && (
         <div className="modal-overlay" onClick={() => setActiveModal(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>

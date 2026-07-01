@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Plus, X, List, Kanban, Check } from 'lucide-react';
+import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield } from 'lucide-react';
 import KanbanView from './KanbanView';
-import { calculateNextContactDate } from '../utils';
 
 export default function ClientsListView({ 
   clients, 
@@ -12,104 +11,22 @@ export default function ClientsListView({
   onUpdateClientStage,
   onUpdateClientNextAction,
   onUpdateClientCriticality,
-  onRegisterContact
+  onRegisterContact,
+  onOpenNewLeadModal
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('lista'); // 'lista' or 'kanban'
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Popover State: { clientId, type: 'contato' | 'acao' | 'criticidade' }
   const [activePopover, setActivePopover] = useState(null);
   const [popoverObs, setPopoverObs] = useState('');
   const [popoverAction, setPopoverAction] = useState('');
 
-  // Form State for new client
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [cnpj, setCnpj] = useState('');
-  const [entryDate, setEntryDate] = useState('30/06/2026'); // DD/MM/AAAA default
-  const [selectedPlan, setSelectedPlan] = useState('');
-  const [selectedModules, setSelectedModules] = useState([]);
-  const [criticality, setCriticality] = useState('Estável');
-  const [justification, setJustification] = useState('');
-  const [observations, setObservations] = useState('');
-
   // Search filter
   const filteredClients = clients.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.plan.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleToggleModule = (modName) => {
-    setSelectedModules(prev => 
-      prev.includes(modName) ? prev.filter(m => m !== modName) : [...prev, modName]
-    );
-  };
-
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
-    if (plans.length > 0) {
-      setSelectedPlan(plans[0].name);
-    }
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setName('');
-    setPhone('');
-    setEmail('');
-    setWhatsapp('');
-    setCnpj('');
-    setEntryDate('30/06/2026');
-    setSelectedModules([]);
-    setCriticality('Estável');
-    setJustification('');
-    setObservations('');
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    // Auto calculate next contact date based on criticality
-    const nextContact = calculateNextContactDate(criticality, '30/06/2026');
-
-    const newClient = {
-      id: `c_${Date.now()}`,
-      name,
-      phone,
-      whatsapp: whatsapp || phone,
-      email,
-      cnpj,
-      entryDate,
-      responsible: 'Gabriel Almeida',
-      plan: selectedPlan,
-      activeModules: selectedModules,
-      criticality,
-      criticalityJustification: justification,
-      observations,
-      stage: 'Novo',
-      nextAction: 'Reunião de kickoff pendente',
-      nextContactDate: nextContact,
-      reminders: [],
-      quickLinks: {
-        crm: '',
-        discordIntegration: '',
-        discordSupport: [],
-        site: '',
-        deskPlatformUrl: '',
-        deskPlatformEmail: ''
-      },
-      meetings: [],
-      tasks: [],
-      interestOffers: []
-    };
-
-    onAddClient(newClient);
-    handleCloseModal();
-  };
 
   const handleOpenPopover = (clientId, type, currentVal = '') => {
     setActivePopover({ clientId, type });
@@ -177,7 +94,7 @@ export default function ClientsListView({
           </button>
         </div>
 
-        <button className="btn-primary" onClick={handleOpenModal}>
+        <button className="btn-primary" onClick={onOpenNewLeadModal}>
           <Plus size={16} />
           <span>Novo Cliente</span>
         </button>
@@ -192,21 +109,23 @@ export default function ClientsListView({
           onNavigate={onNavigate}
         />
       ) : (
-        <div className="table-container" style={{ overflow: 'visible' }}>
+        <div className="table-responsive">
           {filteredClients.length === 0 ? (
             <div className="empty-state">
               <span className="empty-state-icon">👥</span>
-              <p>Nenhum cliente encontrado.</p>
+              <p>Nenhum cliente cadastrado ou encontrado.</p>
             </div>
           ) : (
-            <table className="client-table" style={{ width: '100%' }}>
+            <table className="clients-table">
               <thead>
                 <tr>
                   <th>Cliente</th>
+                  <th>Etapa</th>
+                  <th>Responsável</th>
                   <th>Plano</th>
                   <th>Módulos Ativos</th>
-                  <th>Criticidade</th>
-                  <th style={{ textAlign: 'right', width: '280px' }}>Ações Rápidas</th>
+                  <th>Próxima Ação</th>
+                  <th style={{ width: '120px' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,74 +137,101 @@ export default function ClientsListView({
                   const isPopoverActive = activePopover && activePopover.clientId === client.id;
 
                   return (
-                    <tr key={client.id} onClick={() => onNavigate(`clientes/${client.id}`)}>
-                      <td style={{ fontWeight: '600' }}>{client.name}</td>
-                      <td>{client.plan}</td>
+                    <tr key={client.id} className="client-row-hoverable" style={{ position: 'relative' }}>
                       <td>
-                        <div className="module-pills">
-                          {client.activeModules && client.activeModules.length > 0 ? (
-                            client.activeModules.map(mod => (
-                              <span key={mod} className="module-pill">{mod}</span>
-                            ))
-                          ) : (
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Nenhum</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span 
+                            style={{ fontWeight: '600', color: 'var(--green-primary)', cursor: 'pointer' }}
+                            onClick={() => onNavigate(`clientes/${client.id}`)}
+                          >
+                            {client.name}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{client.cnpj || 'Sem CNPJ'}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="stage-pill-list">{client.stage}</span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '13px' }}>{client.responsible || '—'}</span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '13px', fontWeight: '500' }}>{client.plan}</span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {client.activeModules && client.activeModules.slice(0, 2).map(m => (
+                            <span key={m} className="module-tag-small">{m}</span>
+                          ))}
+                          {client.activeModules && client.activeModules.length > 2 && (
+                            <span className="module-tag-small">+{client.activeModules.length - 2}</span>
                           )}
                         </div>
                       </td>
                       <td>
-                        <span className={`badge ${badgeClass}`}>{client.criticality}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '500' }}>{client.nextAction || '—'}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>SLA: {client.nextContactDate || '—'}</span>
+                        </div>
                       </td>
-
-                      {/* Hover Actions Menu Cell */}
-                      <td style={{ position: 'relative', width: '280px', zIndex: isPopoverActive ? 1000 : 10 }}>
-                        <div className="row-actions">
+                      <td style={{ position: 'relative' }}>
+                        {/* Hover Quick Actions triggers */}
+                        <div className="hover-actions-overlay">
                           <button 
-                            className="btn-secondary" 
-                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            className="btn-action-small"
                             onClick={(e) => { e.stopPropagation(); handleOpenPopover(client.id, 'contato'); }}
+                            title="Registrar Contato"
                           >
-                            Registrar Contato
+                            Registrar contato
                           </button>
                           <button 
-                            className="btn-secondary" 
-                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            className="btn-action-small"
                             onClick={(e) => { e.stopPropagation(); handleOpenPopover(client.id, 'acao', client.nextAction); }}
+                            title="Editar próxima ação"
                           >
-                            Próxima Ação
+                            Ação
                           </button>
                           <button 
-                            className="btn-secondary" 
-                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            className="btn-action-small"
                             onClick={(e) => { e.stopPropagation(); handleOpenPopover(client.id, 'criticidade'); }}
+                            title="Mudar criticidade"
                           >
                             Criticidade
                           </button>
                           <button 
-                            className="btn-secondary" 
-                            style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--green-primary)' }}
+                            className="btn-action-small-arrow"
                             onClick={(e) => { e.stopPropagation(); onNavigate(`clientes/${client.id}`); }}
+                            title="Ver detalhes"
                           >
-                            Detalhes →
+                            Ver detalhes →
                           </button>
                         </div>
 
                         {/* Inline Popovers */}
                         {isPopoverActive && (
                           <div 
-                            className="quick-popover" 
-                            style={{ right: '10px', top: '40px' }}
-                            onClick={(e) => e.stopPropagation()} // Prevent row click navigation
+                            className="inline-popover-container"
+                            style={{ 
+                              position: 'absolute', 
+                              bottom: '100%', 
+                              right: '0', 
+                              marginBottom: '8px', 
+                              zIndex: isPopoverActive ? 1000 : 10 
+                            }}
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {activePopover.type === 'contato' && (
                               <>
-                                <span className="form-label" style={{ fontWeight: '600' }}>Registrar Contato</span>
-                                <textarea 
-                                  className="form-textarea" 
-                                  rows="2"
-                                  placeholder="O que foi tratado? (opcional)"
+                                <span className="form-label" style={{ fontWeight: '600', marginBottom: '4px' }}>Registrar Contato</span>
+                                <input 
+                                  type="text" 
+                                  className="form-input"
                                   value={popoverObs}
                                   onChange={e => setPopoverObs(e.target.value)}
-                                  style={{ width: '100%', fontSize: '12px' }}
+                                  placeholder="Nota opcional..."
+                                  onKeyDown={e => { if (e.key === 'Enter') handleConfirmContact(client.id); }}
+                                  style={{ width: '100%', fontSize: '12px', height: '32px' }}
+                                  autoFocus
                                 />
                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                   <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setActivePopover(null)}>Cancelar</button>
@@ -296,7 +242,7 @@ export default function ClientsListView({
 
                             {activePopover.type === 'acao' && (
                               <>
-                                <span className="form-label" style={{ fontWeight: '600' }}>Editar Próxima Ação</span>
+                                <span className="form-label" style={{ fontWeight: '600', marginBottom: '4px' }}>Editar Próxima Ação</span>
                                 <input 
                                   type="text" 
                                   className="form-input"
@@ -350,153 +296,6 @@ export default function ClientsListView({
               </tbody>
             </table>
           )}
-        </div>
-      )}
-
-      {/* Novo Cliente Modal */}
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Cadastrar Novo Cliente</h3>
-              <button className="btn-icon" onClick={handleCloseModal}>
-                <X size={16} />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <div className="modal-body">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label className="form-label">Nome do Cliente *</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={name} 
-                      onChange={e => setName(e.target.value)} 
-                      placeholder="Razão Social ou Nome Fantasia"
-                      required 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">CNPJ</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={cnpj} 
-                      onChange={e => setCnpj(e.target.value)} 
-                      placeholder="00.000.000/0001-00"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Telefone</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={phone} 
-                      onChange={e => setPhone(e.target.value)} 
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">WhatsApp</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={whatsapp} 
-                      onChange={e => setWhatsapp(e.target.value)} 
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">E-mail</label>
-                    <input 
-                      type="email" 
-                      className="form-input" 
-                      value={email} 
-                      onChange={e => setEmail(e.target.value)} 
-                      placeholder="contato@cliente.com"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Data de Entrada</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={entryDate} 
-                      onChange={e => setEntryDate(e.target.value)} 
-                      placeholder="DD/MM/AAAA"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Plano</label>
-                    <select 
-                      className="form-select" 
-                      value={selectedPlan} 
-                      onChange={e => setSelectedPlan(e.target.value)}
-                    >
-                      {plans.map(p => (
-                        <option key={p.id} value={p.name}>{p.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Nível de Criticidade</label>
-                    <select 
-                      className="form-select" 
-                      value={criticality} 
-                      onChange={e => setCriticality(e.target.value)}
-                    >
-                      <option value="Estável">Estável</option>
-                      <option value="Atenção">Atenção</option>
-                      <option value="Crítico">Crítico</option>
-                    </select>
-                  </div>
-                  {criticality !== 'Estável' && (
-                    <div className="form-group full-width">
-                      <label className="form-label">Justificativa da Criticidade</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={justification} 
-                        onChange={e => setJustification(e.target.value)}
-                        placeholder="Descreva o motivo de atenção/crítico..."
-                        required
-                      />
-                    </div>
-                  )}
-                  <div className="form-group full-width">
-                    <label className="form-label">Módulos Contratados</label>
-                    <div className="checkbox-group">
-                      {modules.map(mod => (
-                        <label key={mod.id} className="checkbox-label">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedModules.includes(mod.name)}
-                            onChange={() => handleToggleModule(mod.name)}
-                          />
-                          <span>{mod.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="form-group full-width">
-                    <label className="form-label">Observações</label>
-                    <textarea 
-                      className="form-textarea" 
-                      rows="3" 
-                      value={observations} 
-                      onChange={e => setObservations(e.target.value)} 
-                      placeholder="Observações gerais adicionais..."
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={handleCloseModal}>Cancelar</button>
-                <button type="submit" className="btn-primary">Criar Cliente</button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
     </div>

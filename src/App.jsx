@@ -20,7 +20,9 @@ import {
   getDateStatus 
 } from './utils';
 
-import { Bell, X } from 'lucide-react';
+import { Bell, X, Plus } from 'lucide-react';
+import CustomDatePicker from './components/CustomDatePicker';
+import { moduleChecklistsTemplate } from './data/data';
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState('dashboard');
@@ -32,8 +34,21 @@ export default function App() {
   const [offers, setOffers] = useState(initialAvailableOffers);
   const [clients, setClients] = useState(initialClients);
   const [stages, setStages] = useState(initialStages);
-
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Global New Lead Modal Form State
+  const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newCnpj, setNewCnpj] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newWhatsapp, setNewWhatsapp] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newEntryDate, setNewEntryDate] = useState('30/06/2026');
+  const [newPlan, setNewPlan] = useState('Pro');
+  const [newCriticality, setNewCriticality] = useState('Estável');
+  const [newJustification, setNewJustification] = useState('');
+  const [newSelectedModules, setNewSelectedModules] = useState([]);
+  const [newObservations, setNewObservations] = useState('');
 
   // Hash-based simple routing
   useEffect(() => {
@@ -357,6 +372,7 @@ export default function App() {
           onUpdateClientNextAction={handleUpdateClientNextAction}
           onUpdateClientCriticality={handleUpdateClientCriticality}
           onRegisterContact={handleRegisterContact}
+          onOpenNewLeadModal={() => setIsNewLeadModalOpen(true)}
         />
       );
     }
@@ -444,6 +460,7 @@ export default function App() {
         onNavigate={handleNavigate} 
         profile={profile}
         clients={clients}
+        onOpenNewLeadModal={() => setIsNewLeadModalOpen(true)}
       />
       <main className="main-container">
         <div className="view-header">
@@ -517,6 +534,217 @@ export default function App() {
         </div>
         {renderView()}
       </main>
+
+      {/* Global New Lead Modal */}
+      {isNewLeadModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsNewLeadModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Cadastrar Novo Cliente</h3>
+              <button className="btn-icon" onClick={() => setIsNewLeadModalOpen(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const nextContact = calculateNextContactDate(newCriticality, newEntryDate);
+              
+              // Populate checklists
+              const clientChecklists = {};
+              newSelectedModules.forEach(mod => {
+                clientChecklists[mod] = moduleChecklistsTemplate[mod] 
+                  ? JSON.parse(JSON.stringify(moduleChecklistsTemplate[mod])) 
+                  : [];
+              });
+
+              const newClient = {
+                id: `c_${Date.now()}`,
+                name: newName,
+                cnpj: newCnpj,
+                phone: newPhone,
+                whatsapp: newWhatsapp,
+                email: newEmail,
+                entryDate: newEntryDate,
+                plan: newPlan,
+                criticality: newCriticality,
+                criticalityJustification: newJustification,
+                activeModules: newSelectedModules,
+                observations: newObservations,
+                stage: 'Novo',
+                nextAction: 'Reunião de Alinhamento inicial',
+                nextContactDate: nextContact,
+                checklists: clientChecklists,
+                reminders: [],
+                lastUpdated: {
+                  date: '30/06/2026',
+                  time: '12:00',
+                  user: profile.name
+                },
+                lastContacts: [
+                  { date: newEntryDate, obs: 'Cliente cadastrado no sistema.' }
+                ],
+                activityHistory: [
+                  { avatar: profile.avatarInitials, name: profile.name, action: 'Criou o cliente no sistema', date: `${newEntryDate} às 12:00`, isObservation: false }
+                ],
+                quickLinks: {
+                  crm: '',
+                  discordIntegration: '',
+                  discordSupport: [],
+                  site: '',
+                  deskPlatformUrl: '',
+                  deskPlatformEmail: ''
+                }
+              };
+
+              handleAddClient(newClient);
+              
+              // Reset
+              setNewName('');
+              setNewCnpj('');
+              setNewPhone('');
+              setNewWhatsapp('');
+              setNewEmail('');
+              setNewEntryDate('30/06/2026');
+              setNewPlan('Pro');
+              setNewCriticality('Estável');
+              setNewJustification('');
+              setNewSelectedModules([]);
+              setNewObservations('');
+              setIsNewLeadModalOpen(false);
+            }}>
+              <div className="modal-body">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">Nome do Cliente *</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newName} 
+                      onChange={e => setNewName(e.target.value)} 
+                      placeholder="Razão Social ou Nome Fantasia"
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">CNPJ</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newCnpj} 
+                      onChange={e => setNewCnpj(e.target.value)} 
+                      placeholder="00.000.000/0001-00"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Telefone</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newPhone} 
+                      onChange={e => setNewPhone(e.target.value)} 
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">WhatsApp</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newWhatsapp} 
+                      onChange={e => setNewWhatsapp(e.target.value)} 
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">E-mail</label>
+                    <input 
+                      type="email" 
+                      className="form-input" 
+                      value={newEmail} 
+                      onChange={e => setNewEmail(e.target.value)} 
+                      placeholder="contato@cliente.com"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Data de Entrada</label>
+                    <CustomDatePicker value={newEntryDate} onChange={setNewEntryDate} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Plano</label>
+                    <select 
+                      className="form-select" 
+                      value={newPlan} 
+                      onChange={e => setNewPlan(e.target.value)}
+                    >
+                      {plans.map(p => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Nível de Criticidade</label>
+                    <select 
+                      className="form-select" 
+                      value={newCriticality} 
+                      onChange={e => setNewCriticality(e.target.value)}
+                    >
+                      <option value="Estável">Estável</option>
+                      <option value="Atenção">Atenção</option>
+                      <option value="Crítico">Crítico</option>
+                    </select>
+                  </div>
+                  {newCriticality !== 'Estável' && (
+                    <div className="form-group full-width">
+                      <label className="form-label">Justificativa da Criticidade *</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={newJustification} 
+                        onChange={e => setNewJustification(e.target.value)}
+                        placeholder="Descreva o motivo de atenção/crítico..."
+                        required
+                      />
+                    </div>
+                  )}
+                  <div className="form-group full-width">
+                    <label className="form-label">Módulos Contratados</label>
+                    <div className="checkbox-group">
+                      {modules.map(mod => (
+                        <label key={mod.id} className="checkbox-label">
+                          <input 
+                            type="checkbox" 
+                            checked={newSelectedModules.includes(mod.name)}
+                            onChange={() => {
+                              setNewSelectedModules(prev => 
+                                prev.includes(mod.name) ? prev.filter(m => m !== mod.name) : [...prev, mod.name]
+                              );
+                            }}
+                          />
+                          <span>{mod.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="form-group full-width">
+                    <label className="form-label">Observações</label>
+                    <textarea 
+                      className="form-textarea" 
+                      rows="3" 
+                      value={newObservations} 
+                      onChange={e => setNewObservations(e.target.value)} 
+                      placeholder="Observações gerais adicionais..."
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setIsNewLeadModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn-primary">Criar Cliente</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

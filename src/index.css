@@ -2497,4 +2497,33 @@ button, input, select, textarea {
   .nav-item {
     min-height: 44px;
   }
+
+  /* ----- ONBOARDING TIMELINE RESPONSIVENESS ----- */
+  .timeline-tracker-line-bg,
+  .timeline-tracker-line-fill {
+    display: none !important;
+  }
+  .timeline-tracker-steps {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px !important;
+    gap: 12px !important;
+    display: flex !important;
+    justify-content: flex-start !important;
+  }
+  .timeline-tracker-steps > div {
+    min-width: 68px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* ----- PROFILE SETUP RESPONSIVENESS ----- */
+  .profile-setup {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 18px !important;
+    text-align: center;
+  }
+  .profile-avatar-upload {
+    flex-shrink: 0 !important;
+  }
 }

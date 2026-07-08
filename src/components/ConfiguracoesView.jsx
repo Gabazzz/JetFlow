@@ -403,7 +403,7 @@ export default function ConfiguracoesView({
                         </div>
                         {showEmojiPicker === mod.id && (
                           <div style={{
-                            display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: '6px',
+                            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(36px, 1fr))', gap: '6px',
                             padding: '12px', backgroundColor: '#111', borderRadius: '10px',
                             border: '1px solid #2A2A2A', width: '100%', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                           }}>
@@ -472,7 +472,7 @@ export default function ConfiguracoesView({
                   </div>
                   {showEmojiPicker === 'new' && (
                     <div style={{
-                      display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: '6px',
+                      display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(36px, 1fr))', gap: '6px',
                       padding: '12px', backgroundColor: '#111', borderRadius: '10px',
                       border: '1px solid #2A2A2A', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                     }}>

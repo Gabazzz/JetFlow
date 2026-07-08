@@ -216,74 +216,91 @@ export default function ClientsListView({
                               bottom: '100%', 
                               right: '0', 
                               marginBottom: '8px', 
-                              zIndex: isPopoverActive ? 1000 : 10 
+                              zIndex: 1000,
+                              padding: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px',
+                              width: activePopover.type === 'criticidade' ? '300px' : '260px',
+                              textAlign: 'left'
                             }}
                             onClick={(e) => e.stopPropagation()}
                           >
                             {activePopover.type === 'contato' && (
                               <>
-                                <span className="form-label" style={{ fontWeight: '600', marginBottom: '4px' }}>Registrar Contato</span>
+                                <span className="premium-label" style={{ marginBottom: '2px', display: 'block' }}>Registrar Contato</span>
                                 <input 
                                   type="text" 
                                   className="form-input"
                                   value={popoverObs}
                                   onChange={e => setPopoverObs(e.target.value)}
-                                  placeholder="Nota opcional..."
+                                  placeholder="Nota opcional de contato..."
                                   onKeyDown={e => { if (e.key === 'Enter') handleConfirmContact(client.id); }}
-                                  style={{ width: '100%', fontSize: '12px', height: '32px' }}
+                                  style={{ width: '100%', fontSize: '13px', height: '36px', borderRadius: '6px', padding: '0 10px' }}
                                   autoFocus
                                 />
-                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                  <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setActivePopover(null)}>Cancelar</button>
-                                  <button className="btn-primary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => handleConfirmContact(client.id)}>Confirmar</button>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                                  <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => setActivePopover(null)}>Cancelar</button>
+                                  <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', backgroundColor: 'var(--green-primary)', color: '#000', border: 'none', fontWeight: '600' }} onClick={() => handleConfirmContact(client.id)}>Confirmar</button>
                                 </div>
                               </>
                             )}
 
                             {activePopover.type === 'acao' && (
                               <>
-                                <span className="form-label" style={{ fontWeight: '600', marginBottom: '4px' }}>Editar Próxima Ação</span>
+                                <span className="premium-label" style={{ marginBottom: '2px', display: 'block' }}>Editar Próxima Ação</span>
                                 <input 
                                   type="text" 
                                   className="form-input"
                                   value={popoverAction}
                                   onChange={e => setPopoverAction(e.target.value)}
                                   onKeyDown={e => { if (e.key === 'Enter') handleConfirmAction(client.id); }}
-                                  style={{ width: '100%', fontSize: '12px', height: '32px' }}
+                                  style={{ width: '100%', fontSize: '13px', height: '36px', borderRadius: '6px', padding: '0 10px' }}
                                   autoFocus
                                 />
-                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                  <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setActivePopover(null)}>Cancelar</button>
-                                  <button className="btn-primary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => handleConfirmAction(client.id)}>Salvar</button>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                                  <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => setActivePopover(null)}>Cancelar</button>
+                                  <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', backgroundColor: 'var(--green-primary)', color: '#000', border: 'none', fontWeight: '600' }} onClick={() => handleConfirmAction(client.id)}>Salvar</button>
                                 </div>
                               </>
                             )}
 
                             {activePopover.type === 'criticidade' && (
                               <>
-                                <span className="form-label" style={{ fontWeight: '600', marginBottom: '4px' }}>Alterar Criticidade</span>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <button 
-                                    className="btn-secondary" 
-                                    style={{ justifyContent: 'center', color: 'var(--badge-red)' }} 
-                                    onClick={() => handleConfirmCriticality(client.id, 'Crítico')}
-                                  >
-                                    Crítico (1 dia)
-                                  </button>
-                                  <button 
-                                    className="btn-secondary" 
-                                    style={{ justifyContent: 'center', color: 'var(--badge-yellow)' }} 
-                                    onClick={() => handleConfirmCriticality(client.id, 'Atenção')}
-                                  >
-                                    Atenção (2 dias)
-                                  </button>
-                                  <button 
-                                    className="btn-secondary" 
-                                    style={{ justifyContent: 'center', color: 'var(--badge-green)' }} 
-                                    onClick={() => handleConfirmCriticality(client.id, 'Estável')}
-                                  >
-                                    Estável (3 dias)
-                                  </button>
+                                <span className="premium-label" style={{ marginBottom: '2px', display: 'block', textAlign: 'center' }}>Alterar Criticidade</span>
+                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginTop: '4px' }}>
+                                  {[
+                                    { val: 'Crítico', label: '🔴 Crítico', bg: '#EF4444' },
+                                    { val: 'Atenção', label: '🟡 Atenção', bg: '#F59E0B' },
+                                    { val: 'Estável', label: '🟢 Estável', bg: '#10B981' }
+                                  ].map(opt => {
+                                    const isActive = client.criticality === opt.val;
+                                    return (
+                                      <button
+                                        key={opt.val}
+                                        type="button"
+                                        onClick={() => handleConfirmCriticality(client.id, opt.val)}
+                                        style={{
+                                          flex: 1,
+                                          padding: '8px 0',
+                                          fontSize: '10px',
+                                          fontWeight: '700',
+                                          borderRadius: '6px',
+                                          cursor: 'pointer',
+                                          border: `1px solid ${opt.bg}`,
+                                          backgroundColor: isActive ? opt.bg : 'transparent',
+                                          color: isActive ? '#000' : '#FFF',
+                                          transition: 'all 150ms ease',
+                                          whiteSpace: 'nowrap',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center'
+                                        }}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               </>
                             )}

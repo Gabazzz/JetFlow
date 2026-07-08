@@ -5,10 +5,11 @@ import {
   Calendar, CheckSquare, Plus, User
 } from 'lucide-react';
 
-export default function Sidebar({ currentRoute, onNavigate, profile, clients, onOpenNewLeadModal }) {
+export default function Sidebar({ currentRoute, onNavigate, profile, clients, onOpenAction }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [linksExpanded, setLinksExpanded] = useState(false);
+  const [showActionPopup, setShowActionPopup] = useState(false);
   const searchRef = useRef(null);
 
   // Close search on outside click
@@ -22,22 +23,46 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Listen to Escape key to close popups
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setShowActionPopup(false);
+        setShowSearchResults(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const filteredClients = searchQuery.trim().length >= 1
     ? (clients || []).filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
     : [];
 
-  // Gather links from all clients
-  const allLinks = [];
-  (clients || []).forEach(c => {
-    const ql = c.quickLinks || {};
-    if (ql.crm) allLinks.push({ label: `CRM — ${c.name}`, url: ql.crm });
-    if (ql.discordIntegration) allLinks.push({ label: `Discord — ${c.name}`, url: ql.discordIntegration });
+  // Static global links
+  const globalStaticLinks = [
+    { label: 'Documentação Jetsales', url: 'https://docs.jetsales.com.br' },
+    { label: 'Portal do Parceiro', url: 'https://portal.jetsales.com.br' }
+  ];
+
+  // Active client links if on detail view
+  const activeClientId = currentRoute.startsWith('clientes/') ? currentRoute.split('/')[1] : null;
+  const activeClient = clients.find(c => c.id === activeClientId);
+  
+  const clientLinks = [];
+  if (activeClient && activeClient.quickLinks) {
+    const ql = activeClient.quickLinks;
+    if (ql.crm) clientLinks.push({ label: `CRM — ${activeClient.name}`, url: ql.crm });
+    if (ql.discordIntegration) clientLinks.push({ label: `Discord — ${activeClient.name}`, url: ql.discordIntegration });
     (ql.discordSupport || []).forEach(ds => {
-      if (ds.url) allLinks.push({ label: `${ds.label} — ${c.name}`, url: ds.url });
+      if (ds.url) clientLinks.push({ label: `${ds.label} — ${activeClient.name}`, url: ds.url });
     });
-    if (ql.site && c.activeModules?.includes('API Oficial')) allLinks.push({ label: `Site — ${c.name}`, url: ql.site });
-    if (ql.deskPlatformUrl) allLinks.push({ label: `Atendimento — ${c.name}`, url: ql.deskPlatformUrl });
-  });
+    if (ql.site) clientLinks.push({ label: `Site — ${activeClient.name}`, url: ql.site });
+    if (ql.deskPlatformUrl) clientLinks.push({ label: `Atendimento — ${activeClient.name}`, url: ql.deskPlatformUrl });
+  }
+
+  // Merge lists
+  const mergedLinksList = [...globalStaticLinks, ...clientLinks];
 
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Escape') {
@@ -53,7 +78,7 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
   return (
     <aside className="sidebar">
       {/* Brand Header */}
-      <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px' }}>
+      <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px 0', marginBottom: '20px' }}>
         <div style={{ backgroundColor: 'var(--green-primary)', padding: '6px', borderRadius: '6px' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2L2 22H22L12 2Z" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -66,19 +91,42 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
       </div>
 
       {/* Global Search */}
-      <div className="sidebar-search-container" ref={searchRef}>
-        <Search size={14} className="sidebar-search-icon" />
+      <div className="sidebar-search-container" ref={searchRef} style={{ position: 'relative', width: '100%', marginBottom: '16px' }}>
+        <Search size={14} className="sidebar-search-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
         <input
           type="text"
           className="sidebar-search-input"
-          placeholder="Buscar clientes ou processos..."
+          placeholder="Buscar clientes..."
           value={searchQuery}
           onChange={e => { setSearchQuery(e.target.value); setShowSearchResults(true); }}
           onFocus={() => setShowSearchResults(true)}
           onKeyDown={handleSearchKeyDown}
+          style={{
+            width: '100%',
+            padding: '8px 12px 8px 32px',
+            backgroundColor: '#2E2E2E',
+            border: '1px solid transparent',
+            borderRadius: '6px',
+            color: '#fff',
+            fontSize: '13px',
+            transition: 'all 200ms ease'
+          }}
         />
         {showSearchResults && filteredClients.length > 0 && (
-          <div className="sidebar-search-dropdown">
+          <div className="sidebar-search-dropdown" style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            backgroundColor: '#161616',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: '8px',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+            zIndex: 1020,
+            padding: '4px 0',
+            maxHeight: '200px',
+            overflowY: 'auto'
+          }}>
             {filteredClients.map(c => {
               let badgeClass = 'badge-estavel';
               if (c.criticality === 'Crítico') badgeClass = 'badge-critico';
@@ -92,8 +140,17 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
                     setSearchQuery('');
                     setShowSearchResults(false);
                   }}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    transition: 'all 150ms ease'
+                  }}
                 >
-                  <span>{c.name}</span>
+                  <span style={{ color: '#FFF', fontWeight: '500' }}>{c.name}</span>
                   <span className={`badge ${badgeClass}`} style={{ fontSize: '9px', padding: '2px 5px' }}>{c.criticality}</span>
                 </div>
               );
@@ -102,24 +159,86 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
         )}
       </div>
 
-      {/* Bright Green "+ Novo Lead" button */}
-      <div style={{ padding: '0 8px 16px 8px' }}>
+      {/* Actions Trigger button "+ Nova Ação" */}
+      <div style={{ padding: '0 0 16px 0', position: 'relative' }}>
         <button 
-          onClick={onOpenNewLeadModal}
+          onClick={() => setShowActionPopup(!showActionPopup)}
           className="btn-primary" 
           style={{ 
             width: '100%', 
             justifyContent: 'center', 
             backgroundColor: 'var(--green-primary)', 
             color: '#000', 
-            fontWeight: '600',
+            fontWeight: '700',
             height: '40px',
-            borderRadius: '8px'
+            borderRadius: '8px',
+            gap: '6px',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '14px',
+            transition: 'transform 180ms ease'
           }}
         >
-          <Plus size={16} />
-          <span>Novo Lead</span>
+          <Plus size={16} strokeWidth={2.5} />
+          <span>Nova Ação</span>
         </button>
+
+        {/* Action Menu popover above button */}
+        {showActionPopup && (
+          <>
+            <div 
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 }}
+              onClick={() => setShowActionPopup(false)}
+            />
+            <div 
+              className="premium-action-popup"
+              style={{
+                position: 'absolute',
+                bottom: '48px',
+                left: 0,
+                right: 0,
+                backgroundColor: '#161616',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+                borderRadius: '12px',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04) inset',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                zIndex: 1010,
+                padding: '6px 0',
+                transformOrigin: 'bottom',
+                animation: 'premiumDropdownOpen 200ms cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
+            >
+              {[
+                { label: '📋 Novo Lead', type: 'lead' },
+                { label: '✅ Nova Tarefa', type: 'task' },
+                { label: '💡 Nova Oferta', type: 'offer' },
+                { label: '📝 Anotação Rápida', type: 'note' },
+              ].map(opt => (
+                <div
+                  key={opt.type}
+                  onClick={() => {
+                    onOpenAction(opt.type);
+                    setShowActionPopup(false);
+                  }}
+                  style={{
+                    padding: '12px 16px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#FFF',
+                    cursor: 'pointer',
+                    transition: 'all 180ms ease',
+                  }}
+                  className="sidebar-popup-item"
+                >
+                  {opt.label}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <nav className="sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -143,12 +262,57 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
               <span>Kanban</span>
             </button>
             <button
-              className={`nav-item ${currentRoute === 'clientes' || currentRoute.startsWith('clientes/') ? 'active' : ''}`}
-              onClick={() => onNavigate('clientes')}
+              className={`nav-item ${(currentRoute === 'clientes' || currentRoute.startsWith('clientes/')) && !linksExpanded ? 'active' : ''}`}
+              onClick={() => {
+                setLinksExpanded(false);
+                onNavigate('clientes');
+              }}
             >
               <Users size={18} />
               <span>Clientes</span>
             </button>
+
+            {/* Links Rápidos item below Clientes */}
+            <button
+              className={`nav-item ${linksExpanded ? 'active' : ''}`}
+              onClick={() => setLinksExpanded(!linksExpanded)}
+            >
+              <LinkIcon size={18} />
+              <span>Links Rápidos</span>
+            </button>
+
+            {/* Expanded section inside the sidebar nav itself */}
+            {linksExpanded && (
+              <div style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '2px', margin: '4px 0' }}>
+                {mergedLinksList.map((link, idx) => (
+                  <a
+                    key={idx}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="sidebar-link-item-expanded"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      color: '#888',
+                      textDecoration: 'none',
+                      fontSize: '13px',
+                      borderRadius: '6px',
+                      transition: 'all 150ms ease',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
+                    <LinkIcon size={12} style={{ color: 'var(--green-primary)', flexShrink: 0 }} />
+                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden' }}>{link.label}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+
             <button
               className="nav-item"
               onClick={() => handlePlaceholderClick('Agenda')}
@@ -170,8 +334,6 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
         <div>
           <span className="sidebar-section-title" style={{ padding: '0 16px', fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>Suporte</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-
-
             <button
               className={`nav-item ${currentRoute === 'configuracoes' ? 'active' : ''}`}
               onClick={() => onNavigate('configuracoes')}
@@ -185,16 +347,16 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
 
       {/* Footer Profile */}
       <div className="sidebar-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-        <div className="user-avatar">
+        <div className="user-avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#2E2E2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: 'var(--green-primary)' }}>
           {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt={profile.name} />
+            <img src={profile.avatarUrl} alt={profile.name} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
           ) : (
             <span>{profile.avatarInitials}</span>
           )}
         </div>
-        <div className="user-info">
-          <span className="user-name">{profile.name}</span>
-          <span className="user-role">{profile.role}</span>
+        <div className="user-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span className="user-name" style={{ fontSize: '13px', fontWeight: '700', color: '#FFF' }}>{profile.name}</span>
+          <span className="user-role" style={{ fontSize: '10px', color: '#666' }}>{profile.role}</span>
         </div>
       </div>
     </aside>

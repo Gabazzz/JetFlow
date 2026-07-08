@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { 
   Calendar as CalendarIcon, Users, CheckSquare, AlertTriangle, 
   Edit2, Trash2, X, Plus, Phone, Mail, List, Zap, Sparkles,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Check
 } from 'lucide-react';
 import { parseBRDate, getDateStatus, toBRDate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
+import PremiumSelect from './PremiumSelect';
 
 export default function DashboardView({ 
   clients, 
@@ -16,6 +17,8 @@ export default function DashboardView({
   onNavigate 
 }) {
   const [activeModal, setActiveModal] = useState(null);
+  const [completedIds, setCompletedIds] = useState([]);
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
   
   // Quick Reminder Form State
   const [quickTitle, setQuickTitle] = useState('');
@@ -161,6 +164,42 @@ export default function DashboardView({
     }, 150);
   };
 
+  const handleCompleteItem = (itemId, clientId, obs) => {
+    setCompletedIds(prev => [...prev, itemId]);
+    setTimeout(() => {
+      onRegisterContact(clientId, obs);
+    }, 300);
+  };
+
+  const getTasksForDay = (day) => {
+    const dayStr = day < 10 ? `0${day}/06/2026` : `${day}/06/2026`;
+    const dayTasks = [];
+    clients.forEach(c => {
+      if (c.tasks) {
+        c.tasks.forEach(t => {
+          if (t.deadline === dayStr) {
+            dayTasks.push({ title: t.text, clientName: c.name, type: 'Tarefa' });
+          }
+        });
+      }
+      if (c.reminders) {
+        c.reminders.forEach(r => {
+          if (r.deadline === dayStr) {
+            dayTasks.push({ title: r.title, clientName: c.name, type: 'Lembrete' });
+          }
+        });
+      }
+      if (c.meetings) {
+        c.meetings.forEach(m => {
+          if (m.date === dayStr) {
+            dayTasks.push({ title: m.title, clientName: c.name, type: `Reunião (${m.time})` });
+          }
+        });
+      }
+    });
+    return dayTasks;
+  };
+
   // Convert "30/06/2026" to "JUN 30"
   const formatDateBadge = (brDateStr) => {
     try {
@@ -273,8 +312,19 @@ export default function DashboardView({
                           <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff' }}>{badge.day}</span>
                         </div>
                         
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          gap: '4px',
+                          opacity: completedIds.includes(m.id) ? 0.5 : 1,
+                          transition: 'all 300ms ease'
+                        }}>
+                          <span style={{ 
+                            fontSize: '14px', 
+                            fontWeight: '700', 
+                            color: '#fff',
+                            textDecoration: completedIds.includes(m.id) ? 'line-through' : 'none'
+                          }}>
                             {m.title} - <span style={{ color: 'var(--green-primary)' }}>{m.clientName}</span>
                           </span>
                           <span style={{ fontSize: '11px', color: '#888' }}>
@@ -283,31 +333,19 @@ export default function DashboardView({
                         </div>
                       </div>
 
-                      {/* Right action button */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                        <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>PRÓXIMA AÇÃO</span>
-                        <button 
-                          className="btn-secondary" 
-                          style={{ 
-                            fontSize: '11px', 
-                            padding: '6px 12px', 
-                            border: '1px solid var(--green-primary)', 
-                            color: 'var(--green-primary)', 
-                            backgroundColor: 'transparent',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
+                      {/* Right action checkbox */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>CONCLUIR</span>
+                        <div 
+                          className={`custom-checkbox-circle ${completedIds.includes(m.id) ? 'checked' : ''}`}
+                          onClick={() => handleCompleteItem(m.id, m.clientId, `Atividade concluída: ${m.title}`)}
+                          style={{
+                            width: '20px',
+                            height: '20px'
                           }}
-                          onClick={() => {
-                            onRegisterContact(m.clientId, `Atividade concluída: ${m.title}`);
-                            alert('Atividade marcada como concluída!');
-                          }}
-                          title="Marcar como concluído"
                         >
-                          <CheckSquare size={13} />
-                          <span>Concluir</span>
-                        </button>
+                          {completedIds.includes(m.id) && <Check size={12} strokeWidth={4} color="#000" />}
+                        </div>
                       </div>
                     </div>
                   );
@@ -331,18 +369,19 @@ export default function DashboardView({
                 style={{ flex: 2, minWidth: '150px' }}
                 required
               />
-              <select 
-                className="form-select" 
-                value={quickClientId}
-                onChange={e => setQuickClientId(e.target.value)}
-                style={{ flex: 1, minWidth: '120px' }}
-                required
-              >
-                <option value="">Selecionar cliente...</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <div style={{ flex: 1.5, minWidth: '160px' }}>
+                <PremiumSelect 
+                  value={quickClientId}
+                  onChange={setQuickClientId}
+                  options={clients.map(c => {
+                    let color = '#10B981';
+                    if (c.criticality === 'Crítico') color = '#EF4444';
+                    if (c.criticality === 'Atenção') color = '#F59E0B';
+                    return { value: c.id, label: c.name, colorBar: color };
+                  })}
+                  placeholder="Selecionar cliente..."
+                />
+              </div>
               <div style={{ flex: 1, minWidth: '120px' }}>
                 <CustomDatePicker value={quickDate} onChange={setNewDate => setQuickDate(setNewDate)} />
               </div>
@@ -454,29 +493,35 @@ export default function DashboardView({
                         {daysText}
                       </span>
                       
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '11px', color: '#aaa' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px', 
+                        marginTop: '4px', 
+                        fontSize: '11px', 
+                        color: '#aaa',
+                        opacity: completedIds.includes(client.id) ? 0.5 : 1,
+                        transition: 'all 300ms ease'
+                      }}>
                         <span>Próxima Ação:</span>
-                        <button 
-                          style={{ 
-                            background: 'none', 
-                            border: 'none', 
-                            color: 'var(--green-primary)', 
-                            fontWeight: '700', 
-                            fontSize: '11px', 
-                            padding: 0,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                          onClick={() => {
-                            onRegisterContact(client.id, `Acompanhamento concluído: ${client.nextAction}`);
-                            alert('Lembrete concluído!');
-                          }}
-                        >
-                          <CheckSquare size={11} />
-                          <span>Concluir</span>
-                        </button>
+                        <span style={{ color: 'var(--green-primary)', fontWeight: '600', textDecoration: completedIds.includes(client.id) ? 'line-through' : 'none' }}>
+                          {client.nextAction}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right action checkbox */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>CONCLUIR</span>
+                      <div 
+                        className={`custom-checkbox-circle ${completedIds.includes(client.id) ? 'checked' : ''}`}
+                        onClick={() => handleCompleteItem(client.id, client.id, `Acompanhamento concluído: ${client.nextAction}`)}
+                        style={{
+                          width: '20px',
+                          height: '20px'
+                        }}
+                      >
+                        {completedIds.includes(client.id) && <Check size={12} strokeWidth={4} color="#000" />}
                       </div>
                     </div>
                   </div>
@@ -492,7 +537,8 @@ export default function DashboardView({
               backgroundColor: '#161616', 
               border: '1px solid #252525', 
               borderRadius: '8px', 
-              padding: '16px' 
+              padding: '16px',
+              position: 'relative'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -515,28 +561,99 @@ export default function DashboardView({
               {Array.from({ length: 30 }).map((_, idx) => {
                 const dayNum = idx + 1;
                 const isSystemToday = dayNum === 30; // 30/06
+                const dayTasks = getTasksForDay(dayNum);
+                const hasTasks = dayTasks.length > 0;
                 
                 return (
                   <div 
                     key={idx}
+                    onClick={() => {
+                      if (hasTasks) {
+                        setSelectedCalendarDay(dayNum);
+                      }
+                    }}
                     style={{ 
-                      height: '24px', 
+                      height: '32px', 
                       display: 'flex', 
+                      flexDirection: 'column',
                       alignItems: 'center', 
                       justifyContent: 'center',
                       fontSize: '10px',
                       fontWeight: isSystemToday ? '800' : '500',
                       borderRadius: '4px',
-                      color: isSystemToday ? '#000' : '#555',
+                      color: isSystemToday ? '#000' : hasTasks ? '#fff' : '#555',
                       backgroundColor: isSystemToday ? 'var(--green-primary)' : 'transparent',
-                      border: isSystemToday ? 'none' : 'none'
+                      cursor: hasTasks ? 'pointer' : 'default',
+                      position: 'relative'
                     }}
                   >
-                    {dayNum}
+                    <span>{dayNum}</span>
+                    {hasTasks && (
+                      <span style={{ 
+                        width: '4px', 
+                        height: '4px', 
+                        borderRadius: '50%', 
+                        backgroundColor: isSystemToday ? '#000' : '#65FF4B',
+                        position: 'absolute',
+                        bottom: '2px'
+                      }} />
+                    )}
                   </div>
                 );
               })}
             </div>
+            
+            {/* Inline Popover for calendar days with tasks */}
+            {selectedCalendarDay && (
+              <>
+                <div 
+                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}
+                  onClick={() => setSelectedCalendarDay(null)}
+                />
+                <div 
+                  className="inline-popover-container"
+                  style={{
+                    position: 'absolute',
+                    bottom: '60px',
+                    right: '16px',
+                    width: '280px',
+                    backgroundColor: '#161616',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    boxShadow: '0 8px 40px rgba(0, 0, 0, 0.6)',
+                    backdropFilter: 'blur(16px)',
+                    zIndex: 1060,
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '800', color: '#FFF' }}>
+                      TAREFAS DE {selectedCalendarDay < 10 ? `0${selectedCalendarDay}` : selectedCalendarDay}/06/2026
+                    </span>
+                    <button 
+                      type="button"
+                      className="btn-icon" 
+                      style={{ width: '20px', height: '20px', background: 'none', border: 'none', color: '#888', cursor: 'pointer' }} 
+                      onClick={() => setSelectedCalendarDay(null)}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                    {getTasksForDay(selectedCalendarDay).map((t, idx) => (
+                      <div key={idx} style={{ borderBottom: '1px solid #222', paddingBottom: '6px', display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--green-primary)' }}>{t.clientName}</span>
+                        <span style={{ fontSize: '12px', color: '#FFF' }}>{t.title}</span>
+                        <span style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', fontWeight: '700' }}>{t.type}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
             
             {/* Status indicators */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '12px', borderTop: '1px solid #222', paddingTop: '8px' }}>
@@ -719,15 +836,16 @@ export default function DashboardView({
                     </div>
                     <div className="form-group">
                       <label className="form-label">Criticidade</label>
-                      <select 
-                        className="form-select" 
+                      <PremiumSelect 
                         value={editCriticality}
-                        onChange={e => setEditCriticality(e.target.value)}
-                      >
-                        <option value="Urgente">Urgente</option>
-                        <option value="Normal">Normal</option>
-                        <option value="Baixo">Baixo</option>
-                      </select>
+                        onChange={setEditCriticality}
+                        options={[
+                          { value: 'Urgente', label: 'Urgente' },
+                          { value: 'Normal', label: 'Normal' },
+                          { value: 'Baixo', label: 'Baixo' }
+                        ]}
+                        placeholder="Selecione a criticidade"
+                      />
                     </div>
                   </>
                 )}

@@ -2019,5 +2019,118 @@ button, input, select, textarea {
   color: #000 !important;
 }
 
+/* ============================================================
+   PREMIUM SOFT DESIGN SYSTEM — PROMPT B+C
+   ============================================================ */
+
+/* Premium Transitions & Keyframes */
+@keyframes premiumDropdownOpen {
+  from { opacity: 0; transform: scaleY(0.95); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+
+@keyframes premiumFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes premiumModalOpenCenter {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Global Hover Effects on Buttons and Cards */
+.btn-primary, .btn-secondary, .nav-item, .kpi-card, .kanban-card, .detail-card, .at-risk-card, .daily-activity-item, .sidebar-popup-item, .clients-table tr {
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, opacity 180ms ease !important;
+}
+.btn-primary:hover, .btn-secondary:hover, .kpi-card:hover, .kanban-card:hover, .at-risk-card:hover, .daily-activity-item:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(101, 255, 75, 0.08) !important;
+}
+
+/* Premium Surface Blurs & Shadows */
+.premium-action-popup, .premium-select-dropdown, .datepicker-dropdown, .notification-dropdown, .inline-popover-container, .modal-content {
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  background-color: rgba(22, 22, 22, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04) inset !important;
+}
+.modal-overlay {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Premium Inputs Focus & Colors */
+.form-input, .form-textarea, .form-select, .premium-select-trigger, .sidebar-search-input {
+  background-color: #0D0D0D !important;
+  border: 1px solid #2E2E2E !important;
+  color: #FFF !important;
+  transition: border-color 200ms ease, box-shadow 200ms ease !important;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus, .premium-select-trigger.open, .sidebar-search-input:focus {
+  border-color: #65FF4B !important;
+  box-shadow: 0 0 0 3px rgba(101, 255, 75, 0.1) !important;
+  outline: none;
+}
+.form-input::placeholder, .form-textarea::placeholder, .sidebar-search-input::placeholder {
+  color: #555 !important;
+}
+
+/* Typography tokens */
+.premium-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #666;
+  text-transform: uppercase;
+}
+.premium-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: #FFF;
+}
+.premium-secondary {
+  font-size: 13px;
+  color: #888;
+}
+
+/* Custom Checkbox circle */
+.custom-checkbox-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #444;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 250ms ease;
+  flex-shrink: 0;
+}
+.custom-checkbox-circle.checked {
+  border-color: #65FF4B;
+  background-color: #65FF4B;
+}
+.custom-checkbox-circle.checked svg {
+  stroke: #000;
+  stroke-width: 4px;
+}
+
+/* Custom Select Dropdown & Hover Styles */
+.premium-select-item:hover, .sidebar-popup-item:hover {
+  background-color: rgba(101, 255, 75, 0.08) !important;
+  color: #65FF4B !important;
+}
+
+/* Entrance Animations */
+.premium-action-popup, .premium-select-dropdown, .datepicker-dropdown, .notification-dropdown, .inline-popover-container {
+  animation: premiumDropdownOpen 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-content {
+  animation: premiumModalOpenCenter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+
 
 

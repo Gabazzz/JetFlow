@@ -1,6 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { User, Layers, Tag, Box, Plus, Trash2, Edit2, Check, X, Camera, GripVertical, Kanban } from 'lucide-react';
 
+const EMOJI_OPTIONS = [
+  '💬','🔗','⚡','🤖','📊','🛠️','🔌','📦','🚀','🎯','🔒','📱',
+  '🌐','💡','📂','🔔','📝','🎨','🏆','💎','⚙️','🔧','📡','🛡️',
+  '🧩','📈','🔑','🌟','💰','🧠','🔍','📤','🗂️','✅','🎁','🤝',
+];
+
 export default function ConfiguracoesView({ 
   profile, onUpdateProfile,
   plans, onAddPlan, onEditPlan, onRemovePlan,
@@ -39,6 +45,11 @@ export default function ConfiguracoesView({
   // Drag state for stages
   const [draggedStage, setDraggedStage] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
+
+  // Emoji picker states for modules tab
+  const [showEmojiPicker, setShowEmojiPicker] = useState(null);
+  const [newModuleEmoji, setNewModuleEmoji] = useState('📦');
+  const [editModuleEmoji, setEditModuleEmoji] = useState('');
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -326,19 +337,170 @@ export default function ConfiguracoesView({
           onConfirmAdd: confirmAddPlan
         })}
 
-        {/* Tab: Módulos */}
-        {activeTab === 'modulos' && renderInlineListSection({
-          title: 'Gerenciar Módulos', items: modules,
-          getKey: m => m.id, getName: m => m.name,
-          editingId: editingModuleId, editName: editModuleName, setEditName: setEditModuleName,
-          onStartEdit: (m) => { setEditingModuleId(m.id); setEditModuleName(m.name); },
-          onConfirmEdit: (id) => { onEditModule(id, editModuleName); setEditingModuleId(null); },
-          onCancelEdit: () => setEditingModuleId(null),
-          onRemove: onRemoveModule,
-          isAdding: addingModule, setIsAdding: setAddingModule,
-          newName: newModuleName, setNewName: setNewModuleName,
-          onConfirmAdd: confirmAddModule
-        })}
+        {/* Tab: Módulos — Custom with Emoji Picker */}
+        {activeTab === 'modulos' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 className="section-title">Gerenciar Módulos</h3>
+              {!addingModule && (
+                <button className="btn-primary" style={{ padding: '8px 14px', fontSize: '13px' }} onClick={() => { setAddingModule(true); setNewModuleName(''); setNewModuleEmoji('📦'); }}>
+                  <Plus size={14} /><span>Adicionar</span>
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {modules.map(mod => {
+                const isEditingThis = editingModuleId === mod.id;
+                return (
+                  <div key={mod.id} className="settings-list-item" style={{ position: 'relative', gap: '12px' }}>
+                    {!isEditingThis ? (
+                      <>
+                        <span style={{
+                          fontSize: '20px', width: '36px', height: '36px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          backgroundColor: '#1E1E1E', borderRadius: '8px',
+                          border: '1px solid #2A2A2A', flexShrink: 0
+                        }}>{mod.emoji || '📦'}</span>
+                        <span style={{ fontWeight: '500', flex: 1 }}>{mod.name}</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn-icon" onClick={() => {
+                            setEditingModuleId(mod.id);
+                            setEditModuleName(mod.name);
+                            setEditModuleEmoji(mod.emoji || '📦');
+                            setShowEmojiPicker(null);
+                          }} title="Editar"><Edit2 size={14} /></button>
+                          <button className="btn-danger-icon" onClick={() => onRemoveModule(mod.id)} title="Remover"><Trash2 size={14} /></button>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', width: '100%', gap: '10px', alignItems: 'flex-start', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', gap: '10px', width: '100%', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowEmojiPicker(showEmojiPicker === mod.id ? null : mod.id)}
+                            style={{
+                              fontSize: '20px', width: '42px', height: '42px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              backgroundColor: '#1E1E1E', borderRadius: '8px',
+                              border: showEmojiPicker === mod.id ? '1.5px solid var(--green-primary)' : '1.5px solid #2A2A2A',
+                              cursor: 'pointer', flexShrink: 0, transition: 'border-color 150ms ease'
+                            }}
+                            title="Escolher emoji"
+                          >{editModuleEmoji}</button>
+                          <input
+                            type="text" className="form-input" style={{ flex: 1 }}
+                            value={editModuleName}
+                            onChange={e => setEditModuleName(e.target.value)}
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') { onEditModule(mod.id, { name: editModuleName, emoji: editModuleEmoji }); setEditingModuleId(null); setShowEmojiPicker(null); }
+                              if (e.key === 'Escape') { setEditingModuleId(null); setShowEmojiPicker(null); }
+                            }}
+                          />
+                          <button className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={() => { onEditModule(mod.id, { name: editModuleName, emoji: editModuleEmoji }); setEditingModuleId(null); setShowEmojiPicker(null); }}><Check size={14} /></button>
+                          <button className="btn-icon" style={{ color: 'var(--badge-red)' }} onClick={() => { setEditingModuleId(null); setShowEmojiPicker(null); }}><X size={14} /></button>
+                        </div>
+                        {showEmojiPicker === mod.id && (
+                          <div style={{
+                            display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: '6px',
+                            padding: '12px', backgroundColor: '#111', borderRadius: '10px',
+                            border: '1px solid #2A2A2A', width: '100%', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                          }}>
+                            {EMOJI_OPTIONS.map(em => (
+                              <button key={em} type="button"
+                                onClick={() => { setEditModuleEmoji(em); setShowEmojiPicker(null); }}
+                                style={{
+                                  fontSize: '18px', padding: '6px', borderRadius: '6px',
+                                  border: em === editModuleEmoji ? '1.5px solid var(--green-primary)' : '1.5px solid transparent',
+                                  backgroundColor: em === editModuleEmoji ? 'rgba(101,255,75,0.08)' : 'transparent',
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 120ms ease',
+                                }}
+                                onMouseEnter={e => { if (em !== editModuleEmoji) e.currentTarget.style.backgroundColor = '#222'; }}
+                                onMouseLeave={e => { if (em !== editModuleEmoji) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                              >{em}</button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {modules.length === 0 && !addingModule && (
+                <div className="empty-state"><span className="empty-state-icon">📋</span><p>Nenhum módulo cadastrado. Clique em Adicionar.</p></div>
+              )}
+
+              {addingModule && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px', backgroundColor: '#161616', borderRadius: '10px', border: '1px solid #2A2A2A' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker(showEmojiPicker === 'new' ? null : 'new')}
+                      style={{
+                        fontSize: '20px', width: '42px', height: '42px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: '#1E1E1E', borderRadius: '8px',
+                        border: showEmojiPicker === 'new' ? '1.5px solid var(--green-primary)' : '1.5px solid #2A2A2A',
+                        cursor: 'pointer', flexShrink: 0, transition: 'border-color 150ms ease'
+                      }}
+                      title="Escolher emoji"
+                    >{newModuleEmoji}</button>
+                    <input
+                      type="text" className="form-input" style={{ flex: 1 }}
+                      value={newModuleName}
+                      onChange={e => setNewModuleName(e.target.value)}
+                      placeholder="Nome do módulo..."
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          if (!newModuleName.trim()) return;
+                          onAddModule({ id: `mod_${Date.now()}`, name: newModuleName, emoji: newModuleEmoji });
+                          setNewModuleName(''); setNewModuleEmoji('📦'); setAddingModule(false); setShowEmojiPicker(null);
+                        }
+                        if (e.key === 'Escape') { setAddingModule(false); setNewModuleName(''); setShowEmojiPicker(null); }
+                      }}
+                    />
+                    <button className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={() => {
+                      if (!newModuleName.trim()) return;
+                      onAddModule({ id: `mod_${Date.now()}`, name: newModuleName, emoji: newModuleEmoji });
+                      setNewModuleName(''); setNewModuleEmoji('📦'); setAddingModule(false); setShowEmojiPicker(null);
+                    }}><Check size={16} /></button>
+                    <button className="btn-icon" style={{ color: 'var(--badge-red)' }} onClick={() => { setAddingModule(false); setNewModuleName(''); setShowEmojiPicker(null); }}><X size={16} /></button>
+                  </div>
+                  {showEmojiPicker === 'new' && (
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: '6px',
+                      padding: '12px', backgroundColor: '#111', borderRadius: '10px',
+                      border: '1px solid #2A2A2A', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                    }}>
+                      {EMOJI_OPTIONS.map(em => (
+                        <button key={em} type="button"
+                          onClick={() => { setNewModuleEmoji(em); setShowEmojiPicker(null); }}
+                          style={{
+                            fontSize: '18px', padding: '6px', borderRadius: '6px',
+                            border: em === newModuleEmoji ? '1.5px solid var(--green-primary)' : '1.5px solid transparent',
+                            backgroundColor: em === newModuleEmoji ? 'rgba(101,255,75,0.08)' : 'transparent',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'all 120ms ease',
+                          }}
+                          onMouseEnter={e => { if (em !== newModuleEmoji) e.currentTarget.style.backgroundColor = '#222'; }}
+                          onMouseLeave={e => { if (em !== newModuleEmoji) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        >{em}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+
+
+
 
         {/* Tab: Ofertas */}
         {activeTab === 'ofertas' && renderInlineListSection({

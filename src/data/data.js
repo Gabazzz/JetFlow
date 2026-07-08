@@ -16,13 +16,13 @@ export const initialPlans = [
 ];
 
 export const initialModules = [
-  { id: 'mod1', name: 'WhatsApp Business' },
-  { id: 'mod2', name: 'CRM Integrado' },
-  { id: 'mod3', name: 'Automação de Fluxos' },
-  { id: 'mod4', name: 'IA Conversacional' },
-  { id: 'mod5', name: 'Relatórios Avançados' },
-  { id: 'mod6', name: 'Chatbot Builder' },
-  { id: 'mod7', name: 'API Oficial' },
+  { id: 'mod1', name: 'WhatsApp Business', emoji: '💬' },
+  { id: 'mod2', name: 'CRM Integrado', emoji: '🔗' },
+  { id: 'mod3', name: 'Automação de Fluxos', emoji: '⚡' },
+  { id: 'mod4', name: 'IA Conversacional', emoji: '🤖' },
+  { id: 'mod5', name: 'Relatórios Avançados', emoji: '📊' },
+  { id: 'mod6', name: 'Chatbot Builder', emoji: '🛠️' },
+  { id: 'mod7', name: 'API Oficial', emoji: '🔌' },
 ];
 
 export const initialAvailableOffers = [

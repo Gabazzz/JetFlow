@@ -25,17 +25,42 @@ import CustomDatePicker from './components/CustomDatePicker';
 import PremiumSelect from './components/PremiumSelect';
 import { moduleChecklistsTemplate } from './data/data';
 
+// Helper: load from localStorage or fall back to default
+function loadFromStorage(key, fallback) {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState('dashboard');
   
-  // Application Local State (Single source of truth)
-  const [profile, setProfile] = useState(initialProfile);
-  const [plans, setPlans] = useState(initialPlans);
-  const [modules, setModules] = useState(initialModules);
-  const [offers, setOffers] = useState(initialAvailableOffers);
-  const [clients, setClients] = useState(initialClients);
-  const [stages, setStages] = useState(initialStages);
+  // Application Local State (Single source of truth) — persisted via localStorage
+  const [profile, setProfile] = useState(() => loadFromStorage('jf_profile', initialProfile));
+  const [plans, setPlans] = useState(() => loadFromStorage('jf_plans', initialPlans));
+  const [modules, setModules] = useState(() => loadFromStorage('jf_modules', initialModules));
+  const [offers, setOffers] = useState(() => loadFromStorage('jf_offers', initialAvailableOffers));
+  const [clients, setClients] = useState(() => loadFromStorage('jf_clients', initialClients));
+  const [stages, setStages] = useState(() => loadFromStorage('jf_stages', initialStages));
   const [showNotifications, setShowNotifications] = useState(false);
+  const [completedIds, setCompletedIds] = useState([]);
+
+  // Auto-save to localStorage whenever state changes
+  useEffect(() => { localStorage.setItem('jf_profile', JSON.stringify(profile)); }, [profile]);
+  useEffect(() => { localStorage.setItem('jf_plans', JSON.stringify(plans)); }, [plans]);
+  useEffect(() => { localStorage.setItem('jf_modules', JSON.stringify(modules)); }, [modules]);
+  useEffect(() => { localStorage.setItem('jf_offers', JSON.stringify(offers)); }, [offers]);
+  useEffect(() => { localStorage.setItem('jf_clients', JSON.stringify(clients)); }, [clients]);
+  useEffect(() => { localStorage.setItem('jf_stages', JSON.stringify(stages)); }, [stages]);
+
+  const toggleCompletedId = (id) => {
+    setCompletedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
 
   // Global Action Modals states
   const [activeActionModal, setActiveActionModal] = useState(null); // 'lead' | 'task' | 'offer' | 'note' | null
@@ -124,18 +149,22 @@ export default function App() {
     setModules(prev => [...prev, newModule]);
   };
 
-  const handleEditModule = (id, newName) => {
-    setModules(prev => prev.map(m => m.id === id ? { ...m, name: newName } : m));
-    setClients(prev => prev.map(c => {
-      const oldModObj = modules.find(m => m.id === id);
-      if (oldModObj && c.activeModules.includes(oldModObj.name)) {
-        return {
-          ...c,
-          activeModules: c.activeModules.map(mName => mName === oldModObj.name ? newName : mName)
-        };
-      }
-      return c;
-    }));
+  const handleEditModule = (id, updates) => {
+    // updates can be { name, emoji } or just a string (legacy)
+    const updateObj = typeof updates === 'string' ? { name: updates } : updates;
+    setModules(prev => prev.map(m => m.id === id ? { ...m, ...updateObj } : m));
+    if (updateObj.name) {
+      setClients(prev => prev.map(c => {
+        const oldModObj = modules.find(m => m.id === id);
+        if (oldModObj && c.activeModules.includes(oldModObj.name)) {
+          return {
+            ...c,
+            activeModules: c.activeModules.map(mName => mName === oldModObj.name ? updateObj.name : mName)
+          };
+        }
+        return c;
+      }));
+    }
   };
 
   const handleRemoveModule = (id) => {
@@ -476,6 +505,8 @@ export default function App() {
           onRemoveReminder={handleRemoveClientReminder}
           onRegisterContact={handleRegisterContact}
           onNavigate={handleNavigate}
+          completedIds={completedIds}
+          onToggleCompleted={toggleCompletedId}
         />
       );
     }
@@ -984,22 +1015,107 @@ export default function App() {
                     </div>
                   )}
                   <div className="form-group full-width">
-                    <label className="form-label">Módulos Contratados</label>
-                    <div className="checkbox-group">
-                      {modules.map(mod => (
-                        <label key={mod.id} className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={newSelectedModules.includes(mod.name)}
-                            onChange={() => {
-                              setNewSelectedModules(prev => 
+                    <label className="form-label">
+                      Módulos Contratados
+                      {newSelectedModules.length > 0 && (
+                        <span style={{
+                          marginLeft: '8px',
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          color: 'var(--green-primary)',
+                          backgroundColor: 'rgba(101,255,75,0.1)',
+                          border: '1px solid rgba(101,255,75,0.2)',
+                          borderRadius: '10px',
+                          padding: '1px 7px',
+                          letterSpacing: '0.3px'
+                        }}>
+                          {newSelectedModules.length} selecionado{newSelectedModules.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </label>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                      gap: '10px',
+                      marginTop: '4px'
+                    }}>
+                      {modules.map(mod => {
+                        const isSelected = newSelectedModules.includes(mod.name);
+                        const icon = mod.emoji || '📦';
+                        return (
+                          <div
+                            key={mod.id}
+                            onClick={() => {
+                              setNewSelectedModules(prev =>
                                 prev.includes(mod.name) ? prev.filter(m => m !== mod.name) : [...prev, mod.name]
                               );
                             }}
-                          />
-                          <span>{mod.name}</span>
-                        </label>
-                      ))}
+                            style={{
+                              position: 'relative',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px',
+                              padding: '14px 14px 12px',
+                              borderRadius: '10px',
+                              border: isSelected
+                                ? '1.5px solid var(--green-primary)'
+                                : '1.5px solid #2A2A2A',
+                              backgroundColor: isSelected ? 'rgba(101,255,75,0.05)' : '#1A1A1A',
+                              cursor: 'pointer',
+                              transition: 'all 180ms cubic-bezier(0.16,1,0.3,1)',
+                              transform: 'translateY(0)',
+                              boxShadow: isSelected ? '0 0 0 1px rgba(101,255,75,0.15)' : 'none',
+                              userSelect: 'none',
+                            }}
+                            onMouseEnter={e => {
+                              if (!isSelected) {
+                                e.currentTarget.style.borderColor = '#3A3A3A';
+                                e.currentTarget.style.backgroundColor = '#202020';
+                              }
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.borderColor = isSelected ? 'var(--green-primary)' : '#2A2A2A';
+                              e.currentTarget.style.backgroundColor = isSelected ? 'rgba(101,255,75,0.05)' : '#1A1A1A';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }}
+                          >
+                            {/* Check badge top-right */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '10px',
+                              right: '10px',
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              border: isSelected ? 'none' : '1.5px solid #3A3A3A',
+                              backgroundColor: isSelected ? 'var(--green-primary)' : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 200ms ease',
+                              flexShrink: 0,
+                            }}>
+                              {isSelected && <Check size={9} strokeWidth={4} color="#000" />}
+                            </div>
+
+                            {/* Icon */}
+                            <span style={{ fontSize: '20px', lineHeight: 1 }}>{icon}</span>
+
+                            {/* Name */}
+                            <span style={{
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: isSelected ? '#fff' : '#999',
+                              lineHeight: 1.3,
+                              transition: 'color 180ms ease',
+                              paddingRight: '18px',
+                            }}>
+                              {mod.name}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="form-group full-width">

@@ -14,10 +14,11 @@ export default function DashboardView({
   onUpdateReminder, 
   onRemoveReminder, 
   onRegisterContact, 
-  onNavigate 
+  onNavigate,
+  completedIds,
+  onToggleCompleted
 }) {
   const [activeModal, setActiveModal] = useState(null);
-  const [completedIds, setCompletedIds] = useState([]);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
   
   // Quick Reminder Form State
@@ -36,12 +37,18 @@ export default function DashboardView({
 
   const todayStr = '30/06/2026';
   
-  // Meetings today
+  // Meetings today — exclude auto-generated contact entries (prefixed with "Contato:") and keep only genuine scheduled meetings
   const meetingsToday = [];
   clients.forEach(c => {
     if (c.meetings) {
       c.meetings.forEach(m => {
-        if (m.date === todayStr) {
+        const isAutoContact = m.title && (
+          m.title.startsWith('Contato:') ||
+          m.title === 'Contato periódico realizado' ||
+          m.title === 'Ajustado data de ciclo manualmente' ||
+          m.title === 'Contato de ciclo registrado'
+        );
+        if (m.date === todayStr && !isAutoContact) {
           meetingsToday.push({
             clientName: c.name,
             clientId: c.id,
@@ -164,11 +171,8 @@ export default function DashboardView({
     }, 150);
   };
 
-  const handleCompleteItem = (itemId, clientId, obs) => {
-    setCompletedIds(prev => [...prev, itemId]);
-    setTimeout(() => {
-      onRegisterContact(clientId, obs);
-    }, 300);
+  const handleCompleteItem = (itemId) => {
+    onToggleCompleted(itemId);
   };
 
   const getTasksForDay = (day) => {
@@ -338,7 +342,7 @@ export default function DashboardView({
                         <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>CONCLUIR</span>
                         <div 
                           className={`custom-checkbox-circle ${completedIds.includes(m.id) ? 'checked' : ''}`}
-                          onClick={() => handleCompleteItem(m.id, m.clientId, `Atividade concluída: ${m.title}`)}
+                          onClick={() => handleCompleteItem(m.id)}
                           style={{
                             width: '20px',
                             height: '20px'
@@ -515,7 +519,7 @@ export default function DashboardView({
                       <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>CONCLUIR</span>
                       <div 
                         className={`custom-checkbox-circle ${completedIds.includes(client.id) ? 'checked' : ''}`}
-                        onClick={() => handleCompleteItem(client.id, client.id, `Acompanhamento concluído: ${client.nextAction}`)}
+                        onClick={() => handleCompleteItem(client.id)}
                         style={{
                           width: '20px',
                           height: '20px'

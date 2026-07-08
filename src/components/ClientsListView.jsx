@@ -116,7 +116,8 @@ export default function ClientsListView({
               <p>Nenhum cliente cadastrado ou encontrado.</p>
             </div>
           ) : (
-            <table className="clients-table">
+            <>
+              <table className="clients-table">
               <thead>
                 <tr>
                   <th>Cliente</th>
@@ -312,6 +313,43 @@ export default function ClientsListView({
                 })}
               </tbody>
             </table>
+
+            {/* Mobile card list — shown only on mobile via CSS */}
+            <div className="clients-mobile-list">
+              {filteredClients.map(client => {
+                let badgeClass = 'badge-estavel';
+                if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
+                if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
+                return (
+                  <div
+                    key={client.id}
+                    className="client-mobile-card"
+                    onClick={() => onNavigate(`clientes/${client.id}`)}
+                  >
+                    <div className="client-mobile-card-top">
+                      <span className="client-mobile-card-name">{client.name}</span>
+                      <span className={`badge ${badgeClass}`}>{client.criticality}</span>
+                    </div>
+                    <div className="client-mobile-card-meta">
+                      <span className="stage-pill-list">{client.stage}</span>
+                      <span style={{ fontSize: '12px', color: '#888' }}>{client.plan}</span>
+                      {client.responsible && (
+                        <span style={{ fontSize: '11px', color: '#666' }}>👤 {client.responsible}</span>
+                      )}
+                    </div>
+                    {client.nextAction && (
+                      <div className="client-mobile-card-footer">
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          📋 {client.nextAction}
+                        </span>
+                        <span style={{ color: '#65FF4B', fontWeight: '700', flexShrink: 0 }}>Ver →</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            </>
           )}
         </div>
       )}

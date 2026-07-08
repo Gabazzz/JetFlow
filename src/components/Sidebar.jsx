@@ -5,7 +5,7 @@ import {
   Calendar, CheckSquare, Plus, User
 } from 'lucide-react';
 
-export default function Sidebar({ currentRoute, onNavigate, profile, clients, onOpenAction }) {
+export default function Sidebar({ currentRoute, onNavigate, profile, clients, onOpenAction, isOpen }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [linksExpanded, setLinksExpanded] = useState(false);
@@ -76,7 +76,7 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' mobile-open' : ''}`}>
       {/* Brand Header */}
       <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px 0', marginBottom: '20px' }}>
         <div style={{ backgroundColor: 'var(--green-primary)', padding: '6px', borderRadius: '6px' }}>

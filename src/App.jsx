@@ -47,6 +47,7 @@ export default function App() {
   const [stages, setStages] = useState(() => loadFromStorage('jf_stages', initialStages));
   const [showNotifications, setShowNotifications] = useState(false);
   const [completedIds, setCompletedIds] = useState([]);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Auto-save to localStorage whenever state changes
   useEffect(() => { localStorage.setItem('jf_profile', JSON.stringify(profile)); }, [profile]);
@@ -619,11 +620,17 @@ export default function App() {
 
   return (
     <div className="app-layout">
+      {/* Mobile sidebar overlay */}
+      {mobileSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setMobileSidebarOpen(false)} />
+      )}
+
       <Sidebar 
         currentRoute={currentRoute} 
-        onNavigate={handleNavigate} 
+        onNavigate={(route) => { handleNavigate(route); setMobileSidebarOpen(false); }} 
         profile={profile}
         clients={clients}
+        isOpen={mobileSidebarOpen}
         onOpenAction={(type) => {
           // Reset fields when opening modals
           if (type === 'task') {
@@ -640,10 +647,24 @@ export default function App() {
             setNoteText('');
           }
           setActiveActionModal(type);
+          setMobileSidebarOpen(false);
         }}
       />
+
       <main className="main-container">
         <div className="view-header">
+          {/* Hamburger — only visible on mobile via CSS */}
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setMobileSidebarOpen(true)}
+            aria-label="Abrir menu"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
           <h2 className="view-title">{getPageTitle()}</h2>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -1337,6 +1358,72 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Mobile Bottom Navigation Bar — CSS hides this on desktop */}
+      <nav className="mobile-bottom-nav">
+        <button
+          className={`mobile-nav-btn ${currentRoute === 'dashboard' ? 'active' : ''}`}
+          onClick={() => { handleNavigate('dashboard'); setMobileSidebarOpen(false); }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+          <span>Início</span>
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${currentRoute === 'kanban' ? 'active' : ''}`}
+          onClick={() => { handleNavigate('kanban'); setMobileSidebarOpen(false); }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/>
+          </svg>
+          <span>Kanban</span>
+        </button>
+
+        {/* FAB: Nova Ação */}
+        <button
+          className="mobile-nav-fab"
+          onClick={() => {
+            setTaskTitle('');
+            setTaskClientId(clients[0]?.id || '');
+            setTaskDeadline('30/06/2026');
+            setTaskCriticality('Normal');
+            setActiveActionModal('lead');
+          }}
+          aria-label="Novo Lead"
+        >
+          <div className="mobile-nav-fab-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </div>
+          <span style={{ fontSize: '8px', color: '#555', marginTop: '2px' }}>Novo</span>
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${currentRoute === 'clientes' || currentRoute.startsWith('clientes/') ? 'active' : ''}`}
+          onClick={() => { handleNavigate('clientes'); setMobileSidebarOpen(false); }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span>Clientes</span>
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${currentRoute === 'configuracoes' ? 'active' : ''}`}
+          onClick={() => { handleNavigate('configuracoes'); setMobileSidebarOpen(false); }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>Config</span>
+        </button>
+      </nav>
 
     </div>
   );

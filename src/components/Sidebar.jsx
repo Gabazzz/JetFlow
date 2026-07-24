@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   LayoutDashboard, Kanban, Users, Settings, Search, 
   Link as LinkIcon, ChevronDown, ChevronRight, ExternalLink,
-  Calendar, CheckSquare, Plus, User
+  Calendar, CheckSquare, Plus, User, LogOut
 } from 'lucide-react';
 
-export default function Sidebar({ currentRoute, onNavigate, profile, clients, onOpenAction, isOpen }) {
+export default function Sidebar({ currentRoute, onNavigate, profile, clients, onOpenAction, isOpen, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [linksExpanded, setLinksExpanded] = useState(false);
@@ -346,18 +346,43 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
       </nav>
 
       {/* Footer Profile */}
-      <div className="sidebar-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-        <div className="user-avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#2E2E2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: 'var(--green-primary)' }}>
-          {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt={profile.name} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
-          ) : (
-            <span>{profile.avatarInitials}</span>
-          )}
+      <div className="sidebar-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+          <div className="user-avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#2E2E2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: 'var(--green-primary)', flexShrink: 0 }}>
+            {profile.avatarUrl ? (
+              <img src={profile.avatarUrl} alt={profile.name} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
+            ) : (
+              <span>{profile.avatarInitials}</span>
+            )}
+          </div>
+          <div className="user-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+            <span className="user-name" style={{ fontSize: '13px', fontWeight: '700', color: '#FFF' }}>{profile.name}</span>
+            <span className="user-role" style={{ fontSize: '10px', color: '#666' }}>{profile.role}</span>
+          </div>
         </div>
-        <div className="user-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span className="user-name" style={{ fontSize: '13px', fontWeight: '700', color: '#FFF' }}>{profile.name}</span>
-          <span className="user-role" style={{ fontSize: '10px', color: '#666' }}>{profile.role}</span>
-        </div>
+
+        {onSignOut && (
+          <button
+            onClick={onSignOut}
+            title="Sair da Conta"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#888',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 150ms ease'
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = '#EF4444'}
+            onMouseLeave={e => e.currentTarget.style.color = '#888'}
+          >
+            <LogOut size={16} />
+          </button>
+        )}
       </div>
     </aside>
   );

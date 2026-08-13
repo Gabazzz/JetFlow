@@ -5,6 +5,7 @@ import {
   Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap, LifeBuoy
 } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
+import CustomSelect from './CustomSelect';
 
 export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -309,10 +310,7 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Cliente *</label>
-                  <select className="form-select" value={qTaskClientId} onChange={e => setQTaskClientId(e.target.value)} required autoFocus>
-                    <option value="">Selecionar cliente...</option>
-                    {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <CustomSelect value={qTaskClientId} onChange={setQTaskClientId} placeholder="Selecionar cliente..." options={(clients || []).map(c => ({ value: c.id, label: c.name }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Tarefa *</label>
@@ -344,17 +342,11 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Cliente *</label>
-                  <select className="form-select" value={qOfferClientId} onChange={e => setQOfferClientId(e.target.value)} required autoFocus>
-                    <option value="">Selecionar cliente...</option>
-                    {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <CustomSelect value={qOfferClientId} onChange={setQOfferClientId} placeholder="Selecionar cliente..." options={(clients || []).map(c => ({ value: c.id, label: c.name }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Oferta de Interesse *</label>
-                  <select className="form-select" value={qOfferName} onChange={e => setQOfferName(e.target.value)} required>
-                    <option value="">Selecionar oferta...</option>
-                    {(offers || []).map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
-                  </select>
+                  <CustomSelect value={qOfferName} onChange={setQOfferName} placeholder="Selecionar oferta..." options={(offers || []).map(o => ({ value: o.name, label: o.name }))} />
                 </div>
               </div>
               <div className="modal-footer">
@@ -378,10 +370,7 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Cliente *</label>
-                  <select className="form-select" value={qTicketClientId} onChange={e => setQTicketClientId(e.target.value)} required autoFocus>
-                    <option value="">Selecionar cliente...</option>
-                    {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <CustomSelect value={qTicketClientId} onChange={setQTicketClientId} placeholder="Selecionar cliente..." options={(clients || []).map(c => ({ value: c.id, label: c.name }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Assunto *</label>
@@ -389,12 +378,7 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
                 </div>
                 <div className="form-group">
                   <label className="form-label">Prioridade</label>
-                  <select className="form-select" value={qTicketPriority} onChange={e => setQTicketPriority(e.target.value)}>
-                    <option value="Baixa">Baixa</option>
-                    <option value="Normal">Normal</option>
-                    <option value="Alta">Alta</option>
-                    <option value="Urgente">Urgente</option>
-                  </select>
+                  <CustomSelect value={qTicketPriority} onChange={setQTicketPriority} options={['Baixa', 'Normal', 'Alta', 'Urgente']} />
                 </div>
               </div>
               <div className="modal-footer">

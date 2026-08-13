@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, CheckCircle, Filter, ArrowUpDown, MoreHorizontal } from 'lucide-react';
+import { User, CheckCircle, Filter, ArrowUpDown, MoreHorizontal, Edit2, Trash2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { getDateStatus, parseBRDate } from '../utils';
 
 const CRITICALITY_ORDER = { 'Crítico': 3, 'Atenção': 2, 'Estável': 1 };
 
-export default function KanbanView({ clients, stages, onUpdateClientStage, onUpdateClientNextAction, onNavigate }) {
+export default function KanbanView({ clients, stages, onUpdateClientStage, onUpdateClientNextAction, onEditStage, onRemoveStage, onNavigate }) {
   const [draggedClientId, setDraggedClientId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -32,6 +32,30 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
 
   const toggleCriticalityFilter = (crit) => {
     setActiveCriticalities(prev => prev.includes(crit) ? prev.filter(c => c !== crit) : [...prev, crit]);
+  };
+
+  // Column ("...") menu state
+  const [openColumnMenu, setOpenColumnMenu] = useState(null);
+  const [renamingStage, setRenamingStage] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [collapsedStages, setCollapsedStages] = useState([]);
+  const columnMenuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutsideColumnMenu(e) {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) setOpenColumnMenu(null);
+    }
+    document.addEventListener('mousedown', handleClickOutsideColumnMenu);
+    return () => document.removeEventListener('mousedown', handleClickOutsideColumnMenu);
+  }, []);
+
+  const handleConfirmRename = (stage) => {
+    if (renameValue.trim() && renameValue.trim() !== stage) onEditStage(stage, renameValue.trim());
+    setRenamingStage(null);
+  };
+
+  const toggleCollapsed = (stage) => {
+    setCollapsedStages(prev => prev.includes(stage) ? prev.filter(s => s !== stage) : [...prev, stage]);
   };
 
   const todayStr = '30/06/2026';
@@ -271,26 +295,78 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
             >
               {/* Column Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--green-primary)' }}></span>
-                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{stage}</span>
-                  <span style={{ fontSize: '11px', color: '#666', backgroundColor: '#1E1E1E', padding: '1px 6px', borderRadius: '10px', fontWeight: '600' }}>
-                    {String(stageClients.length).padStart(2, '0')}
-                  </span>
-                </div>
-                <button className="btn-icon" style={{ width: '24px', height: '24px', color: '#555' }}>
-                  <MoreHorizontal size={14} />
-                </button>
+                {renamingStage === stage ? (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flex: 1 }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ fontSize: '13px', height: '30px', padding: '4px 8px', flex: 1 }}
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      autoFocus
+                      onKeyDown={e => { if (e.key === 'Enter') handleConfirmRename(stage); if (e.key === 'Escape') setRenamingStage(null); }}
+                    />
+                    <button className="btn-icon" style={{ width: '24px', height: '24px', color: 'var(--green-primary)' }} onClick={() => handleConfirmRename(stage)}><Check size={13} /></button>
+                    <button className="btn-icon" style={{ width: '24px', height: '24px' }} onClick={() => setRenamingStage(null)}><X size={13} /></button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--green-primary)' }}></span>
+                      <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{stage}</span>
+                      <span style={{ fontSize: '11px', color: '#666', backgroundColor: '#1E1E1E', padding: '1px 6px', borderRadius: '10px', fontWeight: '600' }}>
+                        {String(stageClients.length).padStart(2, '0')}
+                      </span>
+                    </div>
+                    <div style={{ position: 'relative' }} ref={openColumnMenu === stage ? columnMenuRef : null}>
+                      <button
+                        className="btn-icon"
+                        style={{ width: '24px', height: '24px', color: openColumnMenu === stage ? 'var(--green-primary)' : '#555' }}
+                        onClick={() => setOpenColumnMenu(prev => prev === stage ? null : stage)}
+                      >
+                        <MoreHorizontal size={14} />
+                      </button>
+                      {openColumnMenu === stage && (
+                        <div className="quick-action-menu" style={{ left: 'auto', right: 0, width: '190px' }}>
+                          <button className="quick-action-item" onClick={() => { setRenamingStage(stage); setRenameValue(stage); setOpenColumnMenu(null); }}>
+                            <Edit2 size={14} />
+                            <span className="quick-action-item-title" style={{ fontWeight: '500' }}>Renomear etapa</span>
+                          </button>
+                          <button className="quick-action-item" onClick={() => { toggleCollapsed(stage); setOpenColumnMenu(null); }}>
+                            {collapsedStages.includes(stage) ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                            <span className="quick-action-item-title" style={{ fontWeight: '500' }}>{collapsedStages.includes(stage) ? 'Expandir coluna' : 'Colapsar coluna'}</span>
+                          </button>
+                          <button
+                            className="quick-action-item"
+                            style={{ color: 'var(--badge-red)' }}
+                            onClick={() => {
+                              setOpenColumnMenu(null);
+                              if (window.confirm(`Remover a etapa "${stage}"? Os clientes nela ficarão sem etapa válida.`)) onRemoveStage(stage);
+                            }}
+                          >
+                            <Trash2 size={14} />
+                            <span className="quick-action-item-title" style={{ color: 'var(--badge-red)' }}>Remover etapa</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Cards Container */}
-              <div 
-                className="kanban-cards-container" 
-                style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '10px', 
-                  minHeight: '200px' 
+              {collapsedStages.includes(stage) ? (
+                <div style={{ padding: '10px 8px', fontSize: '12px', color: '#666', textAlign: 'center' }}>
+                  {stageClients.length} cliente{stageClients.length !== 1 ? 's' : ''} oculto{stageClients.length !== 1 ? 's' : ''}
+                </div>
+              ) : (
+              <div
+                className="kanban-cards-container"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  minHeight: '200px'
                 }}
               >
                 {stageClients.length === 0 && stage === 'Finalizado' && (
@@ -446,6 +522,7 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                   <div className="kanban-drop-indicator" />
                 )}
               </div>
+              )}
 
             </div>
           );

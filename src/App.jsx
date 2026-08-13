@@ -24,6 +24,7 @@ import {
 
 import { Bell, X, Plus } from 'lucide-react';
 import CustomDatePicker from './components/CustomDatePicker';
+import CustomSelect from './components/CustomSelect';
 import { moduleChecklistsTemplate } from './data/data';
 
 export default function App() {
@@ -448,11 +449,13 @@ export default function App() {
 
     if (currentRoute === 'kanban') {
       return (
-        <KanbanView 
+        <KanbanView
           clients={clients}
           stages={stages}
           onUpdateClientStage={handleUpdateClientStage}
           onUpdateClientNextAction={handleUpdateClientNextAction}
+          onEditStage={handleEditStage}
+          onRemoveStage={handleRemoveStage}
           onNavigate={handleNavigate}
         />
       );
@@ -465,6 +468,7 @@ export default function App() {
           plans={plans}
           modules={modules}
           tickets={tickets}
+          stages={stages}
           onAddClient={handleAddClient}
           onNavigate={handleNavigate}
           onUpdateClientStage={handleUpdateClientStage}
@@ -472,6 +476,8 @@ export default function App() {
           onUpdateClientCriticality={handleUpdateClientCriticality}
           onRegisterContact={handleRegisterContact}
           onOpenNewLeadModal={() => setIsNewLeadModalOpen(true)}
+          onEditStage={handleEditStage}
+          onRemoveStage={handleRemoveStage}
         />
       );
     }
@@ -792,27 +798,11 @@ export default function App() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Plano</label>
-                    <select 
-                      className="form-select" 
-                      value={newPlan} 
-                      onChange={e => setNewPlan(e.target.value)}
-                    >
-                      {plans.map(p => (
-                        <option key={p.id} value={p.name}>{p.name}</option>
-                      ))}
-                    </select>
+                    <CustomSelect value={newPlan} onChange={setNewPlan} options={plans.map(p => ({ value: p.name, label: p.name }))} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Nível de Criticidade</label>
-                    <select 
-                      className="form-select" 
-                      value={newCriticality} 
-                      onChange={e => setNewCriticality(e.target.value)}
-                    >
-                      <option value="Estável">Estável</option>
-                      <option value="Atenção">Atenção</option>
-                      <option value="Crítico">Crítico</option>
-                    </select>
+                    <CustomSelect value={newCriticality} onChange={setNewCriticality} options={['Estável', 'Atenção', 'Crítico']} />
                   </div>
                   {newCriticality !== 'Estável' && (
                     <div className="form-group full-width">

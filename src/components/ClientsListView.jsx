@@ -8,13 +8,16 @@ export default function ClientsListView({
   plans,
   modules,
   tickets,
+  stages,
   onAddClient,
   onNavigate,
   onUpdateClientStage,
   onUpdateClientNextAction,
   onUpdateClientCriticality,
   onRegisterContact,
-  onOpenNewLeadModal
+  onOpenNewLeadModal,
+  onEditStage,
+  onRemoveStage
 }) {
   const todayStr = '30/06/2026';
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,10 +100,13 @@ export default function ClientsListView({
 
       {/* Conditional View Rendering */}
       {viewMode === 'kanban' ? (
-        <KanbanView 
+        <KanbanView
           clients={filteredClients}
+          stages={stages}
           onUpdateClientStage={onUpdateClientStage}
           onUpdateClientNextAction={onUpdateClientNextAction}
+          onEditStage={onEditStage}
+          onRemoveStage={onRemoveStage}
           onNavigate={onNavigate}
         />
       ) : (

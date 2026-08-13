@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier, calculateNextContactDate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
+import CustomSelect from './CustomSelect';
 
 export default function ClientDetailView({ 
   client, 
@@ -659,9 +660,7 @@ export default function ClientDetailView({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">Plano Contratado</label>
-                  <select className="form-select" value={plan} onChange={e => setPlan(e.target.value)}>
-                    {plans.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-                  </select>
+                  <CustomSelect value={plan} onChange={setPlan} options={plans.map(p => ({ value: p.name, label: p.name }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Módulos Ativos</label>
@@ -952,11 +951,7 @@ export default function ClientDetailView({
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <select className="form-select" value={criticality} onChange={e => setCriticality(e.target.value)}>
-                    <option value="Estável">Estável</option>
-                    <option value="Atenção">Atenção</option>
-                    <option value="Crítico">Crítico</option>
-                  </select>
+                  <CustomSelect value={criticality} onChange={setCriticality} options={['Estável', 'Atenção', 'Crítico']} />
                   <input type="text" className="form-input" placeholder="Justificativa..." value={justification} onChange={e => setJustification(e.target.value)} />
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn-secondary" style={{ flex: 1, padding: '4px' }} onClick={() => setIsEditingSla(false)}>Cancelar</button>
@@ -1105,12 +1100,7 @@ export default function ClientDetailView({
                 </div>
                 <div className="form-group">
                   <label className="form-label">Prioridade</label>
-                  <select className="form-select" value={newTicketPriority} onChange={e => setNewTicketPriority(e.target.value)}>
-                    <option value="Baixa">Baixa</option>
-                    <option value="Normal">Normal</option>
-                    <option value="Alta">Alta</option>
-                    <option value="Urgente">Urgente</option>
-                  </select>
+                  <CustomSelect value={newTicketPriority} onChange={setNewTicketPriority} options={['Baixa', 'Normal', 'Alta', 'Urgente']} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Link da demanda no Discord</label>

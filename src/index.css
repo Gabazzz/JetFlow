@@ -687,6 +687,99 @@ button, input, select, textarea {
   color: var(--text-secondary);
 }
 
+/* Custom Select (premium dropdown, replaces native <select>) */
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
+}
+
+.custom-select-trigger:hover {
+  border-color: #444;
+}
+
+.custom-select-trigger.open {
+  border-color: var(--green-primary);
+  box-shadow: 0 0 0 3px rgba(101, 255, 75, 0.12);
+  background-color: #131313;
+}
+
+.custom-select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.custom-select-placeholder {
+  color: var(--text-secondary);
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background-color: #161616;
+  border: 1px solid #2E2E2E;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  padding: 6px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transform-origin: top center;
+  animation: quickMenuIn 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.custom-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.custom-select-option:hover {
+  background-color: rgba(101, 255, 75, 0.08);
+}
+
+.custom-select-option.selected {
+  color: var(--green-primary);
+  font-weight: 600;
+}
+
+.custom-select-option svg {
+  color: var(--green-primary);
+  flex-shrink: 0;
+}
+
 .form-input, .form-select, .form-textarea {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);

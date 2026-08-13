@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, X, LifeBuoy, ArrowRight, RotateCcw, Mail, MessageCircle, LayoutGrid, Link, Edit2, Check } from 'lucide-react';
+import CustomSelect from './CustomSelect';
 
 const PRIORITY_BADGE = {
   'Urgente': 'badge-critico',
@@ -173,10 +174,7 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Cliente *</label>
-                  <select className="form-select" value={tClientId} onChange={e => setTClientId(e.target.value)} required autoFocus>
-                    <option value="">Selecionar cliente...</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <CustomSelect value={tClientId} onChange={setTClientId} placeholder="Selecionar cliente..." options={clients.map(c => ({ value: c.id, label: c.name }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Assunto *</label>
@@ -188,12 +186,7 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
                 </div>
                 <div className="form-group">
                   <label className="form-label">Prioridade</label>
-                  <select className="form-select" value={tPriority} onChange={e => setTPriority(e.target.value)}>
-                    <option value="Baixa">Baixa</option>
-                    <option value="Normal">Normal</option>
-                    <option value="Alta">Alta</option>
-                    <option value="Urgente">Urgente</option>
-                  </select>
+                  <CustomSelect value={tPriority} onChange={setTPriority} options={['Baixa', 'Normal', 'Alta', 'Urgente']} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Link da demanda no Discord</label>

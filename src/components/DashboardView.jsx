@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { parseBRDate, getDateStatus, toBRDate, getClientPhase } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
+import CustomSelect from './CustomSelect';
 
 export default function DashboardView({
   clients,
@@ -350,18 +351,13 @@ export default function DashboardView({
                 style={{ flex: 2, minWidth: '150px' }}
                 required
               />
-              <select 
-                className="form-select" 
+              <CustomSelect
                 value={quickClientId}
-                onChange={e => setQuickClientId(e.target.value)}
+                onChange={setQuickClientId}
+                placeholder="Selecionar cliente..."
+                options={clients.map(c => ({ value: c.id, label: c.name }))}
                 style={{ flex: 1, minWidth: '120px' }}
-                required
-              >
-                <option value="">Selecionar cliente...</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              />
               <div style={{ flex: 1, minWidth: '120px' }}>
                 <CustomDatePicker value={quickDate} onChange={setNewDate => setQuickDate(setNewDate)} />
               </div>
@@ -800,15 +796,7 @@ export default function DashboardView({
                     </div>
                     <div className="form-group">
                       <label className="form-label">Criticidade</label>
-                      <select 
-                        className="form-select" 
-                        value={editCriticality}
-                        onChange={e => setEditCriticality(e.target.value)}
-                      >
-                        <option value="Urgente">Urgente</option>
-                        <option value="Normal">Normal</option>
-                        <option value="Baixo">Baixo</option>
-                      </select>
+                      <CustomSelect value={editCriticality} onChange={setEditCriticality} options={['Urgente', 'Normal', 'Baixo']} />
                     </div>
                   </>
                 )}

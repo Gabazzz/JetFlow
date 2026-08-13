@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, Kanban, Users, Settings, Search,
   Link as LinkIcon, ChevronDown, ChevronRight, ExternalLink,
-  Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap
+  Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap, LifeBuoy
 } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 
-export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer }) {
+export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [linksExpanded, setLinksExpanded] = useState(false);
@@ -23,6 +23,10 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
 
   const [qOfferClientId, setQOfferClientId] = useState('');
   const [qOfferName, setQOfferName] = useState('');
+
+  const [qTicketClientId, setQTicketClientId] = useState('');
+  const [qTicketSubject, setQTicketSubject] = useState('');
+  const [qTicketPriority, setQTicketPriority] = useState('Normal');
 
   // Close search on outside click
   useEffect(() => {
@@ -42,6 +46,7 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
     setActiveQuickModal(null);
     setQTaskClientId(''); setQTaskText(''); setQTaskDeadline('');
     setQOfferClientId(''); setQOfferName('');
+    setQTicketClientId(''); setQTicketSubject(''); setQTicketPriority('Normal');
   };
 
   const handleSubmitQuickTask = (e) => {
@@ -55,6 +60,13 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
     e.preventDefault();
     if (!qOfferClientId || !qOfferName) return;
     onAddClientOffer(qOfferClientId, qOfferName);
+    resetQuickModals();
+  };
+
+  const handleSubmitQuickTicket = (e) => {
+    e.preventDefault();
+    if (!qTicketClientId || !qTicketSubject.trim()) return;
+    onAddTicket(qTicketClientId, qTicketSubject.trim(), '', qTicketPriority);
     resetQuickModals();
   };
 
@@ -190,6 +202,16 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
                 <span className="quick-action-item-sub">Registrar interesse em oferta</span>
               </div>
             </button>
+            <button
+              className="quick-action-item"
+              onClick={() => { setActiveQuickModal('chamado'); setIsQuickMenuOpen(false); }}
+            >
+              <LifeBuoy size={15} />
+              <div>
+                <span className="quick-action-item-title">Novo Chamado</span>
+                <span className="quick-action-item-sub">Abrir chamado de suporte</span>
+              </div>
+            </button>
           </div>
         )}
       </div>
@@ -242,8 +264,13 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
         <div>
           <span className="sidebar-section-title" style={{ padding: '0 16px', fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>Suporte</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-
-
+            <button
+              className={`nav-item ${currentRoute === 'suporte' ? 'active' : ''}`}
+              onClick={() => onNavigate('suporte')}
+            >
+              <LifeBuoy size={18} />
+              <span>Chamados</span>
+            </button>
             <button
               className={`nav-item ${currentRoute === 'configuracoes' ? 'active' : ''}`}
               onClick={() => onNavigate('configuracoes')}
@@ -333,6 +360,46 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={resetQuickModals}>Cancelar</button>
                 <button type="submit" className="btn-primary">Registrar Oportunidade</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Modal: Novo Chamado */}
+      {activeQuickModal === 'chamado' && (
+        <div className="modal-overlay" onClick={resetQuickModals}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Novo Chamado</h3>
+              <button className="btn-icon" onClick={resetQuickModals}><X size={16} /></button>
+            </div>
+            <form onSubmit={handleSubmitQuickTicket}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Cliente *</label>
+                  <select className="form-select" value={qTicketClientId} onChange={e => setQTicketClientId(e.target.value)} required autoFocus>
+                    <option value="">Selecionar cliente...</option>
+                    {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Assunto *</label>
+                  <input type="text" className="form-input" value={qTicketSubject} onChange={e => setQTicketSubject(e.target.value)} placeholder="Resumo do problema..." required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Prioridade</label>
+                  <select className="form-select" value={qTicketPriority} onChange={e => setQTicketPriority(e.target.value)}>
+                    <option value="Baixa">Baixa</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Urgente">Urgente</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={resetQuickModals}>Cancelar</button>
+                <button type="submit" className="btn-primary">Abrir Chamado</button>
               </div>
             </form>
           </div>

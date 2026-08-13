@@ -1,0 +1,170 @@
+import React, { useState } from 'react';
+import { Plus, X, LifeBuoy, ArrowRight, RotateCcw, Mail, MessageCircle, LayoutGrid } from 'lucide-react';
+
+const PRIORITY_BADGE = {
+  'Urgente': 'badge-critico',
+  'Alta': 'badge-critico',
+  'Normal': 'badge-atencao',
+  'Baixa': 'badge-estavel'
+};
+
+const ORIGEM_ICON = {
+  'WhatsApp': MessageCircle,
+  'E-mail': Mail,
+  'Painel': LayoutGrid
+};
+
+const COLUMNS = [
+  { status: 'Aberto', label: 'Aberto', accent: '#EF4444', nextLabel: 'Iniciar atendimento', nextStatus: 'Em Andamento' },
+  { status: 'Em Andamento', label: 'Em Andamento', accent: '#F59E0B', nextLabel: 'Resolver', nextStatus: 'Resolvido' },
+  { status: 'Resolvido', label: 'Resolvido', accent: '#10B981', nextLabel: 'Reabrir', nextStatus: 'Aberto' }
+];
+
+export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTicketStatus, onNavigate }) {
+  const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
+  const [tClientId, setTClientId] = useState('');
+  const [tSubject, setTSubject] = useState('');
+  const [tDescription, setTDescription] = useState('');
+  const [tPriority, setTPriority] = useState('Normal');
+
+  const getClient = (clientId) => clients.find(c => c.id === clientId);
+
+  const resetForm = () => {
+    setTClientId(''); setTSubject(''); setTDescription(''); setTPriority('Normal');
+    setIsNewTicketOpen(false);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!tClientId || !tSubject.trim()) return;
+    onAddTicket(tClientId, tSubject.trim(), tDescription.trim(), tPriority);
+    resetForm();
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <LifeBuoy size={20} style={{ color: 'var(--green-primary)' }} />
+          <div>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff', margin: 0 }}>Chamados de Suporte</h3>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{tickets.length} chamado{tickets.length !== 1 ? 's' : ''} no total</span>
+          </div>
+        </div>
+        <button className="btn-primary" onClick={() => setIsNewTicketOpen(true)}>
+          <Plus size={16} />
+          <span>Novo Chamado</span>
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', alignItems: 'start' }}>
+        {COLUMNS.map(col => {
+          const colTickets = tickets.filter(t => t.status === col.status);
+          return (
+            <div key={col.status} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 2px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: col.accent }} />
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#ccc', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{col.label}</span>
+                <span style={{ fontSize: '11px', color: '#666' }}>({colTickets.length})</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: '60px' }}>
+                {colTickets.length === 0 ? (
+                  <div style={{ border: '1px dashed #2A2A2A', borderRadius: '8px', padding: '20px', textAlign: 'center', color: '#555', fontSize: '12px' }}>
+                    Nenhum chamado
+                  </div>
+                ) : (
+                  colTickets.map(ticket => {
+                    const client = getClient(ticket.clientId);
+                    const OrigemIcon = ORIGEM_ICON[ticket.origem] || LayoutGrid;
+                    return (
+                      <div
+                        key={ticket.id}
+                        className="detail-card"
+                        style={{ backgroundColor: '#161616', border: '1px solid #252525', borderLeft: `3px solid ${col.accent}`, borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff', lineHeight: '1.4' }}>{ticket.subject}</span>
+                          <span className={`badge ${PRIORITY_BADGE[ticket.priority] || 'badge-estavel'}`} style={{ flexShrink: 0, fontSize: '9px' }}>{ticket.priority}</span>
+                        </div>
+
+                        {ticket.description && (
+                          <p style={{ fontSize: '12px', color: '#999', margin: 0, lineHeight: '1.4' }}>{ticket.description}</p>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span
+                            style={{ fontSize: '12px', color: 'var(--green-primary)', fontWeight: '600', cursor: client ? 'pointer' : 'default' }}
+                            onClick={() => client && onNavigate(`clientes/${client.id}`)}
+                          >
+                            {client ? client.name : 'Cliente removido'}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#666', fontSize: '11px' }}>
+                            <OrigemIcon size={11} />
+                            <span>{ticket.createdDate}</span>
+                          </div>
+                        </div>
+
+                        <button
+                          className="btn-secondary"
+                          style={{ justifyContent: 'center', fontSize: '11px', padding: '6px', gap: '6px' }}
+                          onClick={() => onUpdateTicketStatus(ticket.id, col.nextStatus)}
+                        >
+                          {col.status === 'Resolvido' ? <RotateCcw size={12} /> : <ArrowRight size={12} />}
+                          <span>{col.nextLabel}</span>
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {isNewTicketOpen && (
+        <div className="modal-overlay" onClick={resetForm}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Novo Chamado</h3>
+              <button className="btn-icon" onClick={resetForm}><X size={16} /></button>
+            </div>
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Cliente *</label>
+                  <select className="form-select" value={tClientId} onChange={e => setTClientId(e.target.value)} required autoFocus>
+                    <option value="">Selecionar cliente...</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Assunto *</label>
+                  <input type="text" className="form-input" value={tSubject} onChange={e => setTSubject(e.target.value)} placeholder="Resumo do problema..." required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descrição</label>
+                  <textarea className="form-textarea" rows={3} value={tDescription} onChange={e => setTDescription(e.target.value)} placeholder="Detalhes do chamado..." />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Prioridade</label>
+                  <select className="form-select" value={tPriority} onChange={e => setTPriority(e.target.value)}>
+                    <option value="Baixa">Baixa</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Urgente">Urgente</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={resetForm}>Cancelar</button>
+                <button type="submit" className="btn-primary">Abrir Chamado</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

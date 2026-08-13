@@ -5,14 +5,16 @@ import KanbanView from './components/KanbanView';
 import ClientsListView from './components/ClientsListView';
 import ClientDetailView from './components/ClientDetailView';
 import ConfiguracoesView from './components/ConfiguracoesView';
+import SuporteView from './components/SuporteView';
 
-import { 
-  initialProfile, 
-  initialPlans, 
-  initialModules, 
-  initialAvailableOffers, 
+import {
+  initialProfile,
+  initialPlans,
+  initialModules,
+  initialAvailableOffers,
   initialClients,
-  initialStages
+  initialStages,
+  initialTickets
 } from './data/data';
 
 import { 
@@ -34,6 +36,7 @@ export default function App() {
   const [offers, setOffers] = useState(initialAvailableOffers);
   const [clients, setClients] = useState(initialClients);
   const [stages, setStages] = useState(initialStages);
+  const [tickets, setTickets] = useState(initialTickets);
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Global New Lead Modal Form State
@@ -232,6 +235,23 @@ export default function App() {
     }));
   };
 
+  const handleCompleteClientTask = (clientId, taskId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        const task = (c.tasks || []).find(t => t.id === taskId);
+        return {
+          ...c,
+          tasks: (c.tasks || []).filter(t => t.id !== taskId),
+          activityHistory: task ? [
+            { avatar: profile.avatarInitials, name: profile.name, action: `Concluiu tarefa: ${task.text}`, date: '30/06/2026 às 12:00', isObservation: false },
+            ...(c.activityHistory || [])
+          ] : (c.activityHistory || [])
+        };
+      }
+      return c;
+    }));
+  };
+
   const handleAddClientOffer = (clientId, offerName) => {
     setClients(prev => prev.map(c => {
       if (c.id === clientId) {
@@ -336,6 +356,37 @@ export default function App() {
     }));
   };
 
+  // State Mutators — Support Tickets
+  const handleAddTicket = (clientId, subject, description, priority) => {
+    const newTicket = {
+      id: `tk_${Date.now()}`,
+      clientId,
+      subject,
+      description,
+      priority,
+      status: 'Aberto',
+      createdDate: '30/06/2026',
+      origem: 'Painel'
+    };
+    setTickets(prev => [newTicket, ...prev]);
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          activityHistory: [
+            { avatar: profile.avatarInitials, name: profile.name, action: `Abriu chamado de suporte: ${subject}`, date: '30/06/2026 às 12:00', isObservation: false },
+            ...(c.activityHistory || [])
+          ]
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleUpdateTicketStatus = (ticketId, newStatus) => {
+    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
+  };
+
   // Gather overdue or today's notifications
   const alertNotifications = [];
   clients.forEach(c => {
@@ -436,6 +487,10 @@ export default function App() {
             onEditReminder={handleEditClientReminder}
             onRemoveReminder={handleRemoveClientReminder}
             onUpdateChecklist={handleUpdateClientChecklist}
+            onCompleteTask={handleCompleteClientTask}
+            tickets={tickets.filter(t => t.clientId === client.id)}
+            onAddTicket={handleAddTicket}
+            onUpdateTicketStatus={handleUpdateTicketStatus}
             onNavigate={handleNavigate}
           />
         );
@@ -448,6 +503,18 @@ export default function App() {
           </div>
         );
       }
+    }
+
+    if (currentRoute === 'suporte') {
+      return (
+        <SuporteView
+          clients={clients}
+          tickets={tickets}
+          onAddTicket={handleAddTicket}
+          onUpdateTicketStatus={handleUpdateTicketStatus}
+          onNavigate={handleNavigate}
+        />
+      );
     }
 
     if (currentRoute === 'configuracoes') {
@@ -490,6 +557,7 @@ export default function App() {
     if (currentRoute === 'kanban') return 'Quadro Kanban';
     if (currentRoute === 'clientes') return 'Lista de Clientes';
     if (currentRoute.startsWith('clientes/')) return 'Detalhes do Cliente';
+    if (currentRoute === 'suporte') return 'Central de Suporte';
     if (currentRoute === 'configuracoes') return 'Configurações do Sistema';
     return 'JetFlow';
   };
@@ -505,6 +573,7 @@ export default function App() {
         onOpenNewLeadModal={() => setIsNewLeadModalOpen(true)}
         onAddClientTask={handleAddClientTask}
         onAddClientOffer={handleAddClientOffer}
+        onAddTicket={handleAddTicket}
       />
       <main className="main-container">
         <div className="view-header">

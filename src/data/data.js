@@ -37,6 +37,40 @@ export const initialAvailableOffers = [
 
 export const initialStages = ['Novo', 'Kickoff', 'Configuração', 'Treinamento', 'Finalizado'];
 
+// Support tickets/cases — separate from onboarding stages, linked to a client
+export const initialTickets = [
+  {
+    id: 'tk_1',
+    clientId: 'c1',
+    subject: 'Erro ao enviar mensagens em massa via CRM',
+    description: 'Cliente reporta falha intermitente no envio de campanhas pelo CRM Integrado desde ontem.',
+    priority: 'Urgente',
+    status: 'Aberto',
+    createdDate: '29/06/2026',
+    origem: 'WhatsApp'
+  },
+  {
+    id: 'tk_2',
+    clientId: 'c2',
+    subject: 'Dúvida sobre permissões de atendentes',
+    description: 'Cliente quer entender como restringir acesso de atendentes a determinadas filas.',
+    priority: 'Normal',
+    status: 'Em Andamento',
+    createdDate: '28/06/2026',
+    origem: 'E-mail'
+  },
+  {
+    id: 'tk_3',
+    clientId: 'c1',
+    subject: 'Solicitação de segunda via de fatura',
+    description: 'Financeiro do cliente pediu reenvio da fatura de junho.',
+    priority: 'Baixa',
+    status: 'Resolvido',
+    createdDate: '25/06/2026',
+    origem: 'Painel'
+  }
+];
+
 // Checklists templates per module
 export const moduleChecklistsTemplate = {
   'WhatsApp Business': [

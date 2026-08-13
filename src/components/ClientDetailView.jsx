@@ -3,7 +3,7 @@ import {
   Edit2, Save, X, Plus, Trash2, ArrowLeft, Heart,
   ExternalLink, Link, CheckSquare, PlusCircle, Check,
   ChevronDown, ChevronRight, Clock, Building, User, Info, CheckCircle,
-  AlertTriangle, AlertCircle, MessageSquarePlus
+  AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw
 } from 'lucide-react';
 import { toBRDate, toISODate, getDateStatus, parseBRDate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
@@ -20,7 +20,11 @@ export default function ClientDetailView({
   onEditReminder,
   onRemoveReminder,
   onUpdateChecklist,
-  onNavigate 
+  onCompleteTask,
+  tickets,
+  onAddTicket,
+  onUpdateTicketStatus,
+  onNavigate
 }) {
   const todayStr = '30/06/2026';
 
@@ -36,6 +40,22 @@ export default function ClientDetailView({
   const [isRegisterContactOpen, setIsRegisterContactOpen] = useState(false);
   const [registerContactNote, setRegisterContactNote] = useState('');
   const [actionJustCompleted, setActionJustCompleted] = useState(false);
+  const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
+  const [newTicketSubject, setNewTicketSubject] = useState('');
+  const [newTicketDescription, setNewTicketDescription] = useState('');
+  const [newTicketPriority, setNewTicketPriority] = useState('Normal');
+
+  const TICKET_PRIORITY_BADGE = {
+    'Urgente': 'badge-critico',
+    'Alta': 'badge-critico',
+    'Normal': 'badge-atencao',
+    'Baixa': 'badge-estavel'
+  };
+  const TICKET_NEXT = {
+    'Aberto': { label: 'Iniciar atendimento', status: 'Em Andamento' },
+    'Em Andamento': { label: 'Resolver', status: 'Resolvido' },
+    'Resolvido': { label: 'Reabrir', status: 'Aberto' }
+  };
 
   // Accordions states
   const [expandedModules, setExpandedModules] = useState({
@@ -667,6 +687,78 @@ export default function ClientDetailView({
             </div>
           </div>
 
+          {/* Section: Tarefas */}
+          {(client.tasks && client.tasks.length > 0) && (
+            <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+              <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>
+                TAREFAS ({client.tasks.length})
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {client.tasks.map(task => (
+                  <label
+                    key={task.id}
+                    className="checklist-item"
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px', cursor: 'pointer' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={() => onCompleteTask(client.id, task.id)}
+                      style={{ accentColor: 'var(--green-primary)', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '13px', color: '#ccc', flex: 1 }}>{task.text}</span>
+                    {task.deadline && <span style={{ fontSize: '11px', color: '#666' }}>{task.deadline}</span>}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section: Chamados de Suporte */}
+          <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <LifeBuoy size={12} />
+                CHAMADOS DE SUPORTE {tickets && tickets.length > 0 ? `(${tickets.length})` : ''}
+              </h3>
+              <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setIsNewTicketOpen(true)}>
+                <Plus size={11} />
+                <span>Novo</span>
+              </button>
+            </div>
+
+            {(!tickets || tickets.length === 0) ? (
+              <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Nenhum chamado registrado.</span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {tickets.map(ticket => {
+                  const next = TICKET_NEXT[ticket.status];
+                  const accent = ticket.status === 'Aberto' ? '#EF4444' : ticket.status === 'Em Andamento' ? '#F59E0B' : '#10B981';
+                  return (
+                    <div key={ticket.id} style={{ backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderLeft: `3px solid ${accent}`, borderRadius: '6px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>{ticket.subject}</span>
+                        <span className={`badge ${TICKET_PRIORITY_BADGE[ticket.priority] || 'badge-estavel'}`} style={{ fontSize: '9px', flexShrink: 0 }}>{ticket.priority}</span>
+                      </div>
+                      {ticket.description && <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>{ticket.description}</p>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', color: '#666' }}>{ticket.status} · {ticket.createdDate}</span>
+                        <button
+                          className="btn-secondary"
+                          style={{ fontSize: '11px', padding: '4px 8px', gap: '4px' }}
+                          onClick={() => onUpdateTicketStatus(ticket.id, next.status)}
+                        >
+                          {ticket.status === 'Resolvido' ? <RotateCcw size={11} /> : <ArrowRight size={11} />}
+                          <span>{next.label}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Section: Histórico de Atividades */}
           <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -820,6 +912,49 @@ export default function ClientDetailView({
                 Confirmar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Ticket Modal */}
+      {isNewTicketOpen && (
+        <div className="modal-overlay" onClick={() => setIsNewTicketOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Novo Chamado</h3>
+              <button className="btn-icon" onClick={() => setIsNewTicketOpen(false)}><X size={16} /></button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!newTicketSubject.trim()) return;
+              onAddTicket(client.id, newTicketSubject.trim(), newTicketDescription.trim(), newTicketPriority);
+              setNewTicketSubject(''); setNewTicketDescription(''); setNewTicketPriority('Normal');
+              setIsNewTicketOpen(false);
+            }}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Assunto *</label>
+                  <input type="text" className="form-input" value={newTicketSubject} onChange={e => setNewTicketSubject(e.target.value)} placeholder="Resumo do problema..." required autoFocus />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descrição</label>
+                  <textarea className="form-textarea" rows={3} value={newTicketDescription} onChange={e => setNewTicketDescription(e.target.value)} placeholder="Detalhes do chamado..." />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Prioridade</label>
+                  <select className="form-select" value={newTicketPriority} onChange={e => setNewTicketPriority(e.target.value)}>
+                    <option value="Baixa">Baixa</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Urgente">Urgente</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setIsNewTicketOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn-primary">Abrir Chamado</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

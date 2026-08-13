@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronRight, Clock, Building, User, Info, CheckCircle,
   AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier, calculateNextContactDate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 
 export default function ClientDetailView({ 
@@ -24,6 +24,7 @@ export default function ClientDetailView({
   tickets,
   onAddTicket,
   onUpdateTicketStatus,
+  onUpdateTicketLink,
   onNavigate
 }) {
   const todayStr = '30/06/2026';
@@ -39,11 +40,20 @@ export default function ClientDetailView({
   const [editingReminderObj, setEditingReminderObj] = useState(null);
   const [isRegisterContactOpen, setIsRegisterContactOpen] = useState(false);
   const [registerContactNote, setRegisterContactNote] = useState('');
-  const [actionJustCompleted, setActionJustCompleted] = useState(false);
   const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
   const [newTicketSubject, setNewTicketSubject] = useState('');
   const [newTicketDescription, setNewTicketDescription] = useState('');
   const [newTicketPriority, setNewTicketPriority] = useState('Normal');
+  const [newTicketDiscordUrl, setNewTicketDiscordUrl] = useState('');
+  const [editingTicketLinkId, setEditingTicketLinkId] = useState(null);
+  const [editingTicketLinkValue, setEditingTicketLinkValue] = useState('');
+
+  const [isConcludeActionOpen, setIsConcludeActionOpen] = useState(false);
+  const [nextActionText, setNextActionText] = useState('');
+  const [nextActionDate, setNextActionDate] = useState('');
+
+  const [newLinkLabel, setNewLinkLabel] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
 
   const TICKET_PRIORITY_BADGE = {
     'Urgente': 'badge-critico',
@@ -171,6 +181,17 @@ export default function ClientDetailView({
       quickLinks: { crm: linkCrm, discordIntegration: linkDiscordInt, discordSupport: linkDiscordSupportList, site: linkSite, deskPlatformUrl: linkDeskUrl, deskPlatformEmail: linkDeskEmail }
     });
     setIsEditingLinks(false);
+  };
+
+  const handleAddCustomLink = () => {
+    if (!newLinkLabel.trim() || !newLinkUrl.trim()) return;
+    setLinkDiscordSupportList(prev => [...prev, { id: `link_${Date.now()}`, label: newLinkLabel.trim(), url: newLinkUrl.trim() }]);
+    setNewLinkLabel('');
+    setNewLinkUrl('');
+  };
+
+  const handleRemoveCustomLink = (id) => {
+    setLinkDiscordSupportList(prev => prev.filter(l => l.id !== id));
   };
 
   const handleAddReminderSubmit = (e) => {
@@ -377,17 +398,16 @@ export default function ClientDetailView({
               </div>
             </div>
             <button
-              className={`btn-primary ${actionJustCompleted ? 'btn-success-pulse' : ''}`}
-              style={{ backgroundColor: actionJustCompleted ? '#10B981' : 'var(--green-primary)', color: '#000', fontWeight: '700', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', gap: '6px' }}
-              disabled={actionJustCompleted}
+              className="btn-primary"
+              style={{ backgroundColor: 'var(--green-primary)', color: '#000', fontWeight: '700', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', gap: '6px' }}
               onClick={() => {
-                onRegisterContact(client.id, `Ação concluída: ${client.nextAction}`);
-                setActionJustCompleted(true);
-                setTimeout(() => setActionJustCompleted(false), 1600);
+                setNextActionText('');
+                setNextActionDate(calculateNextContactDate(client.criticality, todayStr));
+                setIsConcludeActionOpen(true);
               }}
             >
               <CheckSquare size={13} />
-              <span>{actionJustCompleted ? 'Concluído!' : 'Concluir'}</span>
+              <span>Concluir</span>
             </button>
           </div>
         );
@@ -400,7 +420,7 @@ export default function ClientDetailView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* Card: Informações do Cliente */}
-          <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+          <div className={`detail-card ${isEditingInfo ? 'edit-mode-active' : ''}`} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
             <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>
               INFORMAÇÕES DO CLIENTE
             </h3>
@@ -622,13 +642,49 @@ export default function ClientDetailView({
           </div>
 
           {/* Section: Módulos Contratados (Checklist Accordion) */}
-          <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+          <div className={`detail-card ${isEditingPlan ? 'edit-mode-active' : ''}`} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>
                 MÓDULOS CONTRATADOS
               </h3>
+              {!isEditingPlan && (
+                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { setPlan(client.plan); setActiveModules(client.activeModules || []); setIsEditingPlan(true); }}>
+                  <Edit2 size={11} />
+                  <span>Editar</span>
+                </button>
+              )}
             </div>
 
+            {isEditingPlan ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Plano Contratado</label>
+                  <select className="form-select" value={plan} onChange={e => setPlan(e.target.value)}>
+                    {plans.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Módulos Ativos</label>
+                  <div className="checkbox-group">
+                    {modules.map(mod => (
+                      <label key={mod.id} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          className="premium-check"
+                          checked={activeModules.includes(mod.name)}
+                          onChange={() => handleToggleModule(mod.name)}
+                        />
+                        <span>{mod.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setIsEditingPlan(false)}>Cancelar</button>
+                  <button className="btn-primary" style={{ flex: 1 }} onClick={handleSavePlan}>Salvar</button>
+                </div>
+              </div>
+            ) : (
             <div className="accordion-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {client.activeModules && client.activeModules.map(modName => {
                 const checklist = client.checklists?.[modName] || [];
@@ -651,14 +707,14 @@ export default function ClientDetailView({
                       onClick={() => toggleAccordion(modName)}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={allDone} 
+                        <input
+                          type="checkbox"
+                          className="premium-check"
+                          checked={allDone}
                           onChange={(e) => {
                             e.stopPropagation();
                             handleMarkAllConcluded(modName);
                           }}
-                          style={{ accentColor: 'var(--green-primary)', cursor: 'pointer' }}
                         />
                         <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>{modName}</span>
                       </div>
@@ -691,9 +747,9 @@ export default function ClientDetailView({
                             <label key={idx} className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
                               <input
                                 type="checkbox"
+                                className="premium-check"
                                 checked={item.checked}
                                 onChange={() => handleToggleChecklist(modName, idx)}
-                                style={{ accentColor: 'var(--green-primary)' }}
                               />
                               <span style={{ textDecoration: item.checked ? 'line-through' : 'none', color: item.checked ? '#555' : '#ccc' }}>
                                 {item.label}
@@ -707,6 +763,7 @@ export default function ClientDetailView({
                 );
               })}
             </div>
+            )}
           </div>
 
           {/* Section: Tarefas */}
@@ -724,9 +781,9 @@ export default function ClientDetailView({
                   >
                     <input
                       type="checkbox"
+                      className="premium-check"
                       checked={false}
                       onChange={() => onCompleteTask(client.id, task.id)}
-                      style={{ accentColor: 'var(--green-primary)', cursor: 'pointer' }}
                     />
                     <span style={{ fontSize: '13px', color: '#ccc', flex: 1 }}>{task.text}</span>
                     {task.deadline && <span style={{ fontSize: '11px', color: '#666' }}>{task.deadline}</span>}
@@ -756,6 +813,7 @@ export default function ClientDetailView({
                 {tickets.map(ticket => {
                   const next = TICKET_NEXT[ticket.status];
                   const accent = ticket.status === 'Aberto' ? '#EF4444' : ticket.status === 'Em Andamento' ? '#F59E0B' : '#10B981';
+                  const isEditingLink = editingTicketLinkId === ticket.id;
                   return (
                     <div key={ticket.id} style={{ backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderLeft: `3px solid ${accent}`, borderRadius: '6px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
@@ -763,6 +821,41 @@ export default function ClientDetailView({
                         <span className={`badge ${TICKET_PRIORITY_BADGE[ticket.priority] || 'badge-estavel'}`} style={{ fontSize: '9px', flexShrink: 0 }}>{ticket.priority}</span>
                       </div>
                       {ticket.description && <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>{ticket.description}</p>}
+
+                      {isEditingLink ? (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <input
+                            type="url"
+                            className="form-input"
+                            style={{ flex: 1, fontSize: '12px', height: '30px' }}
+                            autoFocus
+                            placeholder="https://discord.com/channels/..."
+                            value={editingTicketLinkValue}
+                            onChange={e => setEditingTicketLinkValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') { onUpdateTicketLink(ticket.id, editingTicketLinkValue.trim()); setEditingTicketLinkId(null); } if (e.key === 'Escape') setEditingTicketLinkId(null); }}
+                          />
+                          <button className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={() => { onUpdateTicketLink(ticket.id, editingTicketLinkValue.trim()); setEditingTicketLinkId(null); }}><Check size={14} /></button>
+                          <button className="btn-icon" onClick={() => setEditingTicketLinkId(null)}><X size={14} /></button>
+                        </div>
+                      ) : ticket.discordUrl ? (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <a href={ticket.discordUrl} target="_blank" rel="noreferrer" className="btn-secondary" style={{ flex: 1, fontSize: '11px', padding: '6px', gap: '6px', justifyContent: 'center', color: '#5865F2', borderColor: 'rgba(88,101,242,0.4)' }}>
+                            <MessageSquarePlus size={12} />
+                            <span>Abrir no Discord</span>
+                          </a>
+                          <button className="btn-icon" style={{ width: '30px', height: '30px' }} onClick={() => { setEditingTicketLinkId(ticket.id); setEditingTicketLinkValue(ticket.discordUrl || ''); }} title="Editar link"><Edit2 size={12} /></button>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn-secondary"
+                          style={{ fontSize: '11px', padding: '6px', justifyContent: 'center', gap: '6px', color: '#666' }}
+                          onClick={() => { setEditingTicketLinkId(ticket.id); setEditingTicketLinkValue(''); }}
+                        >
+                          <Link size={11} />
+                          <span>Adicionar link do Discord</span>
+                        </button>
+                      )}
+
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '11px', color: '#666' }}>{ticket.status} · {ticket.createdDate}</span>
                         <button
@@ -835,7 +928,7 @@ export default function ClientDetailView({
           {/* Lembretes / Observações details card */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             {/* Criticality & SLA card */}
-            <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderLeft: `3px solid ${criticalityMeta.color}`, borderRadius: '8px', padding: '20px' }}>
+            <div className={`detail-card ${isEditingSla ? 'edit-mode-active' : ''}`} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderLeft: `3px solid ${criticalityMeta.color}`, borderRadius: '8px', padding: '20px' }}>
               <div className="section-header" style={{ marginBottom: '14px' }}>
                 <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Ciclo SLA & Criticidade</h3>
                 <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setIsEditingSla(true)}><Edit2 size={11} /></button>
@@ -874,7 +967,7 @@ export default function ClientDetailView({
             </div>
 
             {/* Obs Card */}
-            <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+            <div className={`detail-card ${isEditingObs ? 'edit-mode-active' : ''}`} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
               <div className="section-header" style={{ marginBottom: '14px' }}>
                 <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Observações</h3>
                 <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setIsEditingObs(true)}><Edit2 size={11} /></button>
@@ -938,6 +1031,54 @@ export default function ClientDetailView({
         </div>
       )}
 
+      {/* Conclude Action Modal */}
+      {isConcludeActionOpen && (
+        <div className="modal-overlay" onClick={() => setIsConcludeActionOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Concluir e Definir Próxima Ação</h3>
+              <button className="btn-icon" onClick={() => setIsConcludeActionOpen(false)}><X size={16} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>
+                Concluindo: <strong style={{ color: '#ccc' }}>{client.nextAction}</strong>
+              </p>
+              <div className="form-group">
+                <label className="form-label">Qual a próxima ação?</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  autoFocus
+                  value={nextActionText}
+                  onChange={e => setNextActionText(e.target.value)}
+                  placeholder="Ex: Acompanhar uso do módulo de automação"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Prazo</label>
+                <CustomDatePicker value={nextActionDate} onChange={setNextActionDate} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setIsConcludeActionOpen(false)}>Cancelar</button>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  onRegisterContact(client.id, `Ação concluída: ${client.nextAction}`);
+                  onUpdateClient(client.id, {
+                    nextAction: nextActionText.trim() || 'Acompanhar cliente',
+                    nextContactDate: nextActionDate || client.nextContactDate
+                  });
+                  setIsConcludeActionOpen(false);
+                }}
+              >
+                Concluir e Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* New Ticket Modal */}
       {isNewTicketOpen && (
         <div className="modal-overlay" onClick={() => setIsNewTicketOpen(false)}>
@@ -949,8 +1090,8 @@ export default function ClientDetailView({
             <form onSubmit={(e) => {
               e.preventDefault();
               if (!newTicketSubject.trim()) return;
-              onAddTicket(client.id, newTicketSubject.trim(), newTicketDescription.trim(), newTicketPriority);
-              setNewTicketSubject(''); setNewTicketDescription(''); setNewTicketPriority('Normal');
+              onAddTicket(client.id, newTicketSubject.trim(), newTicketDescription.trim(), newTicketPriority, newTicketDiscordUrl.trim());
+              setNewTicketSubject(''); setNewTicketDescription(''); setNewTicketPriority('Normal'); setNewTicketDiscordUrl('');
               setIsNewTicketOpen(false);
             }}>
               <div className="modal-body">
@@ -970,6 +1111,10 @@ export default function ClientDetailView({
                     <option value="Alta">Alta</option>
                     <option value="Urgente">Urgente</option>
                   </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Link da demanda no Discord</label>
+                  <input type="url" className="form-input" value={newTicketDiscordUrl} onChange={e => setNewTicketDiscordUrl(e.target.value)} placeholder="https://discord.com/channels/..." />
                 </div>
               </div>
               <div className="modal-footer">
@@ -1011,6 +1156,46 @@ export default function ClientDetailView({
                   <div className="form-group">
                     <label className="form-label">Plataforma Atendimento (E-mail)</label>
                     <input type="email" className="form-input" value={linkDeskEmail} onChange={e => setLinkDeskEmail(e.target.value)} />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '10px' }}>Links Adicionais</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+                    {linkDiscordSupportList.map(l => (
+                      <div key={l.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', padding: '8px 12px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '600' }}>{l.label}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{l.url}</span>
+                        </div>
+                        <button type="button" className="btn-danger-icon" onClick={() => handleRemoveCustomLink(l.id)} title="Remover"><Trash2 size={14} /></button>
+                      </div>
+                    ))}
+                    {linkDiscordSupportList.length === 0 && (
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Nenhum link adicional. Use pra threads do Discord, planilhas, docs etc.</span>
+                    )}
+                  </div>
+                  <div className="settings-inline-add-row">
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ flex: '0 0 40%' }}
+                      placeholder="Nome do link..."
+                      value={newLinkLabel}
+                      onChange={e => setNewLinkLabel(e.target.value)}
+                    />
+                    <input
+                      type="url"
+                      className="form-input"
+                      style={{ flex: 1 }}
+                      placeholder="https://..."
+                      value={newLinkUrl}
+                      onChange={e => setNewLinkUrl(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomLink(); } }}
+                    />
+                    <button type="button" className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={handleAddCustomLink} title="Adicionar link">
+                      <Plus size={16} />
+                    </button>
                   </div>
                 </div>
               </div>

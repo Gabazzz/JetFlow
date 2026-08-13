@@ -15,6 +15,10 @@ export default function ConfiguracoesView({
   const [profileName, setProfileName] = useState(profile.name);
   const [profileRole, setProfileRole] = useState(profile.role);
   const [profileAvatar, setProfileAvatar] = useState(profile.avatarUrl || '');
+  const [profileEmail, setProfileEmail] = useState(profile.email || '');
+  const [profileUsername, setProfileUsername] = useState(profile.username || '');
+  const [profilePassword, setProfilePassword] = useState('');
+  const [profileSaved, setProfileSaved] = useState(false);
 
   // Inline add states
   const [addingPlan, setAddingPlan] = useState(false);
@@ -49,9 +53,13 @@ export default function ConfiguracoesView({
     e.preventDefault();
     onUpdateProfile({
       name: profileName, role: profileRole, avatarUrl: profileAvatar,
+      email: profileEmail, username: profileUsername,
+      ...(profilePassword.trim() ? { password: profilePassword } : {}),
       avatarInitials: profileName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     });
-    alert('Perfil atualizado com sucesso!');
+    setProfilePassword('');
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2000);
   };
 
   // Inline add handlers with Enter/Esc support
@@ -146,7 +154,7 @@ export default function ConfiguracoesView({
         {items.map(item => {
           const isEditingThis = editingId === getKey(item);
           return (
-            <div key={getKey(item)} className="settings-list-item">
+            <div key={getKey(item)} className={`settings-list-item ${isEditingThis ? 'edit-mode-active' : ''}`}>
               {!isEditingThis ? (
                 <>
                   <span style={{ fontWeight: '500' }}>{getName(item)}</span>
@@ -232,7 +240,32 @@ export default function ConfiguracoesView({
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+
+            <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <h3 className="section-title" style={{ fontSize: '14px' }}>Acesso e Login</h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Usado quando o JetFlow for compartilhado com outros colegas de equipe.
+                </p>
+              </div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">E-mail</label>
+                  <input type="email" className="form-input" value={profileEmail} onChange={e => setProfileEmail(e.target.value)} placeholder="seu.nome@jetsales.com" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nome de Usuário</label>
+                  <input type="text" className="form-input" value={profileUsername} onChange={e => setProfileUsername(e.target.value)} placeholder="usuario.jetsales" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Senha</label>
+                  <input type="password" className="form-input" value={profilePassword} onChange={e => setProfilePassword(e.target.value)} placeholder="Deixe em branco para manter a atual" />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+              {profileSaved && <span style={{ fontSize: '12px', color: 'var(--green-primary)', fontWeight: '600' }}>Salvo!</span>}
               <button type="submit" className="btn-primary">Salvar Perfil</button>
             </div>
           </form>
@@ -260,7 +293,7 @@ export default function ConfiguracoesView({
                 return (
                   <div
                     key={stage}
-                    className="settings-kanban-stage-row"
+                    className={`settings-kanban-stage-row ${isEditingThis ? 'edit-mode-active' : ''}`}
                     draggable
                     onDragStart={e => handleStageDragStart(e, stage)}
                     onDragOver={e => handleStageDragOver(e, stage)}

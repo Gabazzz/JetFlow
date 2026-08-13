@@ -357,7 +357,7 @@ export default function App() {
   };
 
   // State Mutators — Support Tickets
-  const handleAddTicket = (clientId, subject, description, priority) => {
+  const handleAddTicket = (clientId, subject, description, priority, discordUrl = '') => {
     const newTicket = {
       id: `tk_${Date.now()}`,
       clientId,
@@ -366,7 +366,8 @@ export default function App() {
       priority,
       status: 'Aberto',
       createdDate: '30/06/2026',
-      origem: 'Painel'
+      origem: 'Painel',
+      discordUrl
     };
     setTickets(prev => [newTicket, ...prev]);
     setClients(prev => prev.map(c => {
@@ -385,6 +386,10 @@ export default function App() {
 
   const handleUpdateTicketStatus = (ticketId, newStatus) => {
     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
+  };
+
+  const handleUpdateTicketLink = (ticketId, discordUrl) => {
+    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, discordUrl } : t));
   };
 
   // Gather overdue or today's notifications
@@ -493,6 +498,7 @@ export default function App() {
             tickets={tickets.filter(t => t.clientId === client.id)}
             onAddTicket={handleAddTicket}
             onUpdateTicketStatus={handleUpdateTicketStatus}
+            onUpdateTicketLink={handleUpdateTicketLink}
             onNavigate={handleNavigate}
           />
         );
@@ -514,6 +520,7 @@ export default function App() {
           tickets={tickets}
           onAddTicket={handleAddTicket}
           onUpdateTicketStatus={handleUpdateTicketStatus}
+          onUpdateTicketLink={handleUpdateTicketLink}
           onNavigate={handleNavigate}
         />
       );
@@ -825,8 +832,9 @@ export default function App() {
                     <div className="checkbox-group">
                       {modules.map(mod => (
                         <label key={mod.id} className="checkbox-label">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
+                            className="premium-check"
                             checked={newSelectedModules.includes(mod.name)}
                             onChange={() => {
                               setNewSelectedModules(prev => 

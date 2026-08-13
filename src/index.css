@@ -693,12 +693,18 @@ button, input, select, textarea {
   border-radius: var(--radius);
   padding: 10px 14px;
   font-size: 14px;
-  transition: var(--transition);
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
+}
+
+.form-input:hover, .form-select:hover, .form-textarea:hover {
+  border-color: #444;
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   outline: none;
   border-color: var(--green-primary);
+  box-shadow: 0 0 0 3px rgba(101, 255, 75, 0.12);
+  background-color: #131313;
 }
 
 .checkbox-group {
@@ -916,7 +922,7 @@ button, input, select, textarea {
   color: var(--text-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: var(--transition);
+  transition: color 150ms ease-out, border-color 150ms ease-out;
 }
 
 .tab-btn:hover {
@@ -947,6 +953,12 @@ button, input, select, textarea {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
+  transition: border-color 150ms ease-out, background-color 150ms ease-out, transform 150ms ease-out;
+}
+
+.settings-list-item:hover {
+  border-color: #3A3A3A;
+  background-color: #151515;
 }
 
 /* Profile Section styling */
@@ -1728,6 +1740,60 @@ button, input, select, textarea {
   cursor: pointer;
 }
 
+/* Premium checkbox: custom box + animated checkmark */
+input[type="checkbox"].premium-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid #3A3A3A;
+  background-color: #1B1B1B;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin: 0;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, transform 100ms ease-out;
+}
+
+input[type="checkbox"].premium-check:hover {
+  border-color: var(--green-primary);
+}
+
+input[type="checkbox"].premium-check:checked {
+  background-color: var(--green-primary);
+  border-color: var(--green-primary);
+}
+
+input[type="checkbox"].premium-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #0A0A0A;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  animation: premiumCheckPop 180ms ease-out forwards;
+}
+
+input[type="checkbox"].premium-check:active {
+  transform: scale(0.9);
+}
+
+@keyframes premiumCheckPop {
+  from { transform: rotate(45deg) scale(0); }
+  to { transform: rotate(45deg) scale(1); }
+}
+
+/* Edit mode: a card actively being edited gets a subtle elevated, "focused" treatment */
+.edit-mode-active {
+  border-color: rgba(101, 255, 75, 0.35) !important;
+  box-shadow: 0 0 0 1px rgba(101, 255, 75, 0.12), 0 12px 28px rgba(0, 0, 0, 0.35);
+  transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+}
+
 /* Vertical activity log timeline */
 .vertical-timeline {
   position: relative;
@@ -1889,6 +1955,12 @@ button, input, select, textarea {
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   cursor: grab;
+  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+}
+
+.settings-kanban-stage-row:hover {
+  border-color: #3A3A3A;
+  background-color: #151515;
 }
 
 .settings-kanban-stage-row:active {
@@ -1902,9 +1974,14 @@ button, input, select, textarea {
   align-items: center;
   padding: 12px 16px;
   background-color: var(--bg-primary);
-  border: 1px dashed var(--border-color);
+  border: 1px dashed rgba(101, 255, 75, 0.4);
   border-radius: var(--radius);
-  animation: fadeIn 150ms ease-out;
+  animation: settingsAddRowIn 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes settingsAddRowIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Detail header status color dot */

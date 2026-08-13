@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, LifeBuoy, ArrowRight, RotateCcw, Mail, MessageCircle, LayoutGrid } from 'lucide-react';
+import { Plus, X, LifeBuoy, ArrowRight, RotateCcw, Mail, MessageCircle, LayoutGrid, Link, Edit2, Check } from 'lucide-react';
 
 const PRIORITY_BADGE = {
   'Urgente': 'badge-critico',
@@ -20,24 +20,28 @@ const COLUMNS = [
   { status: 'Resolvido', label: 'Resolvido', accent: '#10B981', nextLabel: 'Reabrir', nextStatus: 'Aberto' }
 ];
 
-export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTicketStatus, onNavigate }) {
+export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTicketStatus, onUpdateTicketLink, onNavigate }) {
   const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
   const [tClientId, setTClientId] = useState('');
   const [tSubject, setTSubject] = useState('');
   const [tDescription, setTDescription] = useState('');
   const [tPriority, setTPriority] = useState('Normal');
+  const [tDiscordUrl, setTDiscordUrl] = useState('');
+
+  const [editingLinkId, setEditingLinkId] = useState(null);
+  const [editingLinkValue, setEditingLinkValue] = useState('');
 
   const getClient = (clientId) => clients.find(c => c.id === clientId);
 
   const resetForm = () => {
-    setTClientId(''); setTSubject(''); setTDescription(''); setTPriority('Normal');
+    setTClientId(''); setTSubject(''); setTDescription(''); setTPriority('Normal'); setTDiscordUrl('');
     setIsNewTicketOpen(false);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!tClientId || !tSubject.trim()) return;
-    onAddTicket(tClientId, tSubject.trim(), tDescription.trim(), tPriority);
+    onAddTicket(tClientId, tSubject.trim(), tDescription.trim(), tPriority, tDiscordUrl.trim());
     resetForm();
   };
 
@@ -77,6 +81,7 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
                   colTickets.map(ticket => {
                     const client = getClient(ticket.clientId);
                     const OrigemIcon = ORIGEM_ICON[ticket.origem] || LayoutGrid;
+                    const isEditingLink = editingLinkId === ticket.id;
                     return (
                       <div
                         key={ticket.id}
@@ -104,6 +109,40 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
                             <span>{ticket.createdDate}</span>
                           </div>
                         </div>
+
+                        {isEditingLink ? (
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <input
+                              type="url"
+                              className="form-input"
+                              style={{ flex: 1, fontSize: '12px', height: '30px' }}
+                              autoFocus
+                              placeholder="https://discord.com/channels/..."
+                              value={editingLinkValue}
+                              onChange={e => setEditingLinkValue(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') { onUpdateTicketLink(ticket.id, editingLinkValue.trim()); setEditingLinkId(null); } if (e.key === 'Escape') setEditingLinkId(null); }}
+                            />
+                            <button className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={() => { onUpdateTicketLink(ticket.id, editingLinkValue.trim()); setEditingLinkId(null); }}><Check size={14} /></button>
+                            <button className="btn-icon" onClick={() => setEditingLinkId(null)}><X size={14} /></button>
+                          </div>
+                        ) : ticket.discordUrl ? (
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <a href={ticket.discordUrl} target="_blank" rel="noreferrer" className="btn-secondary" style={{ flex: 1, fontSize: '11px', padding: '6px', gap: '6px', justifyContent: 'center', color: '#5865F2', borderColor: 'rgba(88,101,242,0.4)' }}>
+                              <Link size={12} />
+                              <span>Abrir no Discord</span>
+                            </a>
+                            <button className="btn-icon" style={{ width: '30px', height: '30px' }} onClick={() => { setEditingLinkId(ticket.id); setEditingLinkValue(ticket.discordUrl || ''); }} title="Editar link"><Edit2 size={12} /></button>
+                          </div>
+                        ) : (
+                          <button
+                            className="btn-secondary"
+                            style={{ fontSize: '11px', padding: '6px', justifyContent: 'center', gap: '6px', color: '#666' }}
+                            onClick={() => { setEditingLinkId(ticket.id); setEditingLinkValue(''); }}
+                          >
+                            <Link size={11} />
+                            <span>Adicionar link do Discord</span>
+                          </button>
+                        )}
 
                         <button
                           className="btn-secondary"
@@ -155,6 +194,10 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
                     <option value="Alta">Alta</option>
                     <option value="Urgente">Urgente</option>
                   </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Link da demanda no Discord</label>
+                  <input type="url" className="form-input" value={tDiscordUrl} onChange={e => setTDiscordUrl(e.target.value)} placeholder="https://discord.com/channels/..." />
                 </div>
               </div>
               <div className="modal-footer">

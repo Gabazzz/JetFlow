@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User, CheckCircle, Filter, ArrowUpDown, MoreHorizontal } from 'lucide-react';
-import { getDateStatus } from '../utils';
+import { getDateStatus, parseBRDate } from '../utils';
+
+const CRITICALITY_ORDER = { 'Crítico': 3, 'Atenção': 2, 'Estável': 1 };
 
 export default function KanbanView({ clients, stages, onUpdateClientStage, onUpdateClientNextAction, onNavigate }) {
   const [draggedClientId, setDraggedClientId] = useState(null);
@@ -11,7 +13,41 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
   const [editingAction, setEditingAction] = useState(null);
   const textareaRef = useRef(null);
 
+  // Filter / sort state
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const [activeCriticalities, setActiveCriticalities] = useState([]); // empty = show all
+  const [sortMode, setSortMode] = useState('none'); // none | nome | criticidade | prazo
+  const filterRef = useRef(null);
+  const sortRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (filterRef.current && !filterRef.current.contains(e.target)) setIsFilterOpen(false);
+      if (sortRef.current && !sortRef.current.contains(e.target)) setIsSortOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleCriticalityFilter = (crit) => {
+    setActiveCriticalities(prev => prev.includes(crit) ? prev.filter(c => c !== crit) : [...prev, crit]);
+  };
+
   const todayStr = '30/06/2026';
+
+  const visibleClients = clients
+    .filter(c => activeCriticalities.length === 0 || activeCriticalities.includes(c.criticality))
+    .sort((a, b) => {
+      if (sortMode === 'nome') return a.name.localeCompare(b.name);
+      if (sortMode === 'criticidade') return (CRITICALITY_ORDER[b.criticality] || 0) - (CRITICALITY_ORDER[a.criticality] || 0);
+      if (sortMode === 'prazo') {
+        if (!a.nextContactDate) return 1;
+        if (!b.nextContactDate) return -1;
+        return parseBRDate(a.nextContactDate).getTime() - parseBRDate(b.nextContactDate).getTime();
+      }
+      return 0;
+    });
 
   const handleDragStart = (e, clientId) => {
     setDraggedClientId(clientId);
@@ -146,21 +182,74 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
 
         {/* Filters and Order buttons */}
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '13px', gap: '8px', border: '1px solid #2A2A2A', backgroundColor: '#1B1B1B' }}>
-            <Filter size={14} />
-            <span>Filtros</span>
-          </button>
-          <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '13px', gap: '8px', border: '1px solid #2A2A2A', backgroundColor: '#1B1B1B' }}>
-            <ArrowUpDown size={14} />
-            <span>Ordenar</span>
-          </button>
+          <div style={{ position: 'relative' }} ref={filterRef}>
+            <button
+              className="btn-secondary"
+              style={{ padding: '8px 16px', fontSize: '13px', gap: '8px', border: activeCriticalities.length > 0 ? '1px solid var(--green-primary)' : '1px solid #2A2A2A', backgroundColor: '#1B1B1B', color: activeCriticalities.length > 0 ? 'var(--green-primary)' : '#fff' }}
+              onClick={() => { setIsFilterOpen(v => !v); setIsSortOpen(false); }}
+            >
+              <Filter size={14} />
+              <span>Filtros{activeCriticalities.length > 0 ? ` (${activeCriticalities.length})` : ''}</span>
+            </button>
+            {isFilterOpen && (
+              <div className="quick-action-menu" style={{ left: 'auto', right: 0, width: '200px' }}>
+                <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '6px 10px 2px' }}>Criticidade</span>
+                {['Crítico', 'Atenção', 'Estável'].map(crit => (
+                  <label key={crit} className="quick-action-item" style={{ cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      className="premium-check"
+                      checked={activeCriticalities.includes(crit)}
+                      onChange={() => toggleCriticalityFilter(crit)}
+                    />
+                    <span className="quick-action-item-title" style={{ fontWeight: '500' }}>{crit}</span>
+                  </label>
+                ))}
+                {activeCriticalities.length > 0 && (
+                  <button className="quick-action-item" style={{ color: 'var(--badge-red)' }} onClick={() => setActiveCriticalities([])}>
+                    <span className="quick-action-item-title" style={{ color: 'var(--badge-red)' }}>Limpar filtros</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={{ position: 'relative' }} ref={sortRef}>
+            <button
+              className="btn-secondary"
+              style={{ padding: '8px 16px', fontSize: '13px', gap: '8px', border: sortMode !== 'none' ? '1px solid var(--green-primary)' : '1px solid #2A2A2A', backgroundColor: '#1B1B1B', color: sortMode !== 'none' ? 'var(--green-primary)' : '#fff' }}
+              onClick={() => { setIsSortOpen(v => !v); setIsFilterOpen(false); }}
+            >
+              <ArrowUpDown size={14} />
+              <span>Ordenar</span>
+            </button>
+            {isSortOpen && (
+              <div className="quick-action-menu" style={{ left: 'auto', right: 0, width: '200px' }}>
+                {[
+                  { id: 'none', label: 'Padrão' },
+                  { id: 'nome', label: 'Nome (A-Z)' },
+                  { id: 'criticidade', label: 'Criticidade' },
+                  { id: 'prazo', label: 'Prazo mais próximo' }
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    className="quick-action-item"
+                    style={{ color: sortMode === opt.id ? 'var(--green-primary)' : '#fff' }}
+                    onClick={() => { setSortMode(opt.id); setIsSortOpen(false); }}
+                  >
+                    <span className="quick-action-item-title" style={{ color: 'inherit' }}>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ── KANBAN BOARD ── */}
       <div className="kanban-board" style={{ overflowX: 'auto', display: 'flex', gap: '16px', paddingBottom: '16px' }}>
         {allStages.map(stage => {
-          const stageClients = clients.filter(c => c.stage === stage);
+          const stageClients = visibleClients.filter(c => c.stage === stage);
           const isDragOver = dragOverColumn === stage;
 
           return (

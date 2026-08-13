@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar as CalendarIcon, Users, CheckSquare, AlertTriangle,
   Edit2, Trash2, X, Plus, Phone, Mail, List, Zap, Sparkles,
-  ChevronLeft, ChevronRight, Heart
+  ChevronLeft, ChevronRight, Heart, Video, ExternalLink
 } from 'lucide-react';
-import { parseBRDate, getDateStatus, toBRDate, getClientPhase, getTodayBR } from '../utils';
+import { parseBRDate, getDateStatus, toBRDate, getClientPhase, getTodayBR, toISODate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
+import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
 
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+function formatEventTime(iso) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+}
 
 export default function DashboardView({
   clients,
@@ -58,6 +63,37 @@ export default function DashboardView({
       });
     }
   });
+
+  // Google Calendar events for today (if the user has connected their Google Agenda)
+  const [googleEvents, setGoogleEvents] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadGoogleEventsToday() {
+      const { data: statusData, error: statusErr } = await supabase.functions.invoke('google-calendar-status');
+      if (statusErr || !statusData?.connected || cancelled) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || cancelled) return;
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-events?date=${toISODate(todayStr)}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+        const data = await res.json();
+        if (!cancelled && res.ok && !data.error) {
+          setGoogleEvents(data.events || []);
+        }
+      } catch (e) {}
+    }
+    loadGoogleEventsToday();
+    return () => { cancelled = true; };
+  }, [todayStr]);
+
+  const todayItems = [
+    ...meetingsToday.map(m => ({ kind: 'local', id: `local_${m.id}`, sortKey: m.time || '00:00', data: m })),
+    ...googleEvents.map(ev => ({ kind: 'google', id: `google_${ev.id}`, sortKey: ev.allDay ? '00:00' : formatEventTime(ev.start), data: ev }))
+  ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
   // Active clients
   const activeClients = clients.filter(c => c.stage !== 'Finalizado');
@@ -222,7 +258,7 @@ export default function DashboardView({
             <span className="kpi-label">Reuniões Hoje</span>
             <CalendarIcon size={18} style={{ color: 'var(--green-primary)' }} />
           </div>
-          <span className="kpi-value">{meetingsToday.length}</span>
+          <span className="kpi-value">{todayItems.length}</span>
           <span className="kpi-subtitle">Agendadas para hoje</span>
         </button>
 
@@ -287,18 +323,71 @@ export default function DashboardView({
 
             {/* List items formatted as in reference Image 3 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {meetingsToday.length === 0 ? (
+              {todayItems.length === 0 ? (
                 <div className="empty-state" style={{ padding: '24px' }}>
                   <span className="empty-state-icon">📅</span>
                   <p>Nenhuma atividade agendada para hoje.</p>
                 </div>
               ) : (
-                meetingsToday.map(m => {
+                todayItems.map(item => {
+                  if (item.kind === 'google') {
+                    const ev = item.data;
+                    const timeLabel = ev.allDay ? 'Dia inteiro' : formatEventTime(ev.start);
+                    return (
+                      <div
+                        key={item.id}
+                        className="daily-activity-item"
+                        style={{
+                          backgroundColor: '#1C1C1C',
+                          border: '1px solid #252525',
+                          borderRadius: '6px',
+                          padding: '14px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '16px',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <div style={{ width: '48px', height: '48px', backgroundColor: '#2E2E2E', borderRadius: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, gap: '2px' }}>
+                            <CalendarIcon size={13} style={{ color: 'var(--green-primary)' }} />
+                            <span style={{ fontSize: '9px', fontWeight: '800', color: '#888' }}>{timeLabel}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                              {ev.title} - <span style={{ color: 'var(--green-primary)' }}>Google Agenda</span>
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#888' }}>
+                              🕐 {ev.allDay ? 'Dia inteiro' : `${formatEventTime(ev.start)} - ${formatEventTime(ev.end)}`}{ev.location ? ` · ${ev.location}` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {ev.htmlLink && (
+                            <a href={ev.htmlLink} target="_blank" rel="noreferrer" className="btn-icon" title="Abrir no Google Agenda">
+                              <ExternalLink size={14} />
+                            </a>
+                          )}
+                          {ev.meetLink && (
+                            <a href={ev.meetLink} target="_blank" rel="noreferrer" className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }}>
+                              <Video size={13} />
+                              <span>Entrar no Meet</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const m = item.data;
                   const badge = formatDateBadge(todayStr);
                   const isDone = !!m.completed;
                   return (
                     <div
-                      key={m.id}
+                      key={item.id}
                       className="daily-activity-item"
                       style={{
                         backgroundColor: '#1C1C1C',
@@ -674,26 +763,56 @@ export default function DashboardView({
             <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               {activeModal === 'reunioes' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {meetingsToday.length === 0 ? (
+                  {todayItems.length === 0 ? (
                     <p style={{ color: 'var(--text-secondary)' }}>Nenhuma reunião agendada para hoje.</p>
                   ) : (
-                    meetingsToday.map(m => (
-                      <div 
-                        key={m.id} 
-                        style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
-                      >
-                        <div>
-                          <strong 
-                            style={{ cursor: 'pointer', color: 'var(--green-primary)' }}
-                            onClick={() => { setActiveModal(null); onNavigate(`clientes/${m.clientId}`); }}
+                    todayItems.map(item => {
+                      if (item.kind === 'google') {
+                        const ev = item.data;
+                        return (
+                          <div
+                            key={item.id}
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
                           >
-                            {m.clientName}
-                          </strong>
-                          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>{m.title}</div>
+                            <div>
+                              <strong style={{ color: 'var(--green-primary)' }}>{ev.title}</strong>
+                              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                Google Agenda{ev.location ? ` · ${ev.location}` : ''}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ color: 'var(--green-primary)', fontWeight: '600' }}>
+                                {ev.allDay ? 'Dia inteiro' : formatEventTime(ev.start)}
+                              </span>
+                              {ev.meetLink && (
+                                <a href={ev.meetLink} target="_blank" rel="noreferrer" className="btn-primary" style={{ padding: '6px 10px', fontSize: '11px' }}>
+                                  <Video size={12} />
+                                  <span>Meet</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                      const m = item.data;
+                      return (
+                        <div
+                          key={item.id}
+                          style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
+                        >
+                          <div>
+                            <strong
+                              style={{ cursor: 'pointer', color: 'var(--green-primary)' }}
+                              onClick={() => { setActiveModal(null); onNavigate(`clientes/${m.clientId}`); }}
+                            >
+                              {m.clientName}
+                            </strong>
+                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>{m.title}</div>
+                          </div>
+                          <span style={{ color: 'var(--green-primary)', fontWeight: '600' }}>{m.time}</span>
                         </div>
-                        <span style={{ color: 'var(--green-primary)', fontWeight: '600' }}>{m.time}</span>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               )}

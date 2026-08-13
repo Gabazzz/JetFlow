@@ -26,7 +26,7 @@ const UPSELL_STATUS_PHRASE = {
   'Sem interesse': (produtos) => `Sem interesse em ${produtos}.`
 };
 
-const EMPTY_DIFF = { moduleDiffs: [], doneStepsThisMeeting: [] };
+const EMPTY_DIFF = { moduleGroups: [], doneSteps: [], pendingSteps: [] };
 
 function DynamicListField({ items, onAdd, onRemove, placeholder, addLabel }) {
   const [value, setValue] = useState('');
@@ -71,9 +71,7 @@ const initialFormState = () => ({
   participantes: [],
   status: 'Em andamento',
   objetivo: '',
-  realizadoExcluded: [],
   detalheManual: '',
-  pendenciasExcluded: [],
   pendenciasManual: [],
   proximaEtapa: [],
   upsellProdutos: [],
@@ -83,38 +81,20 @@ const initialFormState = () => ({
   gravacao: ''
 });
 
-// Chaves estáveis para identificar um item do checklist entre re-renders,
-// usadas para marcar exclusões (incluir/excluir da nota) sem alterar o
-// estado real do checklist do cliente.
-const moduleItemKey = (moduleName, item) => `${moduleName}::${item.label}`;
-const stepKey = (step) => `step::${step.id}`;
-
 function computeRealizadoLines(form, diff) {
   const lines = [];
-  diff.moduleDiffs.forEach(m => {
-    m.doneThisMeeting.forEach(item => {
-      if (!form.realizadoExcluded.includes(moduleItemKey(m.moduleName, item))) {
-        lines.push(getItemDoneText(item));
-      }
-    });
+  diff.moduleGroups.forEach(m => {
+    m.done.forEach(({ item }) => lines.push(getItemDoneText(item)));
   });
-  diff.doneStepsThisMeeting.forEach(step => {
-    if (!form.realizadoExcluded.includes(stepKey(step))) {
-      lines.push(getItemDoneText(step));
-    }
-  });
+  diff.doneSteps.forEach(step => lines.push(getItemDoneText(step)));
   if (form.detalheManual.trim()) lines.push(form.detalheManual.trim());
   return lines;
 }
 
 function computePendenciaLines(form, diff) {
   const lines = [];
-  diff.moduleDiffs.forEach(m => {
-    m.stillPending.forEach(item => {
-      if (!form.pendenciasExcluded.includes(moduleItemKey(m.moduleName, item))) {
-        lines.push(getItemPendingText(item));
-      }
-    });
+  diff.moduleGroups.forEach(m => {
+    m.pending.forEach(({ item }) => lines.push(getItemPendingText(item)));
   });
   form.pendenciasManual.forEach(p => lines.push(p));
   return lines;
@@ -200,7 +180,7 @@ function buildNotaText(form, diff, responsavelNome) {
   return lines.join('\n');
 }
 
-export default function NotaReuniaoModal({ clients, contextClient, profile, availableOffers, onUpdateClient, onClose }) {
+export default function NotaReuniaoModal({ clients, contextClient, profile, availableOffers, onUpdateClient, onUpdateChecklist, onUpdateAdditionalSteps, onClose }) {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [form, setForm] = useState(initialFormState());
   const [participantInput, setParticipantInput] = useState('');
@@ -208,42 +188,39 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
-  const [diff, setDiff] = useState(EMPTY_DIFF);
 
-  const lastDiffClientId = useRef(null);
+  const lastClientId = useRef(null);
   const generatedOnceRef = useRef(false);
 
   const client = contextClient || clients.find(c => c.id === selectedClientId) || null;
 
-  // O checklist é a fonte do "o que foi feito" — o diff (pendente -> concluído)
-  // é calculado uma vez por cliente e congelado durante a sessão do modal, para
-  // que "Gerar Novamente" não perca os itens já identificados.
+  // O checklist é a fonte do "o que foi feito" — lido ao vivo a cada render,
+  // então marcar/desmarcar um item aqui dentro (ou na tela do cliente,
+  // enquanto o modal está aberto) atualiza a nota na hora.
+  const diff = client ? getChecklistDiff(client) : EMPTY_DIFF;
+
   useEffect(() => {
-    if (client && client.id !== lastDiffClientId.current) {
-      lastDiffClientId.current = client.id;
+    if (client?.id !== lastClientId.current) {
+      lastClientId.current = client?.id || null;
       generatedOnceRef.current = false;
-      setDiff(getChecklistDiff(client));
-      setForm(prev => ({ ...prev, realizadoExcluded: [], pendenciasExcluded: [], pendenciasManual: [], detalheManual: '' }));
-    } else if (!client) {
-      lastDiffClientId.current = null;
-      setDiff(EMPTY_DIFF);
+      setForm(prev => ({ ...prev, pendenciasManual: [], detalheManual: '' }));
     }
-  }, [client]);
+  }, [client?.id]);
 
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
-  const toggleRealizadoExcluded = (key) => {
-    setForm(prev => ({
-      ...prev,
-      realizadoExcluded: prev.realizadoExcluded.includes(key) ? prev.realizadoExcluded.filter(k => k !== key) : [...prev.realizadoExcluded, key]
-    }));
+  const handleToggleModuleItem = (moduleName, idx) => {
+    if (!client) return;
+    const items = (client.checklists || {})[moduleName] || [];
+    const updated = items.map((it, i) => i === idx ? { ...it, checked: !it.checked } : it);
+    onUpdateChecklist(client.id, moduleName, updated);
   };
 
-  const togglePendenciaExcluded = (key) => {
-    setForm(prev => ({
-      ...prev,
-      pendenciasExcluded: prev.pendenciasExcluded.includes(key) ? prev.pendenciasExcluded.filter(k => k !== key) : [...prev.pendenciasExcluded, key]
-    }));
+  const handleToggleStep = (stepId) => {
+    if (!client) return;
+    const steps = client.additionalSteps || [];
+    const updated = steps.map(s => s.id === stepId ? { ...s, checked: !s.checked } : s);
+    onUpdateAdditionalSteps(client.id, updated);
   };
 
   const toggleUpsellProduto = (produto) => {
@@ -280,9 +257,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
       form.participantes.length > 0 ||
       form.status !== initial.status ||
       form.objetivo !== '' ||
-      form.realizadoExcluded.length > 0 ||
       form.detalheManual !== '' ||
-      form.pendenciasExcluded.length > 0 ||
       form.pendenciasManual.length > 0 ||
       form.proximaEtapa.length > 0 ||
       form.upsellProdutos.length > 0 ||
@@ -332,9 +307,11 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
     }
   };
 
-  // A nota é uma fotografia da reunião: o checklist não é tocado por aqui.
-  // Só quando o modal fecha — e uma nota chegou a ser gerada — o "retrato"
-  // salvo do checklist avança, para que a próxima reunião comece o diff do zero.
+  // A nota é uma fotografia da reunião: só quando o modal fecha — e uma
+  // nota chegou a ser gerada — o "retrato" salvo do checklist avança, para
+  // que a próxima reunião comece o diff do zero. Marcar itens aqui dentro
+  // já grava no checklist real na hora; isso só controla o que conta como
+  // "já reportado" pela próxima nota.
   const handleClose = () => {
     if (generatedOnceRef.current && client) {
       onUpdateClient(client.id, {
@@ -345,7 +322,8 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
     onClose();
   };
 
-  const hasDiff = diff.moduleDiffs.length > 0 || diff.doneStepsThisMeeting.length > 0;
+  const hasDone = diff.moduleGroups.some(m => m.done.length > 0) || diff.doneSteps.length > 0;
+  const hasPending = diff.moduleGroups.some(m => m.pending.length > 0) || diff.pendingSteps.length > 0;
   const offerNames = (availableOffers || []).map(o => o.name);
 
   return (
@@ -447,46 +425,39 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
               <input type="text" className="form-input" placeholder="Ex.: Configurar e validar o chatbot de atendimento." value={form.objetivo} onChange={e => setField('objetivo', e.target.value)} />
             </div>
 
-            {/* Realizado nesta reunião — vem do diff do checklist dos Módulos Contratados */}
+            {/* Realizado nesta reunião — checklist real do cliente, sempre visível
+                e marcável aqui mesmo: marcar já conclui a tarefa no módulo. */}
             <div className="form-group">
               <label className="form-label"><ListChecks size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Realizado nesta reunião</label>
               {!client ? (
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Selecione o cliente para ver o que foi concluído.</span>
-              ) : !hasDiff ? (
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Nenhuma tarefa concluída identificada nesta reunião. Marque o checklist no cliente ou adicione um detalhe abaixo.</span>
+              ) : !hasDone ? (
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Nada marcado ainda. Marque o checklist em Pendências abaixo ou adicione um detalhe manual.</span>
               ) : (
                 <div className="checkbox-group" style={{ gridTemplateColumns: '1fr', gap: '14px' }}>
-                  {diff.moduleDiffs.map(m => (
+                  {diff.moduleGroups.filter(m => m.done.length > 0).map(m => (
                     <div key={m.moduleName}>
                       <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.moduleName}</span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                        {m.doneThisMeeting.map(item => {
-                          const key = moduleItemKey(m.moduleName, item);
-                          const included = !form.realizadoExcluded.includes(key);
-                          return (
-                            <label key={key} className="checkbox-label">
-                              <input type="checkbox" className="premium-check" checked={included} onChange={() => toggleRealizadoExcluded(key)} />
-                              <span>{getItemDoneText(item)}</span>
-                            </label>
-                          );
-                        })}
+                        {m.done.map(({ item, idx }) => (
+                          <label key={item.label} className="checkbox-label">
+                            <input type="checkbox" className="premium-check" checked={true} onChange={() => handleToggleModuleItem(m.moduleName, idx)} />
+                            <span>{getItemDoneText(item)}</span>
+                          </label>
+                        ))}
                       </div>
                     </div>
                   ))}
-                  {diff.doneStepsThisMeeting.length > 0 && (
+                  {diff.doneSteps.length > 0 && (
                     <div>
                       <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Etapas Adicionais</span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                        {diff.doneStepsThisMeeting.map(step => {
-                          const key = stepKey(step);
-                          const included = !form.realizadoExcluded.includes(key);
-                          return (
-                            <label key={key} className="checkbox-label">
-                              <input type="checkbox" className="premium-check" checked={included} onChange={() => toggleRealizadoExcluded(key)} />
-                              <span>{getItemDoneText(step)}</span>
-                            </label>
-                          );
-                        })}
+                        {diff.doneSteps.map(step => (
+                          <label key={step.id} className="checkbox-label">
+                            <input type="checkbox" className="premium-check" checked={true} onChange={() => handleToggleStep(step.id)} />
+                            <span>{getItemDoneText(step)}</span>
+                          </label>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -502,28 +473,42 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
               />
             </div>
 
-            {/* Pendências — o que ainda falta nos módulos tocados nesta reunião */}
+            {/* Pendências — o restante do checklist, sempre visível e marcável
+                aqui mesmo: marcar um item move ele para "Realizado" acima. */}
             <div className="form-group">
-              <label className="form-label">🔍 Pendências</label>
-              {client && diff.moduleDiffs.some(m => m.stillPending.length > 0) && (
-                <div className="checkbox-group" style={{ gridTemplateColumns: '1fr', gap: '14px', marginBottom: '10px' }}>
-                  {diff.moduleDiffs.filter(m => m.stillPending.length > 0).map(m => (
+              <label className="form-label">🔍 Pendências (marque o que foi feito nesta reunião)</label>
+              {!client ? (
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Selecione o cliente para ver o checklist.</span>
+              ) : !hasPending ? (
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Nenhuma pendência nos módulos contratados ou etapas adicionais.</span>
+              ) : (
+                <div className="checkbox-group" style={{ gridTemplateColumns: '1fr', gap: '14px' }}>
+                  {diff.moduleGroups.filter(m => m.pending.length > 0).map(m => (
                     <div key={m.moduleName}>
                       <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.moduleName}</span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                        {m.stillPending.map(item => {
-                          const key = moduleItemKey(m.moduleName, item);
-                          const included = !form.pendenciasExcluded.includes(key);
-                          return (
-                            <label key={key} className="checkbox-label">
-                              <input type="checkbox" className="premium-check" checked={included} onChange={() => togglePendenciaExcluded(key)} />
-                              <span>{getItemPendingText(item)}</span>
-                            </label>
-                          );
-                        })}
+                        {m.pending.map(({ item, idx }) => (
+                          <label key={item.label} className="checkbox-label">
+                            <input type="checkbox" className="premium-check" checked={false} onChange={() => handleToggleModuleItem(m.moduleName, idx)} />
+                            <span>{getItemPendingText(item)}</span>
+                          </label>
+                        ))}
                       </div>
                     </div>
                   ))}
+                  {diff.pendingSteps.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Etapas Adicionais</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                        {diff.pendingSteps.map(step => (
+                          <label key={step.id} className="checkbox-label">
+                            <input type="checkbox" className="premium-check" checked={false} onChange={() => handleToggleStep(step.id)} />
+                            <span>{getItemPendingText(step)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <DynamicListField

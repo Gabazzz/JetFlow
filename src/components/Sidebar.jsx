@@ -8,7 +8,7 @@ import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import NotaReuniaoModal from './NotaReuniaoModal';
 
-export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket, onUpdateClient }) {
+export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket, onUpdateClient, onUpdateChecklist, onUpdateAdditionalSteps }) {
   // Client context — reused as-is when the quick action is opened from within a client's page
   const contextClientId = currentRoute && currentRoute.startsWith('clientes/') ? currentRoute.split('/')[1] : null;
   const contextClient = contextClientId ? (clients || []).find(c => c.id === contextClientId) || null : null;
@@ -412,6 +412,8 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
           profile={profile}
           availableOffers={offers || []}
           onUpdateClient={onUpdateClient}
+          onUpdateChecklist={onUpdateChecklist}
+          onUpdateAdditionalSteps={onUpdateAdditionalSteps}
           onClose={() => setIsNotaReuniaoOpen(false)}
         />
       )}

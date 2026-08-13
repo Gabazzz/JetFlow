@@ -164,26 +164,44 @@ export function getItemPendingText(item) {
   return item.pendingText || `${item.label} pendente.`;
 }
 
-// What changed, per module, since the last note was generated for this client.
-// Only modules with at least one item freshly checked ("done this meeting")
-// are returned — untouched modules stay out of the note entirely, even if
-// they still have pending tasks (per spec: no giant leftover task dump).
+// Everything the checklist still has to say since the last note: what's
+// already checked but not yet reported ("done", freshly this meeting) and
+// what's still unchecked ("pending", checkable live from the note itself).
+// Old items already checked as of the last note stay out entirely — the
+// user is never asked to re-review something already reported (regra do
+// item 8/30). idx is the item's real index in client.checklists[moduleName],
+// so the note UI can toggle it straight through onUpdateChecklist.
 export function getChecklistDiff(client) {
   const checklists = client.checklists || {};
   const baseline = client.checklistBaseline || {};
   const activeModules = client.activeModules || [];
 
-  const moduleDiffs = activeModules.map(modName => {
+  const moduleGroups = activeModules.map(modName => {
     const items = checklists[modName] || [];
     const baseMap = new Map((baseline[modName] || []).map(b => [b.label, b.checked]));
-    const doneThisMeeting = items.filter(item => item.checked && !baseMap.get(item.label));
-    const stillPending = items.filter(item => !item.checked);
-    return { moduleName: modName, doneThisMeeting, stillPending };
-  }).filter(m => m.doneThisMeeting.length > 0);
+    const done = [];
+    const pending = [];
+    items.forEach((item, idx) => {
+      if (item.checked) {
+        if (!baseMap.get(item.label)) done.push({ item, idx });
+      } else {
+        pending.push({ item, idx });
+      }
+    });
+    return { moduleName: modName, done, pending };
+  }).filter(m => m.done.length > 0 || m.pending.length > 0);
 
   const steps = client.additionalSteps || [];
   const stepsBaseMap = new Map((client.additionalStepsBaseline || []).map(b => [b.id, b.checked]));
-  const doneStepsThisMeeting = steps.filter(s => s.checked && !stepsBaseMap.get(s.id));
+  const doneSteps = [];
+  const pendingSteps = [];
+  steps.forEach(step => {
+    if (step.checked) {
+      if (!stepsBaseMap.get(step.id)) doneSteps.push(step);
+    } else {
+      pendingSteps.push(step);
+    }
+  });
 
-  return { moduleDiffs, doneStepsThisMeeting };
+  return { moduleGroups, doneSteps, pendingSteps };
 }

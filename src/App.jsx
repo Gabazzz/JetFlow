@@ -609,6 +609,8 @@ export default function App() {
         onAddClientOffer={handleAddClientOffer}
         onAddTicket={handleAddTicket}
         onUpdateClient={handleUpdateClient}
+        onUpdateChecklist={handleUpdateClientChecklist}
+        onUpdateAdditionalSteps={handleUpdateAdditionalSteps}
       />
       <main className="main-container">
         <div className="view-header">

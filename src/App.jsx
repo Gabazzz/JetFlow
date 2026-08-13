@@ -17,9 +17,10 @@ import {
   initialTickets
 } from './data/data';
 
-import { 
-  calculateNextContactDate, 
-  getDateStatus 
+import {
+  calculateNextContactDate,
+  getDateStatus,
+  createDefaultAdditionalSteps
 } from './utils';
 
 import { Bell, X, Plus } from 'lucide-react';
@@ -35,7 +36,17 @@ export default function App() {
   const [plans, setPlans] = useState(initialPlans);
   const [modules, setModules] = useState(initialModules);
   const [offers, setOffers] = useState(initialAvailableOffers);
-  const [clients, setClients] = useState(initialClients);
+  // Cada cliente precisa de etapas adicionais (BM/GupShup) e de um "retrato"
+  // do checklist (baseline) representando o estado na última nota gerada —
+  // é contra esse retrato que a Nota de Reunião calcula o que foi feito
+  // especificamente na reunião atual. Sem baseline salvo (dado seed antigo),
+  // o retrato inicial é o próprio estado atual do checklist.
+  const [clients, setClients] = useState(() => initialClients.map(c => ({
+    ...c,
+    additionalSteps: c.additionalSteps || createDefaultAdditionalSteps(),
+    checklistBaseline: c.checklistBaseline || JSON.parse(JSON.stringify(c.checklists || {})),
+    additionalStepsBaseline: c.additionalStepsBaseline || JSON.parse(JSON.stringify(c.additionalSteps || createDefaultAdditionalSteps()))
+  })));
   const [stages, setStages] = useState(initialStages);
   const [tickets, setTickets] = useState(initialTickets);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -313,6 +324,13 @@ export default function App() {
     }));
   };
 
+  // Etapas adicionais (Verificação de BM, Conexão com GupShup) — independentes
+  // dos módulos contratados, mas participam do mesmo diff de "o que foi feito
+  // nesta reunião" usado pela Nota de Reunião.
+  const handleUpdateAdditionalSteps = (clientId, updatedSteps) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, additionalSteps: updatedSteps } : c));
+  };
+
   // Custom client reminder handlers
   const handleAddClientReminder = (clientId, title, description, deadline, criticality) => {
     setClients(prev => prev.map(c => {
@@ -500,6 +518,7 @@ export default function App() {
             onEditReminder={handleEditClientReminder}
             onRemoveReminder={handleRemoveClientReminder}
             onUpdateChecklist={handleUpdateClientChecklist}
+            onUpdateAdditionalSteps={handleUpdateAdditionalSteps}
             onCompleteTask={handleCompleteClientTask}
             tickets={tickets.filter(t => t.clientId === client.id)}
             onAddTicket={handleAddTicket}
@@ -589,6 +608,7 @@ export default function App() {
         onAddClientTask={handleAddClientTask}
         onAddClientOffer={handleAddClientOffer}
         onAddTicket={handleAddTicket}
+        onUpdateClient={handleUpdateClient}
       />
       <main className="main-container">
         <div className="view-header">
@@ -701,6 +721,9 @@ export default function App() {
                 nextAction: 'Reunião de Alinhamento inicial',
                 nextContactDate: nextContact,
                 checklists: clientChecklists,
+                checklistBaseline: JSON.parse(JSON.stringify(clientChecklists)),
+                additionalSteps: createDefaultAdditionalSteps(),
+                additionalStepsBaseline: createDefaultAdditionalSteps(),
                 reminders: [],
                 lastUpdated: {
                   date: '30/06/2026',

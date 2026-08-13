@@ -137,3 +137,53 @@ export const PHASE_META = {
   'Ativo': { color: '#10B981', bg: '#0F2A20', border: 'rgba(16, 185, 129, 0.35)' },
   'Em Risco': { color: '#EF4444', bg: '#2A1414', border: 'rgba(239, 68, 68, 0.35)' }
 };
+
+// ============================================================
+// Implantação: etapas adicionais + diff de checklist por reunião
+//
+// Módulos Contratados / checklists são a fonte única do estado da
+// implantação (ver ClientDetailView). A Nota de Reunião não mantém
+// sua própria lista de "o que foi feito" — ela lê esse mesmo estado
+// e o compara com um "checklistBaseline" (o retrato salvo da última
+// vez que uma nota foi gerada) para descobrir o que mudou de pendente
+// para concluído especificamente nesta reunião.
+// ============================================================
+
+export function createDefaultAdditionalSteps() {
+  return [
+    { id: 'bm', label: 'Verificação de BM', checked: false, doneText: 'Verificação de BM realizada.', pendingText: 'Verificar BM.' },
+    { id: 'gupshup', label: 'Conexão com GupShup', checked: false, doneText: 'GupShup conectado e validado.', pendingText: 'Conectar GupShup.' }
+  ];
+}
+
+export function getItemDoneText(item) {
+  return item.doneText || `${item.label} realizado.`;
+}
+
+export function getItemPendingText(item) {
+  return item.pendingText || `${item.label} pendente.`;
+}
+
+// What changed, per module, since the last note was generated for this client.
+// Only modules with at least one item freshly checked ("done this meeting")
+// are returned — untouched modules stay out of the note entirely, even if
+// they still have pending tasks (per spec: no giant leftover task dump).
+export function getChecklistDiff(client) {
+  const checklists = client.checklists || {};
+  const baseline = client.checklistBaseline || {};
+  const activeModules = client.activeModules || [];
+
+  const moduleDiffs = activeModules.map(modName => {
+    const items = checklists[modName] || [];
+    const baseMap = new Map((baseline[modName] || []).map(b => [b.label, b.checked]));
+    const doneThisMeeting = items.filter(item => item.checked && !baseMap.get(item.label));
+    const stillPending = items.filter(item => !item.checked);
+    return { moduleName: modName, doneThisMeeting, stillPending };
+  }).filter(m => m.doneThisMeeting.length > 0);
+
+  const steps = client.additionalSteps || [];
+  const stepsBaseMap = new Map((client.additionalStepsBaseline || []).map(b => [b.id, b.checked]));
+  const doneStepsThisMeeting = steps.filter(s => s.checked && !stepsBaseMap.get(s.id));
+
+  return { moduleDiffs, doneStepsThisMeeting };
+}

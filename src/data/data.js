@@ -16,23 +16,30 @@ export const initialPlans = [
 ];
 
 export const initialModules = [
-  { id: 'mod1', name: 'WhatsApp Business' },
-  { id: 'mod2', name: 'CRM Integrado' },
-  { id: 'mod3', name: 'Automação de Fluxos' },
-  { id: 'mod4', name: 'IA Conversacional' },
-  { id: 'mod5', name: 'Relatórios Avançados' },
-  { id: 'mod6', name: 'Chatbot Builder' },
-  { id: 'mod7', name: 'API Oficial' },
+  { id: 'mod1', name: 'JetGo' },
+  { id: 'mod2', name: 'WhatsApp Business' },
+  { id: 'mod3', name: 'CRM Integrado' },
+  { id: 'mod4', name: 'Automação de Fluxos' },
+  { id: 'mod5', name: 'Agente de IA' },
+  { id: 'mod6', name: 'Chatbot' },
+  { id: 'mod7', name: 'JetVoice' },
+  { id: 'mod8', name: 'Integrações / Canais' },
+  { id: 'mod9', name: 'Relatórios Avançados' },
+  { id: 'mod10', name: 'API Oficial' },
 ];
 
+// Catálogo único de itens adicionais/upsell — reutilizado pela Nota de
+// Reunião, Oportunidades e qualquer outro fluxo comercial. JetSender saiu
+// de linha e não aparece; JetVoice é o produto adicional mais recente.
 export const initialAvailableOffers = [
-  { id: 'off1', name: 'IA Conversacional' },
-  { id: 'off2', name: 'Relatórios Avançados' },
-  { id: 'off3', name: 'API Oficial' },
-  { id: 'off4', name: 'Suporte Prioritário 24h' },
-  { id: 'off5', name: 'Integração ERP' },
-  { id: 'off6', name: 'White Label' },
-  { id: 'off7', name: 'Multi-atendentes' },
+  { id: 'off1', name: 'Agente de IA' },
+  { id: 'off2', name: 'JetVoice' },
+  { id: 'off3', name: 'Relatórios Avançados' },
+  { id: 'off4', name: 'API Oficial' },
+  { id: 'off5', name: 'Suporte Prioritário 24h' },
+  { id: 'off6', name: 'Integração ERP' },
+  { id: 'off7', name: 'White Label' },
+  { id: 'off8', name: 'Multi-atendentes' },
 ];
 
 export const initialStages = ['Novo', 'Kickoff', 'Configuração', 'Treinamento', 'Finalizado'];
@@ -71,41 +78,67 @@ export const initialTickets = [
   }
 ];
 
-// Checklists templates per module
+// Checklists templates per module — configuráveis por módulo, não uma lista
+// genérica única. Cada item carrega, além do label exibido na tela, as
+// frases prontas usadas na Nota de Reunião quando o item é concluído
+// (doneText) ou quando ainda está pendente (pendingText). Sem essas frases,
+// a nota cai para "{label} realizado."/"{label} pendente." automaticamente.
 export const moduleChecklistsTemplate = {
+  'JetGo': [
+    { label: 'Configuração inicial da plataforma', checked: false, doneText: 'Configuração inicial do JetGo realizada.', pendingText: 'Configurar JetGo.' },
+    { label: 'Apresentação da plataforma', checked: false, doneText: 'JetGo apresentado ao cliente.', pendingText: 'Apresentar JetGo.' },
+    { label: 'Cadastro de usuários', checked: false, doneText: 'Usuários cadastrados no JetGo.', pendingText: 'Cadastrar usuários no JetGo.' },
+    { label: 'Teste operacional', checked: false, doneText: 'Teste operacional do JetGo realizado.', pendingText: 'Testar operação do JetGo.' },
+    { label: 'Validação final', checked: false, doneText: 'JetGo validado.', pendingText: 'Validar JetGo.' }
+  ],
   'WhatsApp Business': [
-    { label: 'Aprovação do número BSP', checked: true },
-    { label: 'Configuração de perfil comercial', checked: true },
-    { label: 'Disparo de teste de homologação', checked: false }
+    { label: 'Aprovação do número BSP', checked: true, doneText: 'Número BSP aprovado.', pendingText: 'Aprovar número BSP.' },
+    { label: 'Configuração de perfil comercial', checked: true, doneText: 'Perfil comercial configurado.', pendingText: 'Configurar perfil comercial.' },
+    { label: 'Disparo de teste de homologação', checked: false, doneText: 'Teste de homologação disparado.', pendingText: 'Disparar teste de homologação.' }
   ],
   'CRM Integrado': [
-    { label: 'Mapeamento de campos personalizados', checked: true },
-    { label: 'Integração de webhooks no CRM', checked: false },
-    { label: 'Teste de sincronização de leads', checked: false }
+    { label: 'Mapeamento de campos personalizados', checked: true, doneText: 'Campos personalizados mapeados.', pendingText: 'Mapear campos personalizados.' },
+    { label: 'Integração de webhooks no CRM', checked: false, doneText: 'Webhooks do CRM integrados.', pendingText: 'Integrar webhooks no CRM.' },
+    { label: 'Teste de sincronização de leads', checked: false, doneText: 'Sincronização de leads testada.', pendingText: 'Testar sincronização de leads.' }
   ],
   'Automação de Fluxos': [
-    { label: 'Definição de regras de automação', checked: false },
-    { label: 'Configuração de mensagens automáticas', checked: false },
-    { label: 'Teste de gatilhos operacionais', checked: false }
+    { label: 'Definição de regras de automação', checked: false, doneText: 'Regras de automação definidas.', pendingText: 'Definir regras de automação.' },
+    { label: 'Configuração de mensagens automáticas', checked: false, doneText: 'Mensagens automáticas configuradas.', pendingText: 'Configurar mensagens automáticas.' },
+    { label: 'Teste de gatilhos operacionais', checked: false, doneText: 'Gatilhos operacionais testados.', pendingText: 'Testar gatilhos operacionais.' }
   ],
-  'IA Conversacional': [
-    { label: 'Definição do Prompt de sistema', checked: false },
-    { label: 'Configuração de base de conhecimento', checked: false },
-    { label: 'Homologação de respostas da IA', checked: false }
+  'Agente de IA': [
+    { label: 'Criação', checked: false, doneText: 'Agente de IA criado.', pendingText: 'Criar Agente de IA.' },
+    { label: 'Configuração', checked: false, doneText: 'Agente de IA configurado.', pendingText: 'Configurar Agente de IA.' },
+    { label: 'Dashboard apresentado', checked: false, doneText: 'Dashboard de IA apresentado.', pendingText: 'Apresentar Dashboard de IA.' },
+    { label: 'Teste realizado', checked: false, doneText: 'Teste do Agente de IA realizado.', pendingText: 'Testar Agente de IA.' },
+    { label: 'Validação', checked: false, doneText: 'Agente de IA validado.', pendingText: 'Validar Agente de IA.' }
+  ],
+  'Chatbot': [
+    { label: 'Construção/configuração', checked: false, doneText: 'Chatbot construído e configurado.', pendingText: 'Construir/configurar Chatbot.' },
+    { label: 'Apresentação', checked: false, doneText: 'Chatbot apresentado.', pendingText: 'Apresentar Chatbot.' },
+    { label: 'Teste', checked: false, doneText: 'Teste do Chatbot realizado.', pendingText: 'Testar Chatbot.' },
+    { label: 'Validação', checked: false, doneText: 'Chatbot validado.', pendingText: 'Validar Chatbot.' }
+  ],
+  'JetVoice': [
+    { label: 'Conexão realizada', checked: false, doneText: 'JetVoice conectado.', pendingText: 'Conectar JetVoice.' },
+    { label: 'Configuração', checked: false, doneText: 'JetVoice configurado.', pendingText: 'Configurar JetVoice.' },
+    { label: 'Teste', checked: false, doneText: 'Teste do JetVoice realizado.', pendingText: 'Testar JetVoice.' },
+    { label: 'Funcionalidade validada', checked: false, doneText: 'JetVoice validado.', pendingText: 'Validar funcionalidade do JetVoice.' }
+  ],
+  'Integrações / Canais': [
+    { label: 'Conexão de canais', checked: false, doneText: 'Canais conectados.', pendingText: 'Conectar canais.' },
+    { label: 'Configuração de integrações', checked: false, doneText: 'Integrações configuradas.', pendingText: 'Configurar integrações.' },
+    { label: 'Teste de integrações', checked: false, doneText: 'Teste de integrações realizado.', pendingText: 'Testar integrações.' },
+    { label: 'Validação', checked: false, doneText: 'Integrações e canais validados.', pendingText: 'Validar integrações e canais.' }
   ],
   'Relatórios Avançados': [
-    { label: 'Criação de dashboards customizados', checked: false },
-    { label: 'Configuração de relatórios automáticos', checked: false }
-  ],
-  'Chatbot Builder': [
-    { label: 'Desenho da árvore de decisão', checked: true },
-    { label: 'Configuração de opções de menu', checked: false },
-    { label: 'Teste de transbordo humano', checked: false }
+    { label: 'Criação de dashboards customizados', checked: false, doneText: 'Dashboards customizados criados.', pendingText: 'Criar dashboards customizados.' },
+    { label: 'Configuração de relatórios automáticos', checked: false, doneText: 'Relatórios automáticos configurados.', pendingText: 'Configurar relatórios automáticos.' }
   ],
   'API Oficial': [
-    { label: 'Configuração do WABA', checked: true },
-    { label: 'Verificação da conta Meta Business', checked: true },
-    { label: 'Configuração de webhook oficial', checked: false }
+    { label: 'Configuração do WABA', checked: true, doneText: 'WABA configurado.', pendingText: 'Configurar WABA.' },
+    { label: 'Verificação da conta Meta Business', checked: true, doneText: 'Conta Meta Business verificada.', pendingText: 'Verificar conta Meta Business.' },
+    { label: 'Configuração de webhook oficial', checked: false, doneText: 'Webhook oficial configurado.', pendingText: 'Configurar webhook oficial.' }
   ]
 };
 
@@ -144,19 +177,19 @@ export const initialClients = [
     ],
     checklists: {
       'WhatsApp Business': [
-        { label: 'Aprovação do número BSP', checked: true },
-        { label: 'Configuração de perfil comercial', checked: true },
-        { label: 'Disparo de teste de homologação', checked: false }
+        { label: 'Aprovação do número BSP', checked: true, doneText: 'Número BSP aprovado.', pendingText: 'Aprovar número BSP.' },
+        { label: 'Configuração de perfil comercial', checked: true, doneText: 'Perfil comercial configurado.', pendingText: 'Configurar perfil comercial.' },
+        { label: 'Disparo de teste de homologação', checked: false, doneText: 'Teste de homologação disparado.', pendingText: 'Disparar teste de homologação.' }
       ],
       'CRM Integrado': [
-        { label: 'Mapeamento de campos personalizados', checked: true },
-        { label: 'Integração de webhooks no CRM', checked: false },
-        { label: 'Teste de sincronização de leads', checked: false }
+        { label: 'Mapeamento de campos personalizados', checked: true, doneText: 'Campos personalizados mapeados.', pendingText: 'Mapear campos personalizados.' },
+        { label: 'Integração de webhooks no CRM', checked: false, doneText: 'Webhooks do CRM integrados.', pendingText: 'Integrar webhooks no CRM.' },
+        { label: 'Teste de sincronização de leads', checked: false, doneText: 'Sincronização de leads testada.', pendingText: 'Testar sincronização de leads.' }
       ],
       'Automação de Fluxos': [
-        { label: 'Definição de regras de automação', checked: false },
-        { label: 'Configuração de mensagens automáticas', checked: false },
-        { label: 'Teste de gatilhos operacionais', checked: false }
+        { label: 'Definição de regras de automação', checked: false, doneText: 'Regras de automação definidas.', pendingText: 'Definir regras de automação.' },
+        { label: 'Configuração de mensagens automáticas', checked: false, doneText: 'Mensagens automáticas configuradas.', pendingText: 'Configurar mensagens automáticas.' },
+        { label: 'Teste de gatilhos operacionais', checked: false, doneText: 'Gatilhos operacionais testados.', pendingText: 'Testar gatilhos operacionais.' }
       ]
     },
     reminders: [
@@ -194,7 +227,7 @@ export const initialClients = [
       { id: 'task_c1_2', text: 'Enviar documentação técnica do módulo de automação', deadline: '03/07/2026' },
     ],
     interestOffers: [
-      { id: 'io_c1_1', name: 'IA Conversacional', status: 'Interessado' },
+      { id: 'io_c1_1', name: 'Agente de IA', status: 'Interessado' },
       { id: 'io_c1_2', name: 'Relatórios Avançados', status: 'Em análise' },
     ],
   },
@@ -208,7 +241,7 @@ export const initialClients = [
     entryDate: '20/05/2026',
     responsible: 'Gabriel Almeida',
     plan: 'Enterprise',
-    activeModules: ['WhatsApp Business', 'CRM Integrado', 'Chatbot Builder', 'Relatórios Avançados', 'API Oficial'],
+    activeModules: ['WhatsApp Business', 'CRM Integrado', 'Chatbot', 'Relatórios Avançados', 'API Oficial'],
     criticality: 'Atenção',
     criticalityJustification: 'Treinamento da equipe atrasado. Cliente solicitou adiamento por 10 dias por demanda interna.',
     observations: 'Grande empresa de varejo. Contato principal: Fernanda Souza (TI). Reuniões preferencialmente por Google Meet.',
@@ -229,34 +262,35 @@ export const initialClients = [
     ],
     checklists: {
       'WhatsApp Business': [
-        { label: 'Aprovação do número BSP', checked: true },
-        { label: 'Configuração de perfil comercial', checked: true },
-        { label: 'Disparo de teste de homologação', checked: true }
+        { label: 'Aprovação do número BSP', checked: true, doneText: 'Número BSP aprovado.', pendingText: 'Aprovar número BSP.' },
+        { label: 'Configuração de perfil comercial', checked: true, doneText: 'Perfil comercial configurado.', pendingText: 'Configurar perfil comercial.' },
+        { label: 'Disparo de teste de homologação', checked: true, doneText: 'Teste de homologação disparado.', pendingText: 'Disparar teste de homologação.' }
       ],
       'CRM Integrado': [
-        { label: 'Mapeamento de campos personalizados', checked: true },
-        { label: 'Integração de webhooks no CRM', checked: true },
-        { label: 'Teste de sincronização de leads', checked: false }
+        { label: 'Mapeamento de campos personalizados', checked: true, doneText: 'Campos personalizados mapeados.', pendingText: 'Mapear campos personalizados.' },
+        { label: 'Integração de webhooks no CRM', checked: true, doneText: 'Webhooks do CRM integrados.', pendingText: 'Integrar webhooks no CRM.' },
+        { label: 'Teste de sincronização de leads', checked: false, doneText: 'Sincronização de leads testada.', pendingText: 'Testar sincronização de leads.' }
       ],
-      'Chatbot Builder': [
-        { label: 'Desenho da árvore de decisão', checked: true },
-        { label: 'Configuração de opções de menu', checked: false },
-        { label: 'Teste de transbordo humano', checked: false }
+      'Chatbot': [
+        { label: 'Construção/configuração', checked: true, doneText: 'Chatbot construído e configurado.', pendingText: 'Construir/configurar Chatbot.' },
+        { label: 'Apresentação', checked: false, doneText: 'Chatbot apresentado.', pendingText: 'Apresentar Chatbot.' },
+        { label: 'Teste', checked: false, doneText: 'Teste do Chatbot realizado.', pendingText: 'Testar Chatbot.' },
+        { label: 'Validação', checked: false, doneText: 'Chatbot validado.', pendingText: 'Validar Chatbot.' }
       ],
       'Relatórios Avançados': [
-        { label: 'Criação de dashboards customizados', checked: false },
-        { label: 'Configuração de relatórios automáticos', checked: false }
+        { label: 'Criação de dashboards customizados', checked: false, doneText: 'Dashboards customizados criados.', pendingText: 'Criar dashboards customizados.' },
+        { label: 'Configuração de relatórios automáticos', checked: false, doneText: 'Relatórios automáticos configurados.', pendingText: 'Configurar relatórios automáticos.' }
       ],
       'API Oficial': [
-        { label: 'Configuração do WABA', checked: true },
-        { label: 'Verificação da conta Meta Business', checked: true },
-        { label: 'Configuração de webhook oficial', checked: false }
+        { label: 'Configuração do WABA', checked: true, doneText: 'WABA configurado.', pendingText: 'Configurar WABA.' },
+        { label: 'Verificação da conta Meta Business', checked: true, doneText: 'Conta Meta Business verificada.', pendingText: 'Verificar conta Meta Business.' },
+        { label: 'Configuração de webhook oficial', checked: false, doneText: 'Webhook oficial configurado.', pendingText: 'Configurar webhook oficial.' }
       ]
     },
     reminders: [
       {
         id: 'r_c2_1',
-        title: 'Enviar material de treinamento do Chatbot Builder',
+        title: 'Enviar material de treinamento do Chatbot',
         description: 'PDFs e guias práticos do módulo',
         deadline: '05/07/2026',
         criticality: 'Normal'
@@ -323,14 +357,14 @@ export const initialClients = [
     ],
     checklists: {
       'WhatsApp Business': [
-        { label: 'Aprovação do número BSP', checked: true },
-        { label: 'Configuração de perfil comercial', checked: true },
-        { label: 'Disparo de teste de homologação', checked: false }
+        { label: 'Aprovação do número BSP', checked: true, doneText: 'Número BSP aprovado.', pendingText: 'Aprovar número BSP.' },
+        { label: 'Configuração de perfil comercial', checked: true, doneText: 'Perfil comercial configurado.', pendingText: 'Configurar perfil comercial.' },
+        { label: 'Disparo de teste de homologação', checked: false, doneText: 'Teste de homologação disparado.', pendingText: 'Disparar teste de homologação.' }
       ],
       'Automação de Fluxos': [
-        { label: 'Definição de regras de automação', checked: true },
-        { label: 'Configuração de mensagens automáticas', checked: true },
-        { label: 'Teste de gatilhos operacionais', checked: false }
+        { label: 'Definição de regras de automação', checked: true, doneText: 'Regras de automação definidas.', pendingText: 'Definir regras de automação.' },
+        { label: 'Configuração de mensagens automáticas', checked: true, doneText: 'Mensagens automáticas configuradas.', pendingText: 'Configurar mensagens automáticas.' },
+        { label: 'Teste de gatilhos operacionais', checked: false, doneText: 'Gatilhos operacionais testados.', pendingText: 'Testar gatilhos operacionais.' }
       ]
     },
     reminders: [
@@ -370,7 +404,7 @@ export const initialClients = [
     entryDate: '15/06/2026',
     responsible: 'Gabriel Almeida',
     plan: 'Saúde',
-    activeModules: ['WhatsApp Business', 'IA Conversacional'],
+    activeModules: ['WhatsApp Business', 'Agente de IA'],
     criticality: 'Estável',
     criticalityJustification: 'Onboarding sob controle.',
     observations: 'Laboratório de análises clínicas.',
@@ -390,14 +424,16 @@ export const initialClients = [
     ],
     checklists: {
       'WhatsApp Business': [
-        { label: 'Aprovação do número BSP', checked: false },
-        { label: 'Configuração de perfil comercial', checked: false },
-        { label: 'Disparo de teste de homologação', checked: false }
+        { label: 'Aprovação do número BSP', checked: false, doneText: 'Número BSP aprovado.', pendingText: 'Aprovar número BSP.' },
+        { label: 'Configuração de perfil comercial', checked: false, doneText: 'Perfil comercial configurado.', pendingText: 'Configurar perfil comercial.' },
+        { label: 'Disparo de teste de homologação', checked: false, doneText: 'Teste de homologação disparado.', pendingText: 'Disparar teste de homologação.' }
       ],
-      'IA Conversacional': [
-        { label: 'Definição do Prompt de sistema', checked: false },
-        { label: 'Configuração de base de conhecimento', checked: false },
-        { label: 'Homologação de respostas da IA', checked: false }
+      'Agente de IA': [
+        { label: 'Criação', checked: false, doneText: 'Agente de IA criado.', pendingText: 'Criar Agente de IA.' },
+        { label: 'Configuração', checked: false, doneText: 'Agente de IA configurado.', pendingText: 'Configurar Agente de IA.' },
+        { label: 'Dashboard apresentado', checked: false, doneText: 'Dashboard de IA apresentado.', pendingText: 'Apresentar Dashboard de IA.' },
+        { label: 'Teste realizado', checked: false, doneText: 'Teste do Agente de IA realizado.', pendingText: 'Testar Agente de IA.' },
+        { label: 'Validação', checked: false, doneText: 'Agente de IA validado.', pendingText: 'Validar Agente de IA.' }
       ]
     },
     reminders: [],

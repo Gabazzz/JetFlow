@@ -6,7 +6,7 @@ import {
   AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw,
   Hash, Wifi, Users as UsersIcon
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier, calculateNextContactDate } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier, calculateNextContactDate, createDefaultAdditionalSteps } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 
@@ -22,6 +22,7 @@ export default function ClientDetailView({
   onEditReminder,
   onRemoveReminder,
   onUpdateChecklist,
+  onUpdateAdditionalSteps,
   onCompleteTask,
   tickets,
   onAddTicket,
@@ -74,6 +75,7 @@ export default function ClientDetailView({
     'WhatsApp Business': true,
     'Implantação e Setup': true
   });
+  const [showDoneModules, setShowDoneModules] = useState({});
   const [showFullHistory, setShowFullHistory] = useState(false);
   const [showFullContacts, setShowFullContacts] = useState(false);
 
@@ -788,32 +790,94 @@ export default function ClientDetailView({
                       </div>
                     </div>
 
-                    {isExpanded && (
-                      <div style={{ padding: '14px 16px', backgroundColor: '#111', display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #252525' }}>
-                        {checklist.length === 0 ? (
-                          <span style={{ color: '#555', fontSize: '12px' }}>Nenhuma tarefa pendente neste checklist.</span>
-                        ) : (
-                          checklist.map((item, idx) => (
-                            <label key={idx} className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                              <input
-                                type="checkbox"
-                                className="premium-check"
-                                checked={item.checked}
-                                onChange={() => handleToggleChecklist(modName, idx)}
-                              />
-                              <span style={{ textDecoration: item.checked ? 'line-through' : 'none', color: item.checked ? '#555' : '#ccc' }}>
-                                {item.label}
-                              </span>
-                            </label>
-                          ))
-                        )}
-                      </div>
-                    )}
+                    {isExpanded && (() => {
+                      // A tarefa já concluída não continua sendo apresentada como
+                      // "a fazer" — só as pendentes aparecem por padrão; as
+                      // concluídas ficam recolhidas atrás de um contador.
+                      const indexed = checklist.map((item, idx) => ({ item, idx }));
+                      const pendingItems = indexed.filter(x => !x.item.checked);
+                      const doneItems = indexed.filter(x => x.item.checked);
+                      const showDone = !!showDoneModules[modName];
+                      return (
+                        <div style={{ padding: '14px 16px', backgroundColor: '#111', display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #252525' }}>
+                          {checklist.length === 0 ? (
+                            <span style={{ color: '#555', fontSize: '12px' }}>Nenhuma tarefa neste checklist.</span>
+                          ) : (
+                            <>
+                              {pendingItems.length === 0 && (
+                                <span style={{ color: 'var(--green-primary)', fontSize: '12px', fontWeight: '600' }}>✓ Checklist concluído.</span>
+                              )}
+                              {pendingItems.map(({ item, idx }) => (
+                                <label key={idx} className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                                  <input
+                                    type="checkbox"
+                                    className="premium-check"
+                                    checked={item.checked}
+                                    onChange={() => handleToggleChecklist(modName, idx)}
+                                  />
+                                  <span style={{ color: '#ccc' }}>{item.label}</span>
+                                </label>
+                              ))}
+                              {doneItems.length > 0 && (
+                                <div style={{ marginTop: pendingItems.length > 0 ? '2px' : 0 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowDoneModules(prev => ({ ...prev, [modName]: !prev[modName] }))}
+                                    style={{ background: 'none', border: 'none', padding: 0, color: '#555', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    {showDone ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                                    <span>{doneItems.length} concluída{doneItems.length > 1 ? 's' : ''}</span>
+                                  </button>
+                                  {showDone && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                                      {doneItems.map(({ item, idx }) => (
+                                        <label key={idx} className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                                          <input
+                                            type="checkbox"
+                                            className="premium-check"
+                                            checked={item.checked}
+                                            onChange={() => handleToggleChecklist(modName, idx)}
+                                          />
+                                          <span style={{ textDecoration: 'line-through', color: '#555' }}>{item.label}</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
             </div>
             )}
+          </div>
+
+          {/* Section: Etapas Adicionais (Verificação de BM, Conexão com GupShup) */}
+          <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+            <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>
+              ETAPAS ADICIONAIS
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {(client.additionalSteps || createDefaultAdditionalSteps()).map(step => (
+                <label key={step.id} className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                  <input
+                    type="checkbox"
+                    className="premium-check"
+                    checked={step.checked}
+                    onChange={() => {
+                      const updated = (client.additionalSteps || createDefaultAdditionalSteps()).map(s => s.id === step.id ? { ...s, checked: !s.checked } : s);
+                      onUpdateAdditionalSteps(client.id, updated);
+                    }}
+                  />
+                  <span style={{ color: step.checked ? '#555' : '#ccc', textDecoration: step.checked ? 'line-through' : 'none' }}>{step.label}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Section: Tarefas */}

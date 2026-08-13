@@ -1,33 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Sparkles, Eraser, Copy, RefreshCw, Building2, Calendar,
   Clock, Users, Target, ListChecks, ArrowRight, DollarSign,
-  AlertTriangle, FileText, Video, Plus, Trash2
+  AlertTriangle, FileText, Video, Plus, Trash2, Wand2
 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
-import { getTodayBR } from '../utils';
-
-// Same topic vocabulary drives both "O que foi realizado" (done) and
-// "Pendências" (still pending) — a topic is either one or the other.
-const TOPIC_OPTIONS = [
-  { id: 'config_iniciais', label: 'Configurações iniciais', realizadoPhrase: 'Configurações iniciais realizadas.', pendentePhrase: 'Configurações iniciais pendentes.' },
-  { id: 'canais', label: 'Conexão de canais', realizadoPhrase: 'Canais conectados e validados.', pendentePhrase: 'Conexão de canais pendente.' },
-  { id: 'atendimento', label: 'Atendimento', realizadoPhrase: 'Atendimento configurado.', pendentePhrase: 'Configuração do atendimento pendente.' },
-  { id: 'chatbot', label: 'Chatbot', realizadoPhrase: 'Chatbot configurado e validado.', pendentePhrase: 'Configuração do chatbot pendente.' },
-  { id: 'dashboard', label: 'Dashboard', realizadoPhrase: 'Dashboard apresentado e orientado.', pendentePhrase: 'Apresentação do dashboard pendente.' },
-  { id: 'dashboard_ia', label: 'Dashboard de IA', realizadoPhrase: 'Dashboard de IA apresentado e orientado.', pendentePhrase: 'Apresentação do Dashboard de IA pendente.' },
-  { id: 'gestao_leads', label: 'Gestão de Leads', realizadoPhrase: 'Gestão de leads configurada.', pendentePhrase: 'Configuração da gestão de leads pendente.' },
-  { id: 'contatos', label: 'Contatos', realizadoPhrase: 'Contatos organizados e configurados.', pendentePhrase: 'Organização dos contatos pendente.' },
-  { id: 'funil', label: 'Funil', realizadoPhrase: 'Funil configurado e validado.', pendentePhrase: 'Configuração do funil pendente.' },
-  { id: 'automacoes', label: 'Automações', realizadoPhrase: 'Automações configuradas.', pendentePhrase: 'Configuração das automações pendente.' },
-  { id: 'integracoes', label: 'Integrações', realizadoPhrase: 'Integrações configuradas.', pendentePhrase: 'Configuração das integrações pendente.' },
-  { id: 'treinamento', label: 'Treinamento', realizadoPhrase: 'Orientações e treinamento realizados.', pendentePhrase: 'Treinamento pendente.' },
-  { id: 'validacao', label: 'Validação', realizadoPhrase: 'Funcionalidades apresentadas e validadas.', pendentePhrase: 'Validação das funcionalidades pendente.' },
-  { id: 'ajustes', label: 'Ajustes', realizadoPhrase: 'Ajustes realizados conforme solicitado.', pendentePhrase: 'Ajustes pendentes.' },
-  { id: 'testes', label: 'Testes', realizadoPhrase: 'Testes realizados.', pendentePhrase: 'Testes pendentes.' },
-  { id: 'outros', label: 'Outros', realizadoPhrase: 'Outras atividades realizadas conforme necessidade do cliente.', pendentePhrase: 'Outras pendências.' }
-];
+import { getTodayBR, getChecklistDiff, getItemDoneText, getItemPendingText } from '../utils';
 
 const STATUS_OPTIONS = [
   { value: 'Em andamento', emoji: '🟢' },
@@ -39,17 +18,15 @@ const STATUS_OPTIONS = [
 
 const NUMERO_REUNIAO_OPTIONS = Array.from({ length: 20 }, (_, i) => `${i + 1}ª reunião`);
 
-const UPSELL_PRODUCTS = ['Dashboard de IA', 'Automação', 'Chatbot', 'Canal adicional', 'Integração', 'Outro'];
-
 const UPSELL_STATUS_PHRASE = {
-  'Não identificado': (produtos) => `Produto(s) mencionado(s): ${produtos}.`,
-  'Sem interesse': (produtos) => `Sem interesse em ${produtos}.`,
   'Interesse demonstrado': (produtos) => `Interesse demonstrado em ${produtos}.`,
   'Solicitar abordagem comercial': (produtos) => `Solicitar abordagem comercial para ${produtos}.`,
   'Encaminhado ao comercial': (produtos) => `Encaminhado ao comercial: ${produtos}.`,
   'Em negociação': (produtos) => `Em negociação: ${produtos}.`,
-  'Convertido': (produtos) => `Convertido: ${produtos}.`
+  'Sem interesse': (produtos) => `Sem interesse em ${produtos}.`
 };
+
+const EMPTY_DIFF = { moduleDiffs: [], doneStepsThisMeeting: [] };
 
 function DynamicListField({ items, onAdd, onRemove, placeholder, addLabel }) {
   const [value, setValue] = useState('');
@@ -94,9 +71,10 @@ const initialFormState = () => ({
   participantes: [],
   status: 'Em andamento',
   objetivo: '',
-  realizado: [],
+  realizadoExcluded: [],
   detalheManual: '',
-  pendencias: [],
+  pendenciasExcluded: [],
+  pendenciasManual: [],
   proximaEtapa: [],
   upsellProdutos: [],
   upsellStatus: 'Interesse demonstrado',
@@ -105,7 +83,44 @@ const initialFormState = () => ({
   gravacao: ''
 });
 
-function buildNotaText(form, responsavelNome) {
+// Chaves estáveis para identificar um item do checklist entre re-renders,
+// usadas para marcar exclusões (incluir/excluir da nota) sem alterar o
+// estado real do checklist do cliente.
+const moduleItemKey = (moduleName, item) => `${moduleName}::${item.label}`;
+const stepKey = (step) => `step::${step.id}`;
+
+function computeRealizadoLines(form, diff) {
+  const lines = [];
+  diff.moduleDiffs.forEach(m => {
+    m.doneThisMeeting.forEach(item => {
+      if (!form.realizadoExcluded.includes(moduleItemKey(m.moduleName, item))) {
+        lines.push(getItemDoneText(item));
+      }
+    });
+  });
+  diff.doneStepsThisMeeting.forEach(step => {
+    if (!form.realizadoExcluded.includes(stepKey(step))) {
+      lines.push(getItemDoneText(step));
+    }
+  });
+  if (form.detalheManual.trim()) lines.push(form.detalheManual.trim());
+  return lines;
+}
+
+function computePendenciaLines(form, diff) {
+  const lines = [];
+  diff.moduleDiffs.forEach(m => {
+    m.stillPending.forEach(item => {
+      if (!form.pendenciasExcluded.includes(moduleItemKey(m.moduleName, item))) {
+        lines.push(getItemPendingText(item));
+      }
+    });
+  });
+  form.pendenciasManual.forEach(p => lines.push(p));
+  return lines;
+}
+
+function buildNotaText(form, diff, responsavelNome) {
   const lines = [];
 
   const numero = form.numeroReuniao.trim();
@@ -137,20 +152,18 @@ function buildNotaText(form, responsavelNome) {
     lines.push(form.objetivo.trim());
   }
 
-  const realizadoPhrases = TOPIC_OPTIONS
-    .filter(opt => form.realizado.includes(opt.id))
-    .map(opt => opt.realizadoPhrase);
-  if (form.detalheManual.trim()) realizadoPhrases.push(form.detalheManual.trim());
-  if (realizadoPhrases.length > 0) {
+  const realizadoLines = computeRealizadoLines(form, diff);
+  if (realizadoLines.length > 0) {
     lines.push('');
     lines.push('🛠️ REALIZADO:');
-    realizadoPhrases.forEach(p => lines.push(`• ${p}`));
+    realizadoLines.forEach(p => lines.push(`• ${p}`));
   }
 
-  if (form.pendencias.length > 0) {
+  const pendenciaLines = computePendenciaLines(form, diff);
+  if (pendenciaLines.length > 0) {
     lines.push('');
     lines.push('🔍 PENDÊNCIAS:');
-    form.pendencias.forEach(p => lines.push(`• ${p}`));
+    pendenciaLines.forEach(p => lines.push(`• ${p}`));
   }
 
   if (form.proximaEtapa.length > 0) {
@@ -162,7 +175,7 @@ function buildNotaText(form, responsavelNome) {
   if (form.upsellProdutos.length > 0) {
     lines.push('');
     lines.push('💰 UPSELL / OPORTUNIDADE:');
-    const phraseFn = UPSELL_STATUS_PHRASE[form.upsellStatus] || UPSELL_STATUS_PHRASE['Não identificado'];
+    const phraseFn = UPSELL_STATUS_PHRASE[form.upsellStatus] || UPSELL_STATUS_PHRASE['Interesse demonstrado'];
     lines.push(phraseFn(form.upsellProdutos.join(', ')));
   }
 
@@ -187,7 +200,7 @@ function buildNotaText(form, responsavelNome) {
   return lines.join('\n');
 }
 
-export default function NotaReuniaoModal({ clients, contextClient, profile, onClose }) {
+export default function NotaReuniaoModal({ clients, contextClient, profile, availableOffers, onUpdateClient, onClose }) {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [form, setForm] = useState(initialFormState());
   const [participantInput, setParticipantInput] = useState('');
@@ -195,15 +208,41 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [diff, setDiff] = useState(EMPTY_DIFF);
+
+  const lastDiffClientId = useRef(null);
+  const generatedOnceRef = useRef(false);
 
   const client = contextClient || clients.find(c => c.id === selectedClientId) || null;
 
+  // O checklist é a fonte do "o que foi feito" — o diff (pendente -> concluído)
+  // é calculado uma vez por cliente e congelado durante a sessão do modal, para
+  // que "Gerar Novamente" não perca os itens já identificados.
+  useEffect(() => {
+    if (client && client.id !== lastDiffClientId.current) {
+      lastDiffClientId.current = client.id;
+      generatedOnceRef.current = false;
+      setDiff(getChecklistDiff(client));
+      setForm(prev => ({ ...prev, realizadoExcluded: [], pendenciasExcluded: [], pendenciasManual: [], detalheManual: '' }));
+    } else if (!client) {
+      lastDiffClientId.current = null;
+      setDiff(EMPTY_DIFF);
+    }
+  }, [client]);
+
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
-  const toggleRealizado = (id) => {
+  const toggleRealizadoExcluded = (key) => {
     setForm(prev => ({
       ...prev,
-      realizado: prev.realizado.includes(id) ? prev.realizado.filter(r => r !== id) : [...prev.realizado, id]
+      realizadoExcluded: prev.realizadoExcluded.includes(key) ? prev.realizadoExcluded.filter(k => k !== key) : [...prev.realizadoExcluded, key]
+    }));
+  };
+
+  const togglePendenciaExcluded = (key) => {
+    setForm(prev => ({
+      ...prev,
+      pendenciasExcluded: prev.pendenciasExcluded.includes(key) ? prev.pendenciasExcluded.filter(k => k !== key) : [...prev.pendenciasExcluded, key]
     }));
   };
 
@@ -225,6 +264,12 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
     setField('participantes', form.participantes.filter(p => p !== name));
   };
 
+  const handleSuggestProximaEtapa = () => {
+    const suggestions = computePendenciaLines(form, diff).filter(p => !form.proximaEtapa.includes(p));
+    if (suggestions.length === 0) return;
+    setField('proximaEtapa', [...form.proximaEtapa, ...suggestions]);
+  };
+
   const isFormDirty = () => {
     const initial = initialFormState();
     return (
@@ -235,9 +280,10 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
       form.participantes.length > 0 ||
       form.status !== initial.status ||
       form.objetivo !== '' ||
-      form.realizado.length > 0 ||
+      form.realizadoExcluded.length > 0 ||
       form.detalheManual !== '' ||
-      form.pendencias.length > 0 ||
+      form.pendenciasExcluded.length > 0 ||
+      form.pendenciasManual.length > 0 ||
       form.proximaEtapa.length > 0 ||
       form.upsellProdutos.length > 0 ||
       form.pontosAtencao.length > 0 ||
@@ -256,7 +302,8 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
       return;
     }
     setShowValidation(false);
-    setGeneratedNote(buildNotaText(form, profile.name));
+    setGeneratedNote(buildNotaText(form, diff, profile.name));
+    generatedOnceRef.current = true;
     setCopyFeedback(false);
     setCopyError(false);
   };
@@ -266,6 +313,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
     setForm(initialFormState());
     setParticipantInput('');
     setGeneratedNote(null);
+    generatedOnceRef.current = false;
     setCopyFeedback(false);
     setCopyError(false);
     setShowValidation(false);
@@ -284,12 +332,28 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
     }
   };
 
+  // A nota é uma fotografia da reunião: o checklist não é tocado por aqui.
+  // Só quando o modal fecha — e uma nota chegou a ser gerada — o "retrato"
+  // salvo do checklist avança, para que a próxima reunião comece o diff do zero.
+  const handleClose = () => {
+    if (generatedOnceRef.current && client) {
+      onUpdateClient(client.id, {
+        checklistBaseline: JSON.parse(JSON.stringify(client.checklists || {})),
+        additionalStepsBaseline: JSON.parse(JSON.stringify(client.additionalSteps || []))
+      });
+    }
+    onClose();
+  };
+
+  const hasDiff = diff.moduleDiffs.length > 0 || diff.doneStepsThisMeeting.length > 0;
+  const offerNames = (availableOffers || []).map(o => o.name);
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-content nota-reuniao-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3 className="modal-title">📝 Nova Nota de Reunião</h3>
-          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon" onClick={handleClose}><X size={16} /></button>
         </div>
 
         <div className="modal-body nota-reuniao-layout">
@@ -383,16 +447,51 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
               <input type="text" className="form-input" placeholder="Ex.: Configurar e validar o chatbot de atendimento." value={form.objetivo} onChange={e => setField('objetivo', e.target.value)} />
             </div>
 
+            {/* Realizado nesta reunião — vem do diff do checklist dos Módulos Contratados */}
             <div className="form-group">
-              <label className="form-label"><ListChecks size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />O que foi realizado</label>
-              <div className="checkbox-group" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                {TOPIC_OPTIONS.map(opt => (
-                  <label key={opt.id} className="checkbox-label">
-                    <input type="checkbox" className="premium-check" checked={form.realizado.includes(opt.id)} onChange={() => toggleRealizado(opt.id)} />
-                    <span>{opt.label}</span>
-                  </label>
-                ))}
-              </div>
+              <label className="form-label"><ListChecks size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Realizado nesta reunião</label>
+              {!client ? (
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Selecione o cliente para ver o que foi concluído.</span>
+              ) : !hasDiff ? (
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Nenhuma tarefa concluída identificada nesta reunião. Marque o checklist no cliente ou adicione um detalhe abaixo.</span>
+              ) : (
+                <div className="checkbox-group" style={{ gridTemplateColumns: '1fr', gap: '14px' }}>
+                  {diff.moduleDiffs.map(m => (
+                    <div key={m.moduleName}>
+                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.moduleName}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                        {m.doneThisMeeting.map(item => {
+                          const key = moduleItemKey(m.moduleName, item);
+                          const included = !form.realizadoExcluded.includes(key);
+                          return (
+                            <label key={key} className="checkbox-label">
+                              <input type="checkbox" className="premium-check" checked={included} onChange={() => toggleRealizadoExcluded(key)} />
+                              <span>{getItemDoneText(item)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {diff.doneStepsThisMeeting.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Etapas Adicionais</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                        {diff.doneStepsThisMeeting.map(step => {
+                          const key = stepKey(step);
+                          const included = !form.realizadoExcluded.includes(key);
+                          return (
+                            <label key={key} className="checkbox-label">
+                              <input type="checkbox" className="premium-check" checked={included} onChange={() => toggleRealizadoExcluded(key)} />
+                              <span>{getItemDoneText(step)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <input
                 type="text"
                 className="form-input"
@@ -403,37 +502,49 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
               />
             </div>
 
+            {/* Pendências — o que ainda falta nos módulos tocados nesta reunião */}
             <div className="form-group">
               <label className="form-label">🔍 Pendências</label>
-              <div className="checkbox-group" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                {TOPIC_OPTIONS.map(topic => {
-                  const active = form.pendencias.includes(topic.pendentePhrase);
-                  return (
-                    <label key={topic.id} className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        className="premium-check"
-                        checked={active}
-                        onChange={() => setField('pendencias', active
-                          ? form.pendencias.filter(p => p !== topic.pendentePhrase)
-                          : [...form.pendencias, topic.pendentePhrase])}
-                      />
-                      <span>{topic.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
+              {client && diff.moduleDiffs.some(m => m.stillPending.length > 0) && (
+                <div className="checkbox-group" style={{ gridTemplateColumns: '1fr', gap: '14px', marginBottom: '10px' }}>
+                  {diff.moduleDiffs.filter(m => m.stillPending.length > 0).map(m => (
+                    <div key={m.moduleName}>
+                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.moduleName}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                        {m.stillPending.map(item => {
+                          const key = moduleItemKey(m.moduleName, item);
+                          const included = !form.pendenciasExcluded.includes(key);
+                          return (
+                            <label key={key} className="checkbox-label">
+                              <input type="checkbox" className="premium-check" checked={included} onChange={() => togglePendenciaExcluded(key)} />
+                              <span>{getItemPendingText(item)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               <DynamicListField
-                items={form.pendencias}
-                onAdd={(v) => setField('pendencias', [...form.pendencias, v])}
-                onRemove={(idx) => setField('pendencias', form.pendencias.filter((_, i) => i !== idx))}
+                items={form.pendenciasManual}
+                onAdd={(v) => setField('pendenciasManual', [...form.pendenciasManual, v])}
+                onRemove={(idx) => setField('pendenciasManual', form.pendenciasManual.filter((_, i) => i !== idx))}
                 placeholder="Outra pendência..."
                 addLabel="Adicionar pendência"
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label"><ArrowRight size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Próxima etapa</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label className="form-label" style={{ marginBottom: 0 }}><ArrowRight size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Próxima etapa</label>
+                {computePendenciaLines(form, diff).some(p => !form.proximaEtapa.includes(p)) && (
+                  <button type="button" className="btn-secondary" style={{ padding: '3px 8px', fontSize: '10px' }} onClick={handleSuggestProximaEtapa}>
+                    <Wand2 size={11} />
+                    <span>Sugerir com base nas pendências</span>
+                  </button>
+                )}
+              </div>
               <DynamicListField
                 items={form.proximaEtapa}
                 onAdd={(v) => setField('proximaEtapa', [...form.proximaEtapa, v])}
@@ -446,7 +557,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
             <div className="form-group">
               <label className="form-label"><DollarSign size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Upsell / Oportunidade</label>
               <div className="checkbox-group" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                {UPSELL_PRODUCTS.map(produto => (
+                {offerNames.map(produto => (
                   <label key={produto} className="checkbox-label">
                     <input type="checkbox" className="premium-check" checked={form.upsellProdutos.includes(produto)} onChange={() => toggleUpsellProduto(produto)} />
                     <span>{produto}</span>

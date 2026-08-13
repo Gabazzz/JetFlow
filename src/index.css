@@ -734,8 +734,6 @@ button, input, select, textarea {
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  max-height: 260px;
-  overflow-y: auto;
   background-color: #161616;
   border: 1px solid #2E2E2E;
   border-radius: 10px;
@@ -744,9 +742,67 @@ button, input, select, textarea {
   z-index: 80;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   transform-origin: top center;
   animation: quickMenuIn 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.custom-select-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid #262626;
+  color: #666;
+}
+
+.custom-select-search input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.custom-select-search input::placeholder {
+  color: #555;
+}
+
+.custom-select-options {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+
+.custom-select-options::-webkit-scrollbar {
+  width: 7px;
+}
+
+.custom-select-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-select-options::-webkit-scrollbar-thumb {
+  background-color: #333;
+  border-radius: 10px;
+}
+
+.custom-select-options::-webkit-scrollbar-thumb:hover {
+  background-color: var(--green-primary);
+}
+
+.custom-select-empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .custom-select-option {
@@ -766,11 +822,12 @@ button, input, select, textarea {
   transition: background-color 120ms ease-out;
 }
 
-.custom-select-option:hover {
+.custom-select-option.highlighted {
   background-color: rgba(101, 255, 75, 0.08);
 }
 
 .custom-select-option.selected {
+  background-color: rgba(101, 255, 75, 0.12);
   color: var(--green-primary);
   font-weight: 600;
 }

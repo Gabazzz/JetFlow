@@ -8,23 +8,25 @@ import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
 import { getTodayBR } from '../utils';
 
-const REALIZADO_OPTIONS = [
-  { id: 'config_iniciais', label: 'Configurações iniciais', phrase: 'Configurações iniciais realizadas.' },
-  { id: 'canais', label: 'Conexão de canais', phrase: 'Canais conectados e validados.' },
-  { id: 'atendimento', label: 'Atendimento', phrase: 'Atendimento configurado.' },
-  { id: 'chatbot', label: 'Chatbot', phrase: 'Chatbot configurado e validado.' },
-  { id: 'dashboard', label: 'Dashboard', phrase: 'Dashboard apresentado e orientado.' },
-  { id: 'dashboard_ia', label: 'Dashboard de IA', phrase: 'Dashboard de IA apresentado e orientado.' },
-  { id: 'gestao_leads', label: 'Gestão de Leads', phrase: 'Gestão de leads configurada.' },
-  { id: 'contatos', label: 'Contatos', phrase: 'Contatos organizados e configurados.' },
-  { id: 'funil', label: 'Funil', phrase: 'Funil configurado e validado.' },
-  { id: 'automacoes', label: 'Automações', phrase: 'Automações configuradas.' },
-  { id: 'integracoes', label: 'Integrações', phrase: 'Integrações configuradas.' },
-  { id: 'treinamento', label: 'Treinamento', phrase: 'Orientações e treinamento realizados.' },
-  { id: 'validacao', label: 'Validação', phrase: 'Funcionalidades apresentadas e validadas.' },
-  { id: 'ajustes', label: 'Ajustes', phrase: 'Ajustes realizados conforme solicitado.' },
-  { id: 'testes', label: 'Testes', phrase: 'Testes realizados.' },
-  { id: 'outros', label: 'Outros', phrase: 'Outras atividades realizadas conforme necessidade do cliente.' }
+// Same topic vocabulary drives both "O que foi realizado" (done) and
+// "Pendências" (still pending) — a topic is either one or the other.
+const TOPIC_OPTIONS = [
+  { id: 'config_iniciais', label: 'Configurações iniciais', realizadoPhrase: 'Configurações iniciais realizadas.', pendentePhrase: 'Configurações iniciais pendentes.' },
+  { id: 'canais', label: 'Conexão de canais', realizadoPhrase: 'Canais conectados e validados.', pendentePhrase: 'Conexão de canais pendente.' },
+  { id: 'atendimento', label: 'Atendimento', realizadoPhrase: 'Atendimento configurado.', pendentePhrase: 'Configuração do atendimento pendente.' },
+  { id: 'chatbot', label: 'Chatbot', realizadoPhrase: 'Chatbot configurado e validado.', pendentePhrase: 'Configuração do chatbot pendente.' },
+  { id: 'dashboard', label: 'Dashboard', realizadoPhrase: 'Dashboard apresentado e orientado.', pendentePhrase: 'Apresentação do dashboard pendente.' },
+  { id: 'dashboard_ia', label: 'Dashboard de IA', realizadoPhrase: 'Dashboard de IA apresentado e orientado.', pendentePhrase: 'Apresentação do Dashboard de IA pendente.' },
+  { id: 'gestao_leads', label: 'Gestão de Leads', realizadoPhrase: 'Gestão de leads configurada.', pendentePhrase: 'Configuração da gestão de leads pendente.' },
+  { id: 'contatos', label: 'Contatos', realizadoPhrase: 'Contatos organizados e configurados.', pendentePhrase: 'Organização dos contatos pendente.' },
+  { id: 'funil', label: 'Funil', realizadoPhrase: 'Funil configurado e validado.', pendentePhrase: 'Configuração do funil pendente.' },
+  { id: 'automacoes', label: 'Automações', realizadoPhrase: 'Automações configuradas.', pendentePhrase: 'Configuração das automações pendente.' },
+  { id: 'integracoes', label: 'Integrações', realizadoPhrase: 'Integrações configuradas.', pendentePhrase: 'Configuração das integrações pendente.' },
+  { id: 'treinamento', label: 'Treinamento', realizadoPhrase: 'Orientações e treinamento realizados.', pendentePhrase: 'Treinamento pendente.' },
+  { id: 'validacao', label: 'Validação', realizadoPhrase: 'Funcionalidades apresentadas e validadas.', pendentePhrase: 'Validação das funcionalidades pendente.' },
+  { id: 'ajustes', label: 'Ajustes', realizadoPhrase: 'Ajustes realizados conforme solicitado.', pendentePhrase: 'Ajustes pendentes.' },
+  { id: 'testes', label: 'Testes', realizadoPhrase: 'Testes realizados.', pendentePhrase: 'Testes pendentes.' },
+  { id: 'outros', label: 'Outros', realizadoPhrase: 'Outras atividades realizadas conforme necessidade do cliente.', pendentePhrase: 'Outras pendências.' }
 ];
 
 const STATUS_OPTIONS = [
@@ -36,17 +38,6 @@ const STATUS_OPTIONS = [
 ];
 
 const NUMERO_REUNIAO_OPTIONS = Array.from({ length: 20 }, (_, i) => `${i + 1}ª reunião`);
-
-const PENDENCIA_PRESETS = [
-  'Cliente enviar acesso ao WhatsApp Business',
-  'Cliente enviar acesso ao Instagram',
-  'Validar fluxo do chatbot',
-  'Aguardando retorno do cliente',
-  'Enviar documentação técnica',
-  'Definir responsável interno do cliente',
-  'Aprovar orçamento/proposta',
-  'Agendar treinamento da equipe'
-];
 
 const UPSELL_PRODUCTS = ['Dashboard de IA', 'Automação', 'Chatbot', 'Canal adicional', 'Integração', 'Outro'];
 
@@ -146,9 +137,9 @@ function buildNotaText(form, responsavelNome) {
     lines.push(form.objetivo.trim());
   }
 
-  const realizadoPhrases = REALIZADO_OPTIONS
+  const realizadoPhrases = TOPIC_OPTIONS
     .filter(opt => form.realizado.includes(opt.id))
-    .map(opt => opt.phrase);
+    .map(opt => opt.realizadoPhrase);
   if (form.detalheManual.trim()) realizadoPhrases.push(form.detalheManual.trim());
   if (realizadoPhrases.length > 0) {
     lines.push('');
@@ -395,7 +386,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
             <div className="form-group">
               <label className="form-label"><ListChecks size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />O que foi realizado</label>
               <div className="checkbox-group" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                {REALIZADO_OPTIONS.map(opt => (
+                {TOPIC_OPTIONS.map(opt => (
                   <label key={opt.id} className="checkbox-label">
                     <input type="checkbox" className="premium-check" checked={form.realizado.includes(opt.id)} onChange={() => toggleRealizado(opt.id)} />
                     <span>{opt.label}</span>
@@ -415,17 +406,19 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
             <div className="form-group">
               <label className="form-label">🔍 Pendências</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-                {PENDENCIA_PRESETS.map(preset => {
-                  const active = form.pendencias.includes(preset);
+                {TOPIC_OPTIONS.map(topic => {
+                  const active = form.pendencias.includes(topic.pendentePhrase);
                   return (
                     <button
-                      key={preset}
+                      key={topic.id}
                       type="button"
                       className={`preset-pill ${active ? 'active' : ''}`}
-                      onClick={() => setField('pendencias', active ? form.pendencias.filter(p => p !== preset) : [...form.pendencias, preset])}
+                      onClick={() => setField('pendencias', active
+                        ? form.pendencias.filter(p => p !== topic.pendentePhrase)
+                        : [...form.pendencias, topic.pendentePhrase])}
                     >
                       {active && <Check size={11} />}
-                      <span>{preset}</span>
+                      <span>{topic.label}</span>
                     </button>
                   );
                 })}

@@ -35,6 +35,19 @@ const STATUS_OPTIONS = [
   { value: 'Implantação concluída', emoji: '✅' }
 ];
 
+const NUMERO_REUNIAO_OPTIONS = Array.from({ length: 20 }, (_, i) => `${i + 1}ª reunião`);
+
+const PENDENCIA_PRESETS = [
+  'Cliente enviar acesso ao WhatsApp Business',
+  'Cliente enviar acesso ao Instagram',
+  'Validar fluxo do chatbot',
+  'Aguardando retorno do cliente',
+  'Enviar documentação técnica',
+  'Definir responsável interno do cliente',
+  'Aprovar orçamento/proposta',
+  'Agendar treinamento da equipe'
+];
+
 const UPSELL_PRODUCTS = ['Dashboard de IA', 'Automação', 'Chatbot', 'Canal adicional', 'Integração', 'Outro'];
 
 const UPSELL_STATUS_PHRASE = {
@@ -314,8 +327,13 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
             <div className="form-grid">
               <div className="form-group">
                 <label className="form-label">Número da reunião *</label>
-                <input type="text" className="form-input" placeholder="Ex.: 4ª reunião" value={form.numeroReuniao} onChange={e => setField('numeroReuniao', e.target.value)} />
-                {showValidation && !form.numeroReuniao.trim() && <span style={{ fontSize: '11px', color: 'var(--badge-red)' }}>Informe o número da reunião.</span>}
+                <CustomSelect
+                  value={form.numeroReuniao}
+                  onChange={v => setField('numeroReuniao', v)}
+                  placeholder="Selecionar..."
+                  options={NUMERO_REUNIAO_OPTIONS}
+                />
+                {showValidation && !form.numeroReuniao.trim() && <span style={{ fontSize: '11px', color: 'var(--badge-red)' }}>Selecione o número da reunião.</span>}
               </div>
               <div className="form-group">
                 <label className="form-label"><Calendar size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Data da reunião</label>
@@ -396,11 +414,27 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
 
             <div className="form-group">
               <label className="form-label">🔍 Pendências</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                {PENDENCIA_PRESETS.map(preset => {
+                  const active = form.pendencias.includes(preset);
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`preset-pill ${active ? 'active' : ''}`}
+                      onClick={() => setField('pendencias', active ? form.pendencias.filter(p => p !== preset) : [...form.pendencias, preset])}
+                    >
+                      {active && <Check size={11} />}
+                      <span>{preset}</span>
+                    </button>
+                  );
+                })}
+              </div>
               <DynamicListField
                 items={form.pendencias}
                 onAdd={(v) => setField('pendencias', [...form.pendencias, v])}
                 onRemove={(idx) => setField('pendencias', form.pendencias.filter((_, i) => i !== idx))}
-                placeholder="Ex.: Cliente enviar acesso ao Instagram"
+                placeholder="Outra pendência..."
                 addLabel="Adicionar pendência"
               />
             </div>

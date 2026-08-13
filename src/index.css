@@ -1103,6 +1103,36 @@ button, input, select, textarea {
   margin-top: 4px;
 }
 
+.preset-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #1B1B1B;
+  border: 1px solid #2E2E2E;
+  color: #ccc;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+}
+
+.preset-pill:hover {
+  border-color: #444;
+  color: #fff;
+}
+
+.preset-pill.active {
+  background-color: rgba(101, 255, 75, 0.12);
+  border-color: var(--green-primary);
+  color: var(--green-primary);
+  font-weight: 600;
+}
+
+.preset-pill.active svg {
+  color: var(--green-primary);
+}
+
 /* Nota de Reunião */
 .nota-reuniao-modal {
   max-width: 1000px;

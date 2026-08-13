@@ -6,6 +6,7 @@ import ClientsListView from './components/ClientsListView';
 import ClientDetailView from './components/ClientDetailView';
 import ConfiguracoesView from './components/ConfiguracoesView';
 import SuporteView from './components/SuporteView';
+import AgendaView from './components/AgendaView';
 import Auth from './components/Auth';
 
 import { initialProfile } from './data/data';
@@ -624,6 +625,10 @@ export default function App() {
       }
     }
 
+    if (currentRoute === 'agenda') {
+      return <AgendaView />;
+    }
+
     if (currentRoute === 'suporte') {
       return (
         <SuporteView
@@ -679,6 +684,7 @@ export default function App() {
     if (currentRoute === 'kanban') return 'Quadro Kanban';
     if (currentRoute === 'clientes') return 'Lista de Clientes';
     if (currentRoute.startsWith('clientes/')) return 'Detalhes do Cliente';
+    if (currentRoute === 'agenda') return 'Agenda';
     if (currentRoute === 'suporte') return 'Central de Suporte';
     if (currentRoute === 'configuracoes') return 'Configurações do Sistema';
     return 'JetFlow';

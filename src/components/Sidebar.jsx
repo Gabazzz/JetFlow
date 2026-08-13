@@ -260,8 +260,8 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
               <span>Clientes</span>
             </button>
             <button
-              className="nav-item"
-              onClick={() => handlePlaceholderClick('Agenda')}
+              className={`nav-item ${currentRoute === 'agenda' ? 'active' : ''}`}
+              onClick={() => onNavigate('agenda')}
             >
               <Calendar size={18} />
               <span>Agenda</span>

@@ -3,7 +3,8 @@ import {
   Edit2, Save, X, Plus, Trash2, ArrowLeft, Heart,
   ExternalLink, Link, CheckSquare, PlusCircle, Check,
   ChevronDown, ChevronRight, Clock, Building, User, Info, CheckCircle,
-  AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw
+  AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw,
+  Hash, Wifi, Users as UsersIcon
 } from 'lucide-react';
 import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier, calculateNextContactDate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
@@ -84,6 +85,10 @@ export default function ClientDetailView({
   const [cnpj, setCnpj] = useState(client.cnpj);
   const [entryDate, setEntryDate] = useState(client.entryDate);
   const [responsible, setResponsible] = useState(client.responsible);
+  const [contractType, setContractType] = useState(client.contractType || '');
+  const [connections, setConnections] = useState(client.connections ?? '');
+  const [usersCount, setUsersCount] = useState(client.users ?? '');
+  const [usersEstimated, setUsersEstimated] = useState(client.usersEstimated || false);
 
   // Plan Form States
   const [plan, setPlan] = useState(client.plan);
@@ -108,6 +113,7 @@ export default function ClientDetailView({
   const [linkDeskUrl, setLinkDeskUrl] = useState(client.quickLinks?.deskPlatformUrl || '');
   const [linkDeskEmail, setLinkDeskEmail] = useState(client.quickLinks?.deskPlatformEmail || '');
   const [linkDiscordSupportList, setLinkDiscordSupportList] = useState(client.quickLinks?.discordSupport || []);
+  const [linkDealId, setLinkDealId] = useState(client.quickLinks?.dealId || '');
 
   // Add Reminder Form States
   const [remTitle, setRemTitle] = useState('');
@@ -126,12 +132,16 @@ export default function ClientDetailView({
   // ---- Handlers ----
 
   const handleSaveInfo = () => {
-    onUpdateClient(client.id, { 
+    onUpdateClient(client.id, {
       name, phone, whatsapp, email, cnpj, entryDate, responsible,
-      lastUpdated: { 
-        date: todayStr, 
-        time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}), 
-        user: responsible || client.responsible 
+      contractType,
+      connections: connections === '' ? null : Number(connections),
+      users: usersCount === '' ? null : Number(usersCount),
+      usersEstimated,
+      lastUpdated: {
+        date: todayStr,
+        time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}),
+        user: responsible || client.responsible
       }
     });
     setIsEditingInfo(false);
@@ -179,7 +189,7 @@ export default function ClientDetailView({
   const handleSaveLinks = (e) => {
     e.preventDefault();
     onUpdateClient(client.id, {
-      quickLinks: { crm: linkCrm, discordIntegration: linkDiscordInt, discordSupport: linkDiscordSupportList, site: linkSite, deskPlatformUrl: linkDeskUrl, deskPlatformEmail: linkDeskEmail }
+      quickLinks: { dealId: linkDealId, crm: linkCrm, discordIntegration: linkDiscordInt, discordSupport: linkDiscordSupportList, site: linkSite, deskPlatformUrl: linkDeskUrl, deskPlatformEmail: linkDeskEmail }
     });
     setIsEditingLinks(false);
   };
@@ -467,6 +477,22 @@ export default function ClientDetailView({
                   <span style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase' }}>Data de Entrada</span>
                   <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{client.entryDate || '—'}</span>
                 </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase' }}>Tipo de Contrato</span>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{client.contractType || '—'}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase' }}>Conexões</span>
+                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{client.connections ?? '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase' }}>Usuários</span>
+                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                      {client.users ?? '—'}{client.users != null && client.usersEstimated ? ' (estimado)' : ''}
+                    </span>
+                  </div>
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <span style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase' }}>Colaborador Atribuído</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -499,6 +525,22 @@ export default function ClientDetailView({
                   <label className="form-label">Data de Entrada</label>
                   <CustomDatePicker value={entryDate} onChange={setEntryDate} />
                 </div>
+                <div className="form-group">
+                  <label className="form-label">Tipo de Contrato</label>
+                  <CustomSelect value={contractType} onChange={setContractType} options={['Mensal', 'Trimestral', 'Semestral', 'Anual']} placeholder="Selecionar..." />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Conexões</label>
+                  <input type="number" min="0" className="form-input" value={connections} onChange={e => setConnections(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Usuários</label>
+                  <input type="number" min="0" className="form-input" value={usersCount} onChange={e => setUsersCount(e.target.value)} />
+                  <label className="checkbox-label" style={{ marginTop: '6px' }}>
+                    <input type="checkbox" className="premium-check" checked={usersEstimated} onChange={e => setUsersEstimated(e.target.checked)} />
+                    <span>Quantidade estimada</span>
+                  </label>
+                </div>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                   <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setIsEditingInfo(false)}>Cancelar</button>
                   <button className="btn-primary" style={{ flex: 1 }} onClick={handleSaveInfo}>Salvar</button>
@@ -523,6 +565,15 @@ export default function ClientDetailView({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {client.quickLinks?.dealId && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Hash size={14} style={{ color: '#888' }} />
+                    <span style={{ color: '#fff' }}>Deal ID</span>
+                  </div>
+                  <span style={{ color: '#aaa', fontWeight: '700' }}>{client.quickLinks.dealId}</span>
+                </div>
+              )}
               {client.quickLinks?.crm && (
                 <a href={client.quickLinks.crm} target="_blank" rel="noreferrer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px', color: '#fff', textDecoration: 'none', fontSize: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -569,7 +620,7 @@ export default function ClientDetailView({
                 </a>
               )}
               
-              {!client.quickLinks?.crm && !client.quickLinks?.discordIntegration && !(client.quickLinks?.discordSupport?.length) && !client.quickLinks?.site && !client.quickLinks?.deskPlatformUrl && (
+              {!client.quickLinks?.dealId && !client.quickLinks?.crm && !client.quickLinks?.discordIntegration && !(client.quickLinks?.discordSupport?.length) && !client.quickLinks?.site && !client.quickLinks?.deskPlatformUrl && (
                 <span style={{ color: 'var(--text-secondary)', fontSize: '12px', textAlign: 'center', padding: '8px 0' }}>Nenhum link configurado.</span>
               )}
             </div>
@@ -1127,6 +1178,10 @@ export default function ClientDetailView({
             <form onSubmit={handleSaveLinks}>
               <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                 <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">Deal ID</label>
+                    <input type="text" className="form-input" value={linkDealId} onChange={e => setLinkDealId(e.target.value)} />
+                  </div>
                   <div className="form-group">
                     <label className="form-label">CRM Active (URL)</label>
                     <input type="url" className="form-input" value={linkCrm} onChange={e => setLinkCrm(e.target.value)} />

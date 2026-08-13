@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield } from 'lucide-react';
+import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield, X, MessageSquarePlus, Target as TargetIcon, ShieldAlert } from 'lucide-react';
 import KanbanView from './KanbanView';
 
 export default function ClientsListView({ 
@@ -54,14 +54,6 @@ export default function ClientsListView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', position: 'relative' }}>
-      
-      {/* Click-away blocker overlay for popovers */}
-      {activePopover && (
-        <div 
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, cursor: 'default' }}
-          onClick={() => setActivePopover(null)}
-        />
-      )}
 
       {/* Top search, toggle and creation row */}
       <div className="search-bar-row">
@@ -134,8 +126,6 @@ export default function ClientsListView({
                   if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
                   if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
 
-                  const isPopoverActive = activePopover && activePopover.clientId === client.id;
-
                   return (
                     <tr key={client.id} className="client-row-hoverable" style={{ position: 'relative' }}>
                       <td>
@@ -198,7 +188,7 @@ export default function ClientsListView({
                           >
                             Criticidade
                           </button>
-                          <button 
+                          <button
                             className="btn-action-small-arrow"
                             onClick={(e) => { e.stopPropagation(); onNavigate(`clientes/${client.id}`); }}
                             title="Ver detalhes"
@@ -206,89 +196,6 @@ export default function ClientsListView({
                             Ver detalhes →
                           </button>
                         </div>
-
-                        {/* Inline Popovers */}
-                        {isPopoverActive && (
-                          <div 
-                            className="inline-popover-container"
-                            style={{ 
-                              position: 'absolute', 
-                              bottom: '100%', 
-                              right: '0', 
-                              marginBottom: '8px', 
-                              zIndex: isPopoverActive ? 1000 : 10 
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {activePopover.type === 'contato' && (
-                              <>
-                                <span className="form-label" style={{ fontWeight: '600', marginBottom: '4px' }}>Registrar Contato</span>
-                                <input 
-                                  type="text" 
-                                  className="form-input"
-                                  value={popoverObs}
-                                  onChange={e => setPopoverObs(e.target.value)}
-                                  placeholder="Nota opcional..."
-                                  onKeyDown={e => { if (e.key === 'Enter') handleConfirmContact(client.id); }}
-                                  style={{ width: '100%', fontSize: '12px', height: '32px' }}
-                                  autoFocus
-                                />
-                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                  <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setActivePopover(null)}>Cancelar</button>
-                                  <button className="btn-primary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => handleConfirmContact(client.id)}>Confirmar</button>
-                                </div>
-                              </>
-                            )}
-
-                            {activePopover.type === 'acao' && (
-                              <>
-                                <span className="form-label" style={{ fontWeight: '600', marginBottom: '4px' }}>Editar Próxima Ação</span>
-                                <input 
-                                  type="text" 
-                                  className="form-input"
-                                  value={popoverAction}
-                                  onChange={e => setPopoverAction(e.target.value)}
-                                  onKeyDown={e => { if (e.key === 'Enter') handleConfirmAction(client.id); }}
-                                  style={{ width: '100%', fontSize: '12px', height: '32px' }}
-                                  autoFocus
-                                />
-                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                  <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setActivePopover(null)}>Cancelar</button>
-                                  <button className="btn-primary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => handleConfirmAction(client.id)}>Salvar</button>
-                                </div>
-                              </>
-                            )}
-
-                            {activePopover.type === 'criticidade' && (
-                              <>
-                                <span className="form-label" style={{ fontWeight: '600', marginBottom: '4px' }}>Alterar Criticidade</span>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <button 
-                                    className="btn-secondary" 
-                                    style={{ justifyContent: 'center', color: 'var(--badge-red)' }} 
-                                    onClick={() => handleConfirmCriticality(client.id, 'Crítico')}
-                                  >
-                                    Crítico (1 dia)
-                                  </button>
-                                  <button 
-                                    className="btn-secondary" 
-                                    style={{ justifyContent: 'center', color: 'var(--badge-yellow)' }} 
-                                    onClick={() => handleConfirmCriticality(client.id, 'Atenção')}
-                                  >
-                                    Atenção (2 dias)
-                                  </button>
-                                  <button 
-                                    className="btn-secondary" 
-                                    style={{ justifyContent: 'center', color: 'var(--badge-green)' }} 
-                                    onClick={() => handleConfirmCriticality(client.id, 'Estável')}
-                                  >
-                                    Estável (3 dias)
-                                  </button>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        )}
                       </td>
                     </tr>
                   );
@@ -298,6 +205,101 @@ export default function ClientsListView({
           )}
         </div>
       )}
+
+      {/* Quick action modal — centered, replaces the old floating popover */}
+      {activePopover && (() => {
+        const activeClient = clients.find(c => c.id === activePopover.clientId);
+        if (!activeClient) return null;
+
+        return (
+          <div className="modal-overlay" onClick={() => setActivePopover(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+              <div className="modal-header">
+                <h3 className="modal-title">
+                  {activePopover.type === 'contato' && 'Registrar Contato'}
+                  {activePopover.type === 'acao' && 'Editar Próxima Ação'}
+                  {activePopover.type === 'criticidade' && 'Alterar Criticidade'}
+                  <span style={{ color: 'var(--green-primary)', fontWeight: '500' }}> · {activeClient.name}</span>
+                </h3>
+                <button className="btn-icon" onClick={() => setActivePopover(null)}><X size={16} /></button>
+              </div>
+
+              {activePopover.type === 'contato' && (
+                <>
+                  <div className="modal-body">
+                    <div className="form-group">
+                      <label className="form-label">O que foi feito?</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={popoverObs}
+                        onChange={e => setPopoverObs(e.target.value)}
+                        placeholder="Nota opcional..."
+                        onKeyDown={e => { if (e.key === 'Enter') handleConfirmContact(activeClient.id); }}
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button className="btn-secondary" onClick={() => setActivePopover(null)}>Cancelar</button>
+                    <button className="btn-primary" onClick={() => handleConfirmContact(activeClient.id)}>Confirmar</button>
+                  </div>
+                </>
+              )}
+
+              {activePopover.type === 'acao' && (
+                <>
+                  <div className="modal-body">
+                    <div className="form-group">
+                      <label className="form-label">Próxima ação</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={popoverAction}
+                        onChange={e => setPopoverAction(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleConfirmAction(activeClient.id); }}
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button className="btn-secondary" onClick={() => setActivePopover(null)}>Cancelar</button>
+                    <button className="btn-primary" onClick={() => handleConfirmAction(activeClient.id)}>Salvar</button>
+                  </div>
+                </>
+              )}
+
+              {activePopover.type === 'criticidade' && (
+                <div className="modal-body">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button
+                      className="btn-secondary"
+                      style={{ justifyContent: 'center', color: 'var(--badge-red)', padding: '12px' }}
+                      onClick={() => handleConfirmCriticality(activeClient.id, 'Crítico')}
+                    >
+                      Crítico — contato a cada 1 dia
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      style={{ justifyContent: 'center', color: 'var(--badge-yellow)', padding: '12px' }}
+                      onClick={() => handleConfirmCriticality(activeClient.id, 'Atenção')}
+                    >
+                      Atenção — contato a cada 2 dias
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      style={{ justifyContent: 'center', color: 'var(--badge-green)', padding: '12px' }}
+                      onClick={() => handleConfirmCriticality(activeClient.id, 'Estável')}
+                    >
+                      Estável — contato a cada 3 dias
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

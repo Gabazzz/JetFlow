@@ -7,13 +7,14 @@ import {
 import { parseBRDate, getDateStatus, toBRDate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 
-export default function DashboardView({ 
-  clients, 
-  onAddReminder, 
-  onUpdateReminder, 
-  onRemoveReminder, 
-  onRegisterContact, 
-  onNavigate 
+export default function DashboardView({
+  clients,
+  onAddReminder,
+  onUpdateReminder,
+  onRemoveReminder,
+  onRegisterContact,
+  onCompleteMeeting,
+  onNavigate
 }) {
   const [activeModal, setActiveModal] = useState(null);
   
@@ -251,19 +252,22 @@ export default function DashboardView({
               ) : (
                 meetingsToday.map(m => {
                   const badge = formatDateBadge(todayStr);
+                  const isDone = !!m.completed;
                   return (
-                    <div 
-                      key={m.id} 
+                    <div
+                      key={m.id}
                       className="daily-activity-item"
-                      style={{ 
-                        backgroundColor: '#1C1C1C', 
-                        border: '1px solid #252525', 
-                        borderRadius: '6px', 
-                        padding: '14px', 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
+                      style={{
+                        backgroundColor: '#1C1C1C',
+                        border: '1px solid #252525',
+                        borderRadius: '6px',
+                        padding: '14px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: '16px'
+                        gap: '16px',
+                        opacity: isDone ? 0.55 : 1,
+                        transition: 'opacity 200ms ease-out'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -272,9 +276,9 @@ export default function DashboardView({
                           <span style={{ fontSize: '9px', fontWeight: '800', color: '#888' }}>{badge.month}</span>
                           <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff' }}>{badge.day}</span>
                         </div>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff', textDecoration: isDone ? 'line-through' : 'none' }}>
                             {m.title} - <span style={{ color: 'var(--green-primary)' }}>{m.clientName}</span>
                           </span>
                           <span style={{ fontSize: '11px', color: '#888' }}>
@@ -285,28 +289,27 @@ export default function DashboardView({
 
                       {/* Right action button */}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                        <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>PRÓXIMA AÇÃO</span>
-                        <button 
-                          className="btn-secondary" 
-                          style={{ 
-                            fontSize: '11px', 
-                            padding: '6px 12px', 
-                            border: '1px solid var(--green-primary)', 
-                            color: 'var(--green-primary)', 
-                            backgroundColor: 'transparent',
+                        <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>{isDone ? 'CONCLUÍDO' : 'PRÓXIMA AÇÃO'}</span>
+                        <button
+                          className="btn-secondary"
+                          disabled={isDone}
+                          style={{
+                            fontSize: '11px',
+                            padding: '6px 12px',
+                            border: `1px solid ${isDone ? '#333' : 'var(--green-primary)'}`,
+                            color: isDone ? '#666' : 'var(--green-primary)',
+                            backgroundColor: isDone ? '#161616' : 'transparent',
                             borderRadius: '4px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px'
+                            gap: '6px',
+                            cursor: isDone ? 'default' : 'pointer'
                           }}
-                          onClick={() => {
-                            onRegisterContact(m.clientId, `Atividade concluída: ${m.title}`);
-                            alert('Atividade marcada como concluída!');
-                          }}
-                          title="Marcar como concluído"
+                          onClick={() => !isDone && onCompleteMeeting(m.clientId, m.id)}
+                          title={isDone ? 'Já concluído' : 'Marcar como concluído'}
                         >
                           <CheckSquare size={13} />
-                          <span>Concluir</span>
+                          <span>{isDone ? 'Concluído' : 'Concluir'}</span>
                         </button>
                       </div>
                     </div>
@@ -499,10 +502,7 @@ export default function DashboardView({
                             alignItems: 'center',
                             gap: '4px'
                           }}
-                          onClick={() => {
-                            onRegisterContact(client.id, `Acompanhamento concluído: ${client.nextAction}`);
-                            alert('Lembrete concluído!');
-                          }}
+                          onClick={() => onRegisterContact(client.id, `Acompanhamento concluído: ${client.nextAction}`)}
                         >
                           <CheckSquare size={11} />
                           <span>Concluir</span>

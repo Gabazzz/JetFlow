@@ -183,21 +183,61 @@ export default function App() {
     ));
   };
 
-  // Contact cycle handler: updates nextContactDate automatically starting from 30/06/2026
+  // Contact cycle handler: updates nextContactDate and logs the contact — does not spawn a fake meeting
   const handleRegisterContact = (clientId, obsText = '') => {
     setClients(prev => prev.map(c => {
       if (c.id === clientId) {
         const nextContact = calculateNextContactDate(c.criticality, '30/06/2026');
-        const nextMeet = {
-          id: `meet_${Date.now()}`,
-          date: '30/06/2026',
-          time: '12:00',
-          title: obsText.trim() ? `Contato: ${obsText}` : 'Contato periódico realizado'
-        };
+        const label = obsText.trim() || 'Registrou contato periódico';
         return {
           ...c,
           nextContactDate: nextContact,
-          meetings: [nextMeet, ...(c.meetings || [])]
+          lastContacts: [
+            { date: '30/06/2026', obs: label },
+            ...(c.lastContacts || [])
+          ],
+          activityHistory: [
+            { avatar: profile.avatarInitials, name: profile.name, action: label, date: '30/06/2026 às 12:00', isObservation: false },
+            ...(c.activityHistory || [])
+          ]
+        };
+      }
+      return c;
+    }));
+  };
+
+  // Marks an existing scheduled meeting as done, in place — no new entries created
+  const handleCompleteMeeting = (clientId, meetingId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          meetings: (c.meetings || []).map(m => m.id === meetingId ? { ...m, completed: true } : m)
+        };
+      }
+      return c;
+    }));
+  };
+
+  // Quick-action handlers
+  const handleAddClientTask = (clientId, text, deadline) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          tasks: [...(c.tasks || []), { id: `task_${Date.now()}`, text, deadline }]
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleAddClientOffer = (clientId, offerName) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          interestOffers: [...(c.interestOffers || []), { id: `io_${Date.now()}`, name: offerName, status: 'Interessado' }]
         };
       }
       return c;
@@ -337,12 +377,13 @@ export default function App() {
   const renderView = () => {
     if (currentRoute === 'dashboard') {
       return (
-        <DashboardView 
-          clients={clients} 
+        <DashboardView
+          clients={clients}
           onAddReminder={handleAddClientReminder}
           onUpdateReminder={handleEditClientReminder}
           onRemoveReminder={handleRemoveClientReminder}
           onRegisterContact={handleRegisterContact}
+          onCompleteMeeting={handleCompleteMeeting}
           onNavigate={handleNavigate}
         />
       );
@@ -455,12 +496,15 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <Sidebar 
-        currentRoute={currentRoute} 
-        onNavigate={handleNavigate} 
+      <Sidebar
+        currentRoute={currentRoute}
+        onNavigate={handleNavigate}
         profile={profile}
         clients={clients}
+        offers={offers}
         onOpenNewLeadModal={() => setIsNewLeadModalOpen(true)}
+        onAddClientTask={handleAddClientTask}
+        onAddClientOffer={handleAddClientOffer}
       />
       <main className="main-container">
         <div className="view-header">
@@ -517,7 +561,6 @@ export default function App() {
                                 } else {
                                   handleRegisterContact(item.clientId, 'Contato de ciclo registrado');
                                 }
-                                alert('Contato registrado com sucesso!');
                               }}
                             >
                               Registrar Contato

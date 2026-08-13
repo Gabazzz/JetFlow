@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Edit2, Save, X, Plus, Trash2, ArrowLeft, Heart, 
+import {
+  Edit2, Save, X, Plus, Trash2, ArrowLeft, Heart,
   ExternalLink, Link, CheckSquare, PlusCircle, Check,
-  ChevronDown, ChevronRight, Clock, Building, User, Info, CheckCircle
+  ChevronDown, ChevronRight, Clock, Building, User, Info, CheckCircle,
+  AlertTriangle, AlertCircle, MessageSquarePlus
 } from 'lucide-react';
 import { toBRDate, toISODate, getDateStatus, parseBRDate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
@@ -32,6 +33,9 @@ export default function ClientDetailView({
   const [isEditingLinks, setIsEditingLinks] = useState(false);
   const [isAddReminderOpen, setIsAddReminderOpen] = useState(false);
   const [editingReminderObj, setEditingReminderObj] = useState(null);
+  const [isRegisterContactOpen, setIsRegisterContactOpen] = useState(false);
+  const [registerContactNote, setRegisterContactNote] = useState('');
+  const [actionJustCompleted, setActionJustCompleted] = useState(false);
 
   // Accordions states
   const [expandedModules, setExpandedModules] = useState({
@@ -207,6 +211,12 @@ export default function ClientDetailView({
     return 'status-dot-green';
   };
 
+  const criticalityMeta = {
+    'Crítico': { color: '#EF4444', Icon: AlertTriangle, badgeClass: 'badge-critico' },
+    'Atenção': { color: '#F59E0B', Icon: AlertCircle, badgeClass: 'badge-atencao' },
+    'Estável': { color: '#10B981', Icon: CheckCircle, badgeClass: 'badge-estavel' }
+  }[client.criticality] || { color: '#10B981', Icon: CheckCircle, badgeClass: 'badge-estavel' };
+
   const stageStatusLabel = client.stage === 'Finalizado' ? 'ONBOARDING CONCLUÍDO' : 'ONBOARDING ATIVO';
 
   // Get initials for Colaborador Atribuído avatar
@@ -280,11 +290,11 @@ export default function ClientDetailView({
             <span>Editar</span>
           </button>
           
-          <button 
-            className="btn-primary" 
-            style={{ 
-              backgroundColor: 'var(--green-primary)', 
-              color: '#000', 
+          <button
+            className="btn-primary"
+            style={{
+              backgroundColor: 'var(--green-primary)',
+              color: '#000',
               fontWeight: '700',
               padding: '8px 20px',
               borderRadius: '6px',
@@ -292,13 +302,10 @@ export default function ClientDetailView({
               gap: '6px',
               boxShadow: 'none'
             }}
-            onClick={() => {
-              onRegisterContact(client.id, 'Contato feito via Ações Rápidas');
-              alert('Contato de ciclo registrado com sucesso!');
-            }}
+            onClick={() => setIsRegisterContactOpen(true)}
           >
-            <Plus size={14} strokeWidth={3} />
-            <span>Ações</span>
+            <MessageSquarePlus size={14} strokeWidth={2.5} />
+            <span>Registrar Contato</span>
           </button>
         </div>
       </div>
@@ -328,15 +335,17 @@ export default function ClientDetailView({
               </div>
             </div>
             <button
-              className="btn-primary"
-              style={{ backgroundColor: 'var(--green-primary)', color: '#000', fontWeight: '700', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', gap: '6px' }}
+              className={`btn-primary ${actionJustCompleted ? 'btn-success-pulse' : ''}`}
+              style={{ backgroundColor: actionJustCompleted ? '#10B981' : 'var(--green-primary)', color: '#000', fontWeight: '700', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', gap: '6px' }}
+              disabled={actionJustCompleted}
               onClick={() => {
                 onRegisterContact(client.id, `Ação concluída: ${client.nextAction}`);
-                alert('Ação concluída e registrada no histórico!');
+                setActionJustCompleted(true);
+                setTimeout(() => setActionJustCompleted(false), 1600);
               }}
             >
               <CheckSquare size={13} />
-              <span>Concluir</span>
+              <span>{actionJustCompleted ? 'Concluído!' : 'Concluir'}</span>
             </button>
           </div>
         );
@@ -712,16 +721,19 @@ export default function ClientDetailView({
           {/* Lembretes / Observações details card */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             {/* Criticality & SLA card */}
-            <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+            <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderLeft: `3px solid ${criticalityMeta.color}`, borderRadius: '8px', padding: '20px' }}>
               <div className="section-header" style={{ marginBottom: '14px' }}>
                 <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Ciclo SLA & Criticidade</h3>
                 <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setIsEditingSla(true)}><Edit2 size={11} /></button>
               </div>
-              
+
               {!isEditingSla ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className={`badge ${client.criticality === 'Crítico' ? 'badge-critico' : client.criticality === 'Atenção' ? 'badge-atencao' : 'badge-estavel'}`}>{client.criticality}</span>
+                    <span className={`badge ${criticalityMeta.badgeClass}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <criticalityMeta.Icon size={12} />
+                      {client.criticality}
+                    </span>
                     <span style={{ fontSize: '11px', color: '#666' }}>
                       {client.criticality === 'Crítico' ? 'Contato diário' : client.criticality === 'Atenção' ? 'Dia sim, dia não' : 'A cada 3 dias'}
                     </span>
@@ -770,6 +782,47 @@ export default function ClientDetailView({
 
         </div>
       </div>
+
+      {/* Register Contact Modal */}
+      {isRegisterContactOpen && (
+        <div className="modal-overlay" onClick={() => setIsRegisterContactOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Registrar Contato</h3>
+              <button className="btn-icon" onClick={() => setIsRegisterContactOpen(false)}><X size={16} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">O que foi feito com o cliente?</label>
+                <textarea
+                  className="form-textarea"
+                  rows={3}
+                  autoFocus
+                  value={registerContactNote}
+                  onChange={e => setRegisterContactNote(e.target.value)}
+                  placeholder="Ex: Alinhamento sobre configuração do WhatsApp..."
+                />
+              </div>
+              <p style={{ fontSize: '11px', color: '#666', margin: 0 }}>
+                Isso atualiza o ciclo de SLA e registra no histórico de atividades.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setIsRegisterContactOpen(false)}>Cancelar</button>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  onRegisterContact(client.id, registerContactNote.trim() || 'Contato registrado');
+                  setRegisterContactNote('');
+                  setIsRegisterContactOpen(false);
+                }}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Links Modal */}
       {isEditingLinks && (

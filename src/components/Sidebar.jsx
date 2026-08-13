@@ -1,15 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  LayoutDashboard, Kanban, Users, Settings, Search, 
+import {
+  LayoutDashboard, Kanban, Users, Settings, Search,
   Link as LinkIcon, ChevronDown, ChevronRight, ExternalLink,
-  Calendar, CheckSquare, Plus, User
+  Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap
 } from 'lucide-react';
+import CustomDatePicker from './CustomDatePicker';
 
-export default function Sidebar({ currentRoute, onNavigate, profile, clients, onOpenNewLeadModal }) {
+export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [linksExpanded, setLinksExpanded] = useState(false);
   const searchRef = useRef(null);
+
+  // Quick actions menu
+  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
+  const quickMenuRef = useRef(null);
+  const [activeQuickModal, setActiveQuickModal] = useState(null); // 'tarefa' | 'oportunidade'
+
+  const [qTaskClientId, setQTaskClientId] = useState('');
+  const [qTaskText, setQTaskText] = useState('');
+  const [qTaskDeadline, setQTaskDeadline] = useState('');
+
+  const [qOfferClientId, setQOfferClientId] = useState('');
+  const [qOfferName, setQOfferName] = useState('');
 
   // Close search on outside click
   useEffect(() => {
@@ -17,10 +30,33 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setShowSearchResults(false);
       }
+      if (quickMenuRef.current && !quickMenuRef.current.contains(e.target)) {
+        setIsQuickMenuOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const resetQuickModals = () => {
+    setActiveQuickModal(null);
+    setQTaskClientId(''); setQTaskText(''); setQTaskDeadline('');
+    setQOfferClientId(''); setQOfferName('');
+  };
+
+  const handleSubmitQuickTask = (e) => {
+    e.preventDefault();
+    if (!qTaskClientId || !qTaskText.trim()) return;
+    onAddClientTask(qTaskClientId, qTaskText.trim(), qTaskDeadline);
+    resetQuickModals();
+  };
+
+  const handleSubmitQuickOffer = (e) => {
+    e.preventDefault();
+    if (!qOfferClientId || !qOfferName) return;
+    onAddClientOffer(qOfferClientId, qOfferName);
+    resetQuickModals();
+  };
 
   const filteredClients = searchQuery.trim().length >= 1
     ? (clients || []).filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
@@ -102,24 +138,60 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
         )}
       </div>
 
-      {/* Bright Green "+ Novo Lead" button */}
-      <div style={{ padding: '0 8px 16px 8px' }}>
-        <button 
-          onClick={onOpenNewLeadModal}
-          className="btn-primary" 
-          style={{ 
-            width: '100%', 
-            justifyContent: 'center', 
-            backgroundColor: 'var(--green-primary)', 
-            color: '#000', 
+      {/* Quick Actions menu */}
+      <div style={{ padding: '0 8px 16px 8px', position: 'relative' }} ref={quickMenuRef}>
+        <button
+          onClick={() => setIsQuickMenuOpen(v => !v)}
+          className="btn-primary quick-action-trigger"
+          style={{
+            width: '100%',
+            justifyContent: 'center',
+            backgroundColor: 'var(--green-primary)',
+            color: '#000',
             fontWeight: '600',
             height: '40px',
             borderRadius: '8px'
           }}
         >
-          <Plus size={16} />
-          <span>Novo Lead</span>
+          <Zap size={16} />
+          <span>Ação Rápida</span>
+          <ChevronDown size={14} style={{ transform: isQuickMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease-out' }} />
         </button>
+
+        {isQuickMenuOpen && (
+          <div className="quick-action-menu">
+            <button
+              className="quick-action-item"
+              onClick={() => { onOpenNewLeadModal(); setIsQuickMenuOpen(false); }}
+            >
+              <Building2 size={15} />
+              <div>
+                <span className="quick-action-item-title">Novo Cliente</span>
+                <span className="quick-action-item-sub">Cadastrar um novo lead/cliente</span>
+              </div>
+            </button>
+            <button
+              className="quick-action-item"
+              onClick={() => { setActiveQuickModal('tarefa'); setIsQuickMenuOpen(false); }}
+            >
+              <CheckSquare size={15} />
+              <div>
+                <span className="quick-action-item-title">Nova Tarefa</span>
+                <span className="quick-action-item-sub">Adicionar tarefa a um cliente</span>
+              </div>
+            </button>
+            <button
+              className="quick-action-item"
+              onClick={() => { setActiveQuickModal('oportunidade'); setIsQuickMenuOpen(false); }}
+            >
+              <Target size={15} />
+              <div>
+                <span className="quick-action-item-title">Nova Oportunidade</span>
+                <span className="quick-action-item-sub">Registrar interesse em oferta</span>
+              </div>
+            </button>
+          </div>
+        )}
       </div>
 
       <nav className="sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -197,6 +269,75 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, on
           <span className="user-role">{profile.role}</span>
         </div>
       </div>
+
+      {/* Quick Modal: Nova Tarefa */}
+      {activeQuickModal === 'tarefa' && (
+        <div className="modal-overlay" onClick={resetQuickModals}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Nova Tarefa</h3>
+              <button className="btn-icon" onClick={resetQuickModals}><X size={16} /></button>
+            </div>
+            <form onSubmit={handleSubmitQuickTask}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Cliente *</label>
+                  <select className="form-select" value={qTaskClientId} onChange={e => setQTaskClientId(e.target.value)} required autoFocus>
+                    <option value="">Selecionar cliente...</option>
+                    {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Tarefa *</label>
+                  <input type="text" className="form-input" value={qTaskText} onChange={e => setQTaskText(e.target.value)} placeholder="O que precisa ser feito?" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Prazo</label>
+                  <CustomDatePicker value={qTaskDeadline} onChange={setQTaskDeadline} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={resetQuickModals}>Cancelar</button>
+                <button type="submit" className="btn-primary">Criar Tarefa</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Modal: Nova Oportunidade */}
+      {activeQuickModal === 'oportunidade' && (
+        <div className="modal-overlay" onClick={resetQuickModals}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Nova Oportunidade</h3>
+              <button className="btn-icon" onClick={resetQuickModals}><X size={16} /></button>
+            </div>
+            <form onSubmit={handleSubmitQuickOffer}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Cliente *</label>
+                  <select className="form-select" value={qOfferClientId} onChange={e => setQOfferClientId(e.target.value)} required autoFocus>
+                    <option value="">Selecionar cliente...</option>
+                    {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Oferta de Interesse *</label>
+                  <select className="form-select" value={qOfferName} onChange={e => setQOfferName(e.target.value)} required>
+                    <option value="">Selecionar oferta...</option>
+                    {(offers || []).map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={resetQuickModals}>Cancelar</button>
+                <button type="submit" className="btn-primary">Registrar Oportunidade</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   X, Sparkles, Eraser, Copy, RefreshCw, Building2, Calendar,
   Clock, Users, Target, ListChecks, ArrowRight, DollarSign,
-  AlertTriangle, FileText, Video, Plus, Trash2, Check
+  AlertTriangle, FileText, Video, Plus, Trash2
 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
@@ -405,21 +405,21 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, onCl
 
             <div className="form-group">
               <label className="form-label">🔍 Pendências</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+              <div className="checkbox-group" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                 {TOPIC_OPTIONS.map(topic => {
                   const active = form.pendencias.includes(topic.pendentePhrase);
                   return (
-                    <button
-                      key={topic.id}
-                      type="button"
-                      className={`preset-pill ${active ? 'active' : ''}`}
-                      onClick={() => setField('pendencias', active
-                        ? form.pendencias.filter(p => p !== topic.pendentePhrase)
-                        : [...form.pendencias, topic.pendentePhrase])}
-                    >
-                      {active && <Check size={11} />}
+                    <label key={topic.id} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        className="premium-check"
+                        checked={active}
+                        onChange={() => setField('pendencias', active
+                          ? form.pendencias.filter(p => p !== topic.pendentePhrase)
+                          : [...form.pendencias, topic.pendentePhrase])}
+                      />
                       <span>{topic.label}</span>
-                    </button>
+                    </label>
                   );
                 })}
               </div>

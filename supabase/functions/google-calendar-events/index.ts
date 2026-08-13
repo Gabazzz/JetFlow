@@ -6,14 +6,22 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GOOGLE_CLIENT_ID = "245398876872-amkfu3q4pp1q3bg7aug1r0kht7n4pmm4.apps.googleusercontent.com";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   try {
     const url = new URL(req.url);
     const dateParam = url.searchParams.get("date"); // YYYY-MM-DD, America/Sao_Paulo
     if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
       return new Response(JSON.stringify({ error: "Parâmetro 'date' inválido (esperado YYYY-MM-DD)." }), {
         status: 400,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -27,7 +35,7 @@ Deno.serve(async (req) => {
     if (userErr || !user) {
       return new Response(JSON.stringify({ error: "Não autenticado." }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -44,7 +52,7 @@ Deno.serve(async (req) => {
 
     if (!tokenRow) {
       return new Response(JSON.stringify({ connected: false, events: [] }), {
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -71,7 +79,7 @@ Deno.serve(async (req) => {
         // Refresh token was revoked/expired — the user needs to reconnect.
         await admin.from("google_calendar_tokens").delete().eq("user_id", user.id);
         return new Response(JSON.stringify({ connected: false, events: [], reauthRequired: true }), {
-          headers: { "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       accessToken = refreshData.access_token;
@@ -100,7 +108,7 @@ Deno.serve(async (req) => {
     if (!eventsRes.ok) {
       return new Response(JSON.stringify({ error: eventsData.error?.message || "Erro ao buscar eventos." }), {
         status: 502,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -123,12 +131,12 @@ Deno.serve(async (req) => {
     });
 
     return new Response(JSON.stringify({ connected: true, events }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

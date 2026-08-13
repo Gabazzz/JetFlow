@@ -2,12 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, Kanban, Users, Settings, Search,
   Link as LinkIcon, ChevronDown, ChevronRight, ExternalLink,
-  Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap, LifeBuoy
+  Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap, LifeBuoy, FileText
 } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
+import NotaReuniaoModal from './NotaReuniaoModal';
 
 export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket }) {
+  // Client context — reused as-is when the quick action is opened from within a client's page
+  const contextClientId = currentRoute && currentRoute.startsWith('clientes/') ? currentRoute.split('/')[1] : null;
+  const contextClient = contextClientId ? (clients || []).find(c => c.id === contextClientId) || null : null;
+  const [isNotaReuniaoOpen, setIsNotaReuniaoOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [linksExpanded, setLinksExpanded] = useState(false);
@@ -213,6 +218,16 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
                 <span className="quick-action-item-sub">Abrir chamado de suporte</span>
               </div>
             </button>
+            <button
+              className="quick-action-item"
+              onClick={() => { setIsNotaReuniaoOpen(true); setIsQuickMenuOpen(false); }}
+            >
+              <FileText size={15} />
+              <div>
+                <span className="quick-action-item-title">📝 Nova Nota de Reunião</span>
+                <span className="quick-action-item-sub">Registrar reunião de implantação</span>
+              </div>
+            </button>
           </div>
         )}
       </div>
@@ -388,6 +403,15 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
             </form>
           </div>
         </div>
+      )}
+
+      {isNotaReuniaoOpen && (
+        <NotaReuniaoModal
+          clients={clients || []}
+          contextClient={contextClient}
+          profile={profile}
+          onClose={() => setIsNotaReuniaoOpen(false)}
+        />
       )}
     </aside>
   );

@@ -56,6 +56,38 @@ export function getDateStatus(brDateStr, systemDateStr = '30/06/2026') {
 }
 
 // ============================================================
+// Live date/time (America/Sao_Paulo) — the one place in the app that
+// reads the real clock. Reusable by any feature that needs "now",
+// as opposed to the fixed demo date used elsewhere in the mock data.
+// ============================================================
+
+const APP_TIMEZONE = 'America/Sao_Paulo';
+
+export function getSaoPauloDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: APP_TIMEZONE,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(date);
+  const get = (type) => parts.find(p => p.type === type)?.value;
+  return { day: get('day'), month: get('month'), year: get('year'), hour: get('hour'), minute: get('minute') };
+}
+
+export function getTodayBR() {
+  const { day, month, year } = getSaoPauloDateParts();
+  return `${day}/${month}/${year}`;
+}
+
+export function getNowTimeBR() {
+  const { hour, minute } = getSaoPauloDateParts();
+  return `${hour}:${minute}`;
+}
+
+// ============================================================
 // CX lifecycle: phase and health score
 // Both are computed from existing fields (stage, criticality,
 // nextContactDate, open tickets) rather than stored — so they

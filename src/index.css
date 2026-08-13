@@ -1103,6 +1103,56 @@ button, input, select, textarea {
   margin-top: 4px;
 }
 
+/* Nota de Reunião */
+.nota-reuniao-modal {
+  max-width: 1000px;
+  width: 100%;
+}
+
+.nota-reuniao-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.nota-reuniao-preview {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nota-reuniao-preview-box {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 16px;
+  min-height: 300px;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.nota-reuniao-preview-box pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ddd;
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .nota-reuniao-layout {
+    grid-template-columns: 1fr;
+  }
+  .nota-reuniao-preview {
+    position: static;
+  }
+}
+
 /* Premium entrance for detail/dashboard cards */
 .detail-card, .timeline-tracker-container {
   animation: cardFadeIn 280ms ease-out;

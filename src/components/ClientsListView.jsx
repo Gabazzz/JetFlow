@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield, X, MessageSquarePlus, Target as TargetIcon, ShieldAlert } from 'lucide-react';
 import KanbanView from './KanbanView';
+import { getClientPhase, PHASE_META } from '../utils';
 
-export default function ClientsListView({ 
-  clients, 
-  plans, 
-  modules, 
-  onAddClient, 
+export default function ClientsListView({
+  clients,
+  plans,
+  modules,
+  tickets,
+  onAddClient,
   onNavigate,
   onUpdateClientStage,
   onUpdateClientNextAction,
@@ -14,6 +16,7 @@ export default function ClientsListView({
   onRegisterContact,
   onOpenNewLeadModal
 }) {
+  const todayStr = '30/06/2026';
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('lista'); // 'lista' or 'kanban'
 
@@ -113,6 +116,7 @@ export default function ClientsListView({
                 <tr>
                   <th>Cliente</th>
                   <th>Etapa</th>
+                  <th>Fase CX</th>
                   <th>Responsável</th>
                   <th>Plano</th>
                   <th>Módulos Ativos</th>
@@ -126,11 +130,15 @@ export default function ClientsListView({
                   if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
                   if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
 
+                  const clientTickets = (tickets || []).filter(t => t.clientId === client.id);
+                  const phase = getClientPhase(client, clientTickets, todayStr);
+                  const phaseMeta = PHASE_META[phase];
+
                   return (
                     <tr key={client.id} className="client-row-hoverable" style={{ position: 'relative' }}>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span 
+                          <span
                             style={{ fontWeight: '600', color: 'var(--green-primary)', cursor: 'pointer' }}
                             onClick={() => onNavigate(`clientes/${client.id}`)}
                           >
@@ -141,6 +149,14 @@ export default function ClientsListView({
                       </td>
                       <td>
                         <span className="stage-pill-list">{client.stage}</span>
+                      </td>
+                      <td>
+                        <span
+                          className="badge"
+                          style={{ backgroundColor: phaseMeta.bg, color: phaseMeta.color, border: `1px solid ${phaseMeta.border}`, fontSize: '10px' }}
+                        >
+                          {phase}
+                        </span>
                       </td>
                       <td>
                         <span style={{ fontSize: '13px' }}>{client.responsible || '—'}</span>

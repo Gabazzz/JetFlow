@@ -430,6 +430,7 @@ export default function App() {
       return (
         <DashboardView
           clients={clients}
+          tickets={tickets}
           onAddReminder={handleAddClientReminder}
           onUpdateReminder={handleEditClientReminder}
           onRemoveReminder={handleRemoveClientReminder}
@@ -454,10 +455,11 @@ export default function App() {
 
     if (currentRoute === 'clientes') {
       return (
-        <ClientsListView 
-          clients={clients} 
+        <ClientsListView
+          clients={clients}
           plans={plans}
           modules={modules}
+          tickets={tickets}
           onAddClient={handleAddClient}
           onNavigate={handleNavigate}
           onUpdateClientStage={handleUpdateClientStage}

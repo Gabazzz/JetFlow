@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { 
-  Calendar as CalendarIcon, Users, CheckSquare, AlertTriangle, 
+import {
+  Calendar as CalendarIcon, Users, CheckSquare, AlertTriangle,
   Edit2, Trash2, X, Plus, Phone, Mail, List, Zap, Sparkles,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Heart
 } from 'lucide-react';
-import { parseBRDate, getDateStatus, toBRDate } from '../utils';
+import { parseBRDate, getDateStatus, toBRDate, getClientPhase } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 
 export default function DashboardView({
   clients,
+  tickets,
   onAddReminder,
   onUpdateReminder,
   onRemoveReminder,
@@ -69,6 +70,12 @@ export default function DashboardView({
 
   // Critical clients
   const criticalClients = clients.filter(c => c.criticality === 'Crítico');
+
+  // CX phase: clients past onboarding whose health score dropped into risk territory
+  const atRiskCSClients = clients.filter(c => {
+    const clientTickets = (tickets || []).filter(t => t.clientId === c.id);
+    return getClientPhase(c, clientTickets, todayStr) === 'Em Risco';
+  });
 
   // Sort clients by criticality and gap for "Precisam de Atenção"
   const getCriticalityScore = (crit) => {
@@ -217,6 +224,15 @@ export default function DashboardView({
           </div>
           <span className="kpi-value">{criticalClients.length}</span>
           <span className="kpi-subtitle">SLA crítico ativo</span>
+        </button>
+
+        <button className="kpi-card" onClick={() => setActiveModal('em-risco-cs')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <span className="kpi-label">Em Risco (CS)</span>
+            <Heart size={18} style={{ color: 'var(--badge-red)' }} />
+          </div>
+          <span className="kpi-value">{atRiskCSClients.length}</span>
+          <span className="kpi-subtitle">Pós-onboarding, saúde baixa</span>
         </button>
       </div>
 
@@ -594,6 +610,7 @@ export default function DashboardView({
                 {activeModal === 'ativos' && 'Clientes em Onboarding Ativo'}
                 {activeModal === 'tarefas' && 'Checklist: Próximas Tarefas'}
                 {activeModal === 'criticos' && 'Clientes em Estado Crítico'}
+                {activeModal === 'em-risco-cs' && 'Clientes em Risco (Pós-Onboarding)'}
               </h3>
               <button className="btn-icon" onClick={() => setActiveModal(null)}>
                 <X size={16} />
@@ -703,6 +720,40 @@ export default function DashboardView({
                         <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{c.criticalityJustification || 'Sem justificativa preenchida.'}</p>
                       </div>
                     ))
+                  )}
+                </div>
+              )}
+
+              {activeModal === 'em-risco-cs' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {atRiskCSClients.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)' }}>Nenhum cliente pós-onboarding em risco no momento.</p>
+                  ) : (
+                    atRiskCSClients.map(c => {
+                      const clientTickets = (tickets || []).filter(t => t.clientId === c.id);
+                      const openTickets = clientTickets.filter(t => t.status !== 'Resolvido');
+                      return (
+                        <div
+                          key={c.id}
+                          style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong
+                              style={{ cursor: 'pointer', color: 'var(--badge-red)' }}
+                              onClick={() => { setActiveModal(null); onNavigate(`clientes/${c.id}`); }}
+                            >
+                              {c.name}
+                            </strong>
+                            <span className="badge badge-critico">{c.criticality}</span>
+                          </div>
+                          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                            {openTickets.length > 0
+                              ? `${openTickets.length} chamado(s) de suporte em aberto.`
+                              : 'Health score baixo — reveja o ciclo de contato.'}
+                          </p>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               )}

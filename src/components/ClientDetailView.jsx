@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronRight, Clock, Building, User, Info, CheckCircle,
   AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus, parseBRDate } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 
 export default function ClientDetailView({ 
@@ -237,7 +237,11 @@ export default function ClientDetailView({
     'Estável': { color: '#10B981', Icon: CheckCircle, badgeClass: 'badge-estavel' }
   }[client.criticality] || { color: '#10B981', Icon: CheckCircle, badgeClass: 'badge-estavel' };
 
-  const stageStatusLabel = client.stage === 'Finalizado' ? 'ONBOARDING CONCLUÍDO' : 'ONBOARDING ATIVO';
+  const clientTickets = tickets || [];
+  const phase = getClientPhase(client, clientTickets, todayStr);
+  const phaseMeta = PHASE_META[phase];
+  const healthScore = calculateHealthScore(client, clientTickets, todayStr);
+  const healthTier = getHealthTier(healthScore);
 
   // Get initials for Colaborador Atribuído avatar
   const getColabInitials = (name) => {
@@ -263,15 +267,15 @@ export default function ClientDetailView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>{client.name}</h2>
-              <span 
-                className="badge" 
-                style={{ 
-                  backgroundColor: '#1E351F', 
-                  color: 'var(--green-primary)', 
-                  border: '1px solid rgba(101, 255, 75, 0.3)', 
-                  fontSize: '9px', 
-                  fontWeight: '700', 
-                  padding: '3px 8px', 
+              <span
+                className="badge"
+                style={{
+                  backgroundColor: phaseMeta.bg,
+                  color: phaseMeta.color,
+                  border: `1px solid ${phaseMeta.border}`,
+                  fontSize: '9px',
+                  fontWeight: '700',
+                  padding: '3px 8px',
                   borderRadius: '12px',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -279,7 +283,25 @@ export default function ClientDetailView({
                 }}
               >
                 <span className={`status-dot ${getStatusDot()}`} style={{ width: '6px', height: '6px', margin: 0 }}></span>
-                {stageStatusLabel}
+                {phase.toUpperCase()}
+              </span>
+              <span
+                title={`Health Score: ${healthScore}/100`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  color: healthTier.color,
+                  padding: '3px 8px',
+                  borderRadius: '12px',
+                  border: `1px solid ${healthTier.color}55`,
+                  backgroundColor: `${healthTier.color}18`
+                }}
+              >
+                <Heart size={11} fill={healthTier.color} stroke="none" />
+                {healthScore}/100 · {healthTier.label}
               </span>
             </div>
             {client.lastUpdated && (

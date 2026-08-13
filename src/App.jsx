@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
 import KanbanView from './components/KanbanView';
@@ -6,16 +6,9 @@ import ClientsListView from './components/ClientsListView';
 import ClientDetailView from './components/ClientDetailView';
 import ConfiguracoesView from './components/ConfiguracoesView';
 import SuporteView from './components/SuporteView';
+import Auth from './components/Auth';
 
-import {
-  initialProfile,
-  initialPlans,
-  initialModules,
-  initialAvailableOffers,
-  initialClients,
-  initialStages,
-  initialTickets
-} from './data/data';
+import { initialProfile } from './data/data';
 
 import {
   calculateNextContactDate,
@@ -27,29 +20,122 @@ import { Bell, X, Plus } from 'lucide-react';
 import CustomDatePicker from './components/CustomDatePicker';
 import CustomSelect from './components/CustomSelect';
 import { moduleChecklistsTemplate } from './data/data';
+import { supabase } from './lib/supabaseClient';
+import { loadAllData, clientToRow, ticketToRow, catalogToRow, syncTable, syncStages, syncProfile } from './lib/supabaseSync';
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState('dashboard');
-  
-  // Application Local State (Single source of truth)
+
+  // Auth — every table in Supabase is scoped to auth.uid() via RLS, so the
+  // whole app waits for a session before it has anything to show.
+  const [session, setSession] = useState(undefined); // undefined = still checking
+  const [dataReady, setDataReady] = useState(false);
+  const userId = session?.user?.id || null;
+
+  // Application Local State (Single source of truth — now backed by Supabase.
+  // Handlers below are untouched from before; a set of sync effects further
+  // down watches each collection and persists changes automatically.)
   const [profile, setProfile] = useState(initialProfile);
-  const [plans, setPlans] = useState(initialPlans);
-  const [modules, setModules] = useState(initialModules);
-  const [offers, setOffers] = useState(initialAvailableOffers);
-  // Cada cliente precisa de etapas adicionais (BM/GupShup) e de um "retrato"
-  // do checklist (baseline) representando o estado na última nota gerada —
-  // é contra esse retrato que a Nota de Reunião calcula o que foi feito
-  // especificamente na reunião atual. Sem baseline salvo (dado seed antigo),
-  // o retrato inicial é o próprio estado atual do checklist.
-  const [clients, setClients] = useState(() => initialClients.map(c => ({
-    ...c,
-    additionalSteps: c.additionalSteps || createDefaultAdditionalSteps(),
-    checklistBaseline: c.checklistBaseline || JSON.parse(JSON.stringify(c.checklists || {})),
-    additionalStepsBaseline: c.additionalStepsBaseline || JSON.parse(JSON.stringify(c.additionalSteps || createDefaultAdditionalSteps()))
-  })));
-  const [stages, setStages] = useState(initialStages);
-  const [tickets, setTickets] = useState(initialTickets);
+  const [plans, setPlans] = useState([]);
+  const [modules, setModules] = useState([]);
+  const [offers, setOffers] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [stages, setStages] = useState([]);
+  const [tickets, setTickets] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Last-known id sets per collection, used to detect deletions on sync.
+  const lastClientIds = useRef(new Set());
+  const lastTicketIds = useRef(new Set());
+  const lastPlanIds = useRef(new Set());
+  const lastModuleIds = useRef(new Set());
+  const lastOfferIds = useRef(new Set());
+  const lastStageNames = useRef(new Set());
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // Load everything for the signed-in user once, right after login.
+  useEffect(() => {
+    if (!userId) {
+      setDataReady(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const data = await loadAllData(userId);
+      if (cancelled) return;
+      setProfile(data.profile || initialProfile);
+      setPlans(data.plans);
+      setModules(data.modules);
+      setOffers(data.offers);
+      setStages(data.stages);
+      setClients(data.clients.map(c => ({
+        ...c,
+        additionalSteps: c.additionalSteps.length ? c.additionalSteps : createDefaultAdditionalSteps(),
+        additionalStepsBaseline: c.additionalStepsBaseline.length ? c.additionalStepsBaseline : createDefaultAdditionalSteps()
+      })));
+      setTickets(data.tickets);
+      lastPlanIds.current = new Set(data.plans.map(p => p.id));
+      lastModuleIds.current = new Set(data.modules.map(m => m.id));
+      lastOfferIds.current = new Set(data.offers.map(o => o.id));
+      lastStageNames.current = new Set(data.stages);
+      lastClientIds.current = new Set(data.clients.map(c => c.id));
+      lastTicketIds.current = new Set(data.tickets.map(t => t.id));
+      setDataReady(true);
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  // Sync effects — fire after every local change to each collection, once
+  // the initial load has completed. Business logic in the handlers below
+  // never talks to Supabase directly; this is the only place that does.
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('clients', clients, c => clientToRow(c, userId), lastClientIds);
+  }, [clients, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('tickets', tickets, t => ticketToRow(t, userId), lastTicketIds);
+  }, [tickets, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('plans', plans, p => catalogToRow('plans', p, userId), lastPlanIds);
+  }, [plans, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('modules', modules, m => catalogToRow('modules', m, userId), lastModuleIds);
+  }, [modules, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('offers', offers, o => catalogToRow('offers', o, userId), lastOfferIds);
+  }, [offers, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncStages(stages, lastStageNames, userId);
+  }, [stages, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncProfile(profile, userId);
+  }, [profile, dataReady, userId]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setDataReady(false);
+    setProfile(initialProfile);
+    setPlans([]); setModules([]); setOffers([]); setClients([]); setStages([]); setTickets([]);
+  };
 
   // Global New Lead Modal Form State
   const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
@@ -553,9 +639,11 @@ export default function App() {
 
     if (currentRoute === 'configuracoes') {
       return (
-        <ConfiguracoesView 
+        <ConfiguracoesView
           profile={profile}
           onUpdateProfile={handleUpdateProfile}
+          accountEmail={session.user.email}
+          onSignOut={handleSignOut}
           plans={plans}
           onAddPlan={handleAddPlan}
           onEditPlan={handleEditPlan}
@@ -595,6 +683,18 @@ export default function App() {
     if (currentRoute === 'configuracoes') return 'Configurações do Sistema';
     return 'JetFlow';
   };
+
+  if (session === undefined || (session && !dataReady)) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', fontSize: '13px' }}>
+        Carregando...
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
 
   return (
     <div className="app-layout">

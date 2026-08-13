@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { User, Layers, Tag, Box, Plus, Trash2, Edit2, Check, X, Camera, GripVertical, Kanban } from 'lucide-react';
+import { User, Layers, Tag, Box, Plus, Trash2, Edit2, Check, X, Camera, GripVertical, Kanban, LogOut } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
-export default function ConfiguracoesView({ 
+export default function ConfiguracoesView({
   profile, onUpdateProfile,
+  accountEmail, onSignOut,
   plans, onAddPlan, onEditPlan, onRemovePlan,
   modules, onAddModule, onEditModule, onRemoveModule,
   offers, onAddOffer, onEditOffer, onRemoveOffer,
@@ -15,10 +17,11 @@ export default function ConfiguracoesView({
   const [profileName, setProfileName] = useState(profile.name);
   const [profileRole, setProfileRole] = useState(profile.role);
   const [profileAvatar, setProfileAvatar] = useState(profile.avatarUrl || '');
-  const [profileEmail, setProfileEmail] = useState(profile.email || '');
-  const [profileUsername, setProfileUsername] = useState(profile.username || '');
-  const [profilePassword, setProfilePassword] = useState('');
   const [profileSaved, setProfileSaved] = useState(false);
+
+  // Password change (real, via Supabase Auth — separate from the profile save above)
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState(''); // '' | 'saving' | 'saved' | error message
 
   // Inline add states
   const [addingPlan, setAddingPlan] = useState(false);
@@ -53,11 +56,8 @@ export default function ConfiguracoesView({
     e.preventDefault();
     onUpdateProfile({
       name: profileName, role: profileRole, avatarUrl: profileAvatar,
-      email: profileEmail, username: profileUsername,
-      ...(profilePassword.trim() ? { password: profilePassword } : {}),
       avatarInitials: profileName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     });
-    setProfilePassword('');
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
   };
@@ -241,34 +241,65 @@ export default function ConfiguracoesView({
               </div>
             </div>
 
-            <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <h3 className="section-title" style={{ fontSize: '14px' }}>Acesso e Login</h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  Usado quando o JetFlow for compartilhado com outros colegas de equipe.
-                </p>
-              </div>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label">E-mail</label>
-                  <input type="email" className="form-input" value={profileEmail} onChange={e => setProfileEmail(e.target.value)} placeholder="seu.nome@jetsales.com" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Nome de Usuário</label>
-                  <input type="text" className="form-input" value={profileUsername} onChange={e => setProfileUsername(e.target.value)} placeholder="usuario.jetsales" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Senha</label>
-                  <input type="password" className="form-input" value={profilePassword} onChange={e => setProfilePassword(e.target.value)} placeholder="Deixe em branco para manter a atual" />
-                </div>
-              </div>
-            </div>
-
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
               {profileSaved && <span style={{ fontSize: '12px', color: 'var(--green-primary)', fontWeight: '600' }}>Salvo!</span>}
               <button type="submit" className="btn-primary">Salvar Perfil</button>
             </div>
           </form>
+        )}
+
+        {activeTab === 'perfil' && (
+          <div style={{ paddingTop: '24px', marginTop: '24px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <h3 className="section-title" style={{ fontSize: '14px' }}>Acesso e Login</h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Sua conta é privada — só você vê os clientes cadastrados nela.
+              </p>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label">E-mail</label>
+                <input type="email" className="form-input" value={accountEmail || ''} disabled />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nova senha</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  value={newPassword}
+                  onChange={e => { setNewPassword(e.target.value); setPasswordStatus(''); }}
+                  placeholder="Deixe em branco para manter a atual"
+                  minLength={6}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={!newPassword.trim() || passwordStatus === 'saving'}
+                  onClick={async () => {
+                    setPasswordStatus('saving');
+                    const { error } = await supabase.auth.updateUser({ password: newPassword });
+                    if (error) { setPasswordStatus(error.message); return; }
+                    setNewPassword('');
+                    setPasswordStatus('saved');
+                  }}
+                >
+                  Atualizar senha
+                </button>
+                {passwordStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--green-primary)', fontWeight: '600' }}>Senha atualizada!</span>}
+                {passwordStatus && passwordStatus !== 'saving' && passwordStatus !== 'saved' && (
+                  <span style={{ fontSize: '12px', color: 'var(--badge-red)' }}>{passwordStatus}</span>
+                )}
+              </div>
+              <button type="button" className="btn-secondary" style={{ color: 'var(--badge-red)', borderColor: 'rgba(239, 68, 68, 0.3)' }} onClick={onSignOut}>
+                <LogOut size={13} />
+                <span>Sair da conta</span>
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Tab: Kanban Stages */}

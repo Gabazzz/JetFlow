@@ -4,9 +4,11 @@ import {
   Edit2, Trash2, X, Plus, Phone, Mail, List, Zap, Sparkles,
   ChevronLeft, ChevronRight, Heart
 } from 'lucide-react';
-import { parseBRDate, getDateStatus, toBRDate, getClientPhase } from '../utils';
+import { parseBRDate, getDateStatus, toBRDate, getClientPhase, getTodayBR } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
+
+const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 export default function DashboardView({
   clients,
@@ -34,7 +36,12 @@ export default function DashboardView({
 
   const [dismissingReminderIds, setDismissingReminderIds] = useState([]);
 
-  const todayStr = '30/06/2026';
+  const todayStr = getTodayBR();
+  const todayDateObj = parseBRDate(todayStr);
+
+  const [calendarMonth, setCalendarMonth] = useState(
+    () => new Date(todayDateObj.getFullYear(), todayDateObj.getMonth(), 1)
+  );
   
   // Meetings today
   const meetingsToday = [];
@@ -123,6 +130,25 @@ export default function DashboardView({
   mergedReminders.sort((a, b) => {
     return parseBRDate(a.deadline).getTime() - parseBRDate(b.deadline).getTime();
   });
+
+  // Days in the visible calendar month that have a meeting or reminder due
+  const calendarYear = calendarMonth.getFullYear();
+  const calendarMonthIndex = calendarMonth.getMonth();
+  const daysWithActivity = new Set();
+  const registerActivityDate = (brDateStr) => {
+    if (!brDateStr) return;
+    const d = parseBRDate(brDateStr);
+    if (d.getFullYear() === calendarYear && d.getMonth() === calendarMonthIndex) {
+      daysWithActivity.add(d.getDate());
+    }
+  };
+  clients.forEach(c => {
+    (c.meetings || []).forEach(m => registerActivityDate(m.date));
+  });
+  mergedReminders.forEach(r => registerActivityDate(r.deadline));
+
+  const calendarFirstWeekday = new Date(calendarYear, calendarMonthIndex, 1).getDay();
+  const calendarDaysInMonth = new Date(calendarYear, calendarMonthIndex + 1, 0).getDate();
 
   const handleQuickAddReminder = (e) => {
     e.preventDefault();
@@ -540,9 +566,25 @@ export default function DashboardView({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <span style={{ fontSize: '11px', fontWeight: '800', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visão Mensal</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <button className="btn-icon" style={{ width: '22px', height: '22px', color: '#666' }}><ChevronLeft size={12} /></button>
-                <span style={{ fontSize: '10px', fontWeight: '800', color: '#aaa', textTransform: 'uppercase' }}>Junho 2026</span>
-                <button className="btn-icon" style={{ width: '22px', height: '22px', color: '#666' }}><ChevronRight size={12} /></button>
+                <button
+                  type="button"
+                  className="btn-icon"
+                  style={{ width: '22px', height: '22px', color: '#666' }}
+                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                >
+                  <ChevronLeft size={12} />
+                </button>
+                <span style={{ fontSize: '10px', fontWeight: '800', color: '#aaa', textTransform: 'uppercase' }}>
+                  {MONTH_NAMES[calendarMonthIndex]} {calendarYear}
+                </span>
+                <button
+                  type="button"
+                  className="btn-icon"
+                  style={{ width: '22px', height: '22px', color: '#666' }}
+                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                >
+                  <ChevronRight size={12} />
+                </button>
               </div>
             </div>
 
@@ -552,34 +594,51 @@ export default function DashboardView({
               ))}
             </div>
 
-            {/* Simulated days for June 2026 starting on Mon (1) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
-              {Array.from({ length: 30 }).map((_, idx) => {
+              {Array.from({ length: calendarFirstWeekday }).map((_, idx) => (
+                <div key={`blank-${idx}`} />
+              ))}
+              {Array.from({ length: calendarDaysInMonth }).map((_, idx) => {
                 const dayNum = idx + 1;
-                const isSystemToday = dayNum === 30; // 30/06
-                
+                const isSystemToday =
+                  calendarYear === todayDateObj.getFullYear() &&
+                  calendarMonthIndex === todayDateObj.getMonth() &&
+                  dayNum === todayDateObj.getDate();
+                const hasActivity = daysWithActivity.has(dayNum);
+
                 return (
-                  <div 
+                  <div
                     key={idx}
-                    style={{ 
-                      height: '24px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                    style={{
+                      height: '24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
                       justifyContent: 'center',
+                      gap: '2px',
                       fontSize: '10px',
                       fontWeight: isSystemToday ? '800' : '500',
                       borderRadius: '4px',
                       color: isSystemToday ? '#000' : '#555',
-                      backgroundColor: isSystemToday ? 'var(--green-primary)' : 'transparent',
-                      border: isSystemToday ? 'none' : 'none'
+                      backgroundColor: isSystemToday ? 'var(--green-primary)' : 'transparent'
                     }}
                   >
-                    {dayNum}
+                    <span>{dayNum}</span>
+                    {hasActivity && (
+                      <span
+                        style={{
+                          width: '3px',
+                          height: '3px',
+                          borderRadius: '50%',
+                          backgroundColor: isSystemToday ? '#000' : 'var(--green-primary)'
+                        }}
+                      />
+                    )}
                   </div>
                 );
               })}
             </div>
-            
+
             {/* Status indicators */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '12px', borderTop: '1px solid #222', paddingTop: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: '700', color: '#555' }}>

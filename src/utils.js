@@ -29,7 +29,7 @@ export function toISODate(brDateStr) {
   return `${year}-${month}-${day}`;
 }
 
-export function calculateNextContactDate(criticality, baseDateStr = '30/06/2026') {
+export function calculateNextContactDate(criticality, baseDateStr = getTodayBR()) {
   const dateObj = parseBRDate(baseDateStr);
   let daysToAdd = 3;
   if (criticality === 'Crítico') daysToAdd = 1;
@@ -39,7 +39,7 @@ export function calculateNextContactDate(criticality, baseDateStr = '30/06/2026'
   return formatBRDate(dateObj);
 }
 
-export function getDateStatus(brDateStr, systemDateStr = '30/06/2026') {
+export function getDateStatus(brDateStr, systemDateStr = getTodayBR()) {
   if (!brDateStr) return 'future';
   const dateObj = parseBRDate(brDateStr);
   const sysDateObj = parseBRDate(systemDateStr);
@@ -94,7 +94,7 @@ export function getNowTimeBR() {
 // can never drift out of sync with the data that drives them.
 // ============================================================
 
-export function calculateHealthScore(client, clientTickets = [], systemDateStr = '30/06/2026') {
+export function calculateHealthScore(client, clientTickets = [], systemDateStr = getTodayBR()) {
   let score = 100;
 
   if (client.criticality === 'Crítico') score -= 45;
@@ -117,7 +117,7 @@ export function getHealthTier(score) {
 }
 
 // Onboarding | Ativação | Ativo | Em Risco
-export function getClientPhase(client, clientTickets = [], systemDateStr = '30/06/2026') {
+export function getClientPhase(client, clientTickets = [], systemDateStr = getTodayBR()) {
   if (client.stage !== 'Finalizado') return 'Onboarding';
 
   const health = calculateHealthScore(client, clientTickets, systemDateStr);

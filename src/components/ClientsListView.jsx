@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield, X, MessageSquarePlus, Target as TargetIcon, ShieldAlert } from 'lucide-react';
 import KanbanView from './KanbanView';
-import { getClientPhase, PHASE_META } from '../utils';
+import { getClientPhase, PHASE_META, getTodayBR } from '../utils';
 
 export default function ClientsListView({
   clients,
@@ -19,7 +19,7 @@ export default function ClientsListView({
   onEditStage,
   onRemoveStage
 }) {
-  const todayStr = '30/06/2026';
+  const todayStr = getTodayBR();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('lista'); // 'lista' or 'kanban'
 

@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import { parseBRDate, formatBRDate } from '../utils';
+import { parseBRDate, formatBRDate, getTodayBR } from '../utils';
 
 export default function CustomDatePicker({ value, onChange, placeholder = 'DD/MM/AAAA', required = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
-  
-  // Set reference system date to 30/06/2026
-  const today = new Date(2026, 5, 30); // 0-indexed month: 5 = June
+
+  const today = parseBRDate(getTodayBR());
 
   // viewDate controls which month the calendar dropdown is showing
   const [viewDate, setViewDate] = useState(today);
@@ -132,7 +131,6 @@ export default function CustomDatePicker({ value, onChange, placeholder = 'DD/MM
     }
   };
 
-  // Check if a day cell matches today (30/06/2026)
   const isToday = (day, isCurrentMonth) => {
     if (!isCurrentMonth) return false;
     return (

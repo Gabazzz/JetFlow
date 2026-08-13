@@ -6,7 +6,7 @@ import {
   AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw,
   Hash, Wifi, Users as UsersIcon
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier, calculateNextContactDate, createDefaultAdditionalSteps } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier, calculateNextContactDate, createDefaultAdditionalSteps, getTodayBR } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 
@@ -30,7 +30,7 @@ export default function ClientDetailView({
   onUpdateTicketLink,
   onNavigate
 }) {
-  const todayStr = '30/06/2026';
+  const todayStr = getTodayBR();
 
   // Section Editing states
   const [isEditingInfo, setIsEditingInfo] = useState(false);

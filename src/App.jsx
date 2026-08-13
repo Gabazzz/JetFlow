@@ -14,7 +14,9 @@ import { initialProfile } from './data/data';
 import {
   calculateNextContactDate,
   getDateStatus,
-  createDefaultAdditionalSteps
+  createDefaultAdditionalSteps,
+  getTodayBR,
+  getNowTimeBR
 } from './utils';
 
 import { Bell, X, Plus } from 'lucide-react';
@@ -145,7 +147,7 @@ export default function App() {
   const [newPhone, setNewPhone] = useState('');
   const [newWhatsapp, setNewWhatsapp] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newEntryDate, setNewEntryDate] = useState('30/06/2026');
+  const [newEntryDate, setNewEntryDate] = useState(() => getTodayBR());
   const [newPlan, setNewPlan] = useState('Pro');
   const [newCriticality, setNewCriticality] = useState('Estável');
   const [newJustification, setNewJustification] = useState('');
@@ -289,17 +291,18 @@ export default function App() {
   const handleRegisterContact = (clientId, obsText = '') => {
     setClients(prev => prev.map(c => {
       if (c.id === clientId) {
-        const nextContact = calculateNextContactDate(c.criticality, '30/06/2026');
+        const todayStr = getTodayBR();
+        const nextContact = calculateNextContactDate(c.criticality, todayStr);
         const label = obsText.trim() || 'Registrou contato periódico';
         return {
           ...c,
           nextContactDate: nextContact,
           lastContacts: [
-            { date: '30/06/2026', obs: label },
+            { date: todayStr, obs: label },
             ...(c.lastContacts || [])
           ],
           activityHistory: [
-            { avatar: profile.avatarInitials, name: profile.name, action: label, date: '30/06/2026 às 12:00', isObservation: false },
+            { avatar: profile.avatarInitials, name: profile.name, action: label, date: `${todayStr} às ${getNowTimeBR()}`, isObservation: false },
             ...(c.activityHistory || [])
           ]
         };
@@ -342,7 +345,7 @@ export default function App() {
           ...c,
           tasks: (c.tasks || []).filter(t => t.id !== taskId),
           activityHistory: task ? [
-            { avatar: profile.avatarInitials, name: profile.name, action: `Concluiu tarefa: ${task.text}`, date: '30/06/2026 às 12:00', isObservation: false },
+            { avatar: profile.avatarInitials, name: profile.name, action: `Concluiu tarefa: ${task.text}`, date: `${getTodayBR()} às ${getNowTimeBR()}`, isObservation: false },
             ...(c.activityHistory || [])
           ] : (c.activityHistory || [])
         };
@@ -366,7 +369,7 @@ export default function App() {
   const handleUpdateClientCriticality = (clientId, newCriticality) => {
     setClients(prev => prev.map(c => {
       if (c.id === clientId) {
-        const nextContact = calculateNextContactDate(newCriticality, '30/06/2026');
+        const nextContact = calculateNextContactDate(newCriticality, getTodayBR());
         return {
           ...c,
           criticality: newCriticality,
@@ -471,7 +474,7 @@ export default function App() {
       description,
       priority,
       status: 'Aberto',
-      createdDate: '30/06/2026',
+      createdDate: getTodayBR(),
       origem: 'Painel',
       discordUrl
     };
@@ -481,7 +484,7 @@ export default function App() {
         return {
           ...c,
           activityHistory: [
-            { avatar: profile.avatarInitials, name: profile.name, action: `Abriu chamado de suporte: ${subject}`, date: '30/06/2026 às 12:00', isObservation: false },
+            { avatar: profile.avatarInitials, name: profile.name, action: `Abriu chamado de suporte: ${subject}`, date: `${getTodayBR()} às ${getNowTimeBR()}`, isObservation: false },
             ...(c.activityHistory || [])
           ]
         };
@@ -500,10 +503,11 @@ export default function App() {
 
   // Gather overdue or today's notifications
   const alertNotifications = [];
+  const todayStrAlerts = getTodayBR();
   clients.forEach(c => {
     // 1. SLA contact reminders
     if (c.nextContactDate) {
-      const status = getDateStatus(c.nextContactDate, '30/06/2026');
+      const status = getDateStatus(c.nextContactDate, todayStrAlerts);
       if (status === 'overdue' || status === 'today') {
         alertNotifications.push({
           id: `cycle_${c.id}`,
@@ -519,7 +523,7 @@ export default function App() {
     // 2. Custom reminders
     if (c.reminders) {
       c.reminders.forEach(r => {
-        const status = getDateStatus(r.deadline, '30/06/2026');
+        const status = getDateStatus(r.deadline, todayStrAlerts);
         if (status === 'overdue' || status === 'today') {
           alertNotifications.push({
             id: r.id,
@@ -834,15 +838,15 @@ export default function App() {
                 additionalStepsBaseline: createDefaultAdditionalSteps(),
                 reminders: [],
                 lastUpdated: {
-                  date: '30/06/2026',
-                  time: '12:00',
+                  date: getTodayBR(),
+                  time: getNowTimeBR(),
                   user: profile.name
                 },
                 lastContacts: [
                   { date: newEntryDate, obs: 'Cliente cadastrado no sistema.' }
                 ],
                 activityHistory: [
-                  { avatar: profile.avatarInitials, name: profile.name, action: 'Criou o cliente no sistema', date: `${newEntryDate} às 12:00`, isObservation: false }
+                  { avatar: profile.avatarInitials, name: profile.name, action: 'Criou o cliente no sistema', date: `${newEntryDate} às ${getNowTimeBR()}`, isObservation: false }
                 ],
                 quickLinks: {
                   crm: '',
@@ -862,7 +866,7 @@ export default function App() {
               setNewPhone('');
               setNewWhatsapp('');
               setNewEmail('');
-              setNewEntryDate('30/06/2026');
+              setNewEntryDate(getTodayBR());
               setNewPlan('Pro');
               setNewCriticality('Estável');
               setNewJustification('');

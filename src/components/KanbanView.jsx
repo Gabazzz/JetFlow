@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, CheckCircle, Filter, ArrowUpDown, MoreHorizontal, Edit2, Trash2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { getDateStatus, parseBRDate } from '../utils';
+import { getDateStatus, parseBRDate, getTodayBR } from '../utils';
 
 const CRITICALITY_ORDER = { 'Crítico': 3, 'Atenção': 2, 'Estável': 1 };
 
@@ -58,7 +58,7 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
     setCollapsedStages(prev => prev.includes(stage) ? prev.filter(s => s !== stage) : [...prev, stage]);
   };
 
-  const todayStr = '30/06/2026';
+  const todayStr = getTodayBR();
 
   const visibleClients = clients
     .filter(c => activeCriticalities.length === 0 || activeCriticalities.includes(c.criticality))

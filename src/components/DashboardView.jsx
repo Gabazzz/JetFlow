@@ -352,11 +352,16 @@ export default function DashboardView({
               </button>
             </form>
 
-            <div className="reminders-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {mergedReminders.slice(0, 6).map(item => {
+            {(() => {
+              const grouped = { overdue: [], today: [], future: [] };
+              mergedReminders.forEach(item => {
+                grouped[getDateStatus(item.deadline, todayStr)].push(item);
+              });
+
+              const renderItem = (item) => {
                 const isDismissing = dismissingReminderIds.includes(item.id);
                 const status = getDateStatus(item.deadline, todayStr);
-                
+
                 let statusClass = 'date-future';
                 if (status === 'overdue') statusClass = 'date-overdue';
                 else if (status === 'today') statusClass = 'date-today';
@@ -365,7 +370,7 @@ export default function DashboardView({
                   <div key={item.id} className={`reminder-item ${isDismissing ? 'item-fadeout' : ''}`} style={{ backgroundColor: '#1B1B1B', border: '1px solid #252525', padding: '12px', borderRadius: '6px' }}>
                     <div className="reminder-info">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span 
+                        <span
                           style={{ cursor: 'pointer', color: 'var(--green-primary)', fontWeight: '600' }}
                           onClick={() => onNavigate(`clientes/${item.clientId}`)}
                         >
@@ -386,8 +391,33 @@ export default function DashboardView({
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              };
+
+              const groups = [
+                { key: 'overdue', label: 'Atrasado', className: 'date-overdue', items: grouped.overdue },
+                { key: 'today', label: 'Hoje', className: 'date-today', items: grouped.today },
+                { key: 'future', label: 'Próximos', className: 'date-future', items: grouped.future.slice(0, 4) },
+              ];
+
+              if (mergedReminders.length === 0) {
+                return <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Nenhum lembrete ativo.</span>;
+              }
+
+              return (
+                <div className="reminders-list" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {groups.map(g => g.items.length > 0 && (
+                    <div key={g.key} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <span className={g.className} style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        {g.label} ({g.items.length})
+                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {g.items.map(renderItem)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
 

@@ -4,7 +4,7 @@ import {
   ExternalLink, Link, CheckSquare, PlusCircle, Check,
   ChevronDown, ChevronRight, Clock, Building, User, Info, CheckCircle
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 
 export default function ClientDetailView({ 
@@ -302,6 +302,45 @@ export default function ClientDetailView({
           </button>
         </div>
       </div>
+
+      {/* ── PRÓXIMA AÇÃO ── */}
+      {client.nextAction && (() => {
+        const status = getDateStatus(client.nextContactDate, todayStr);
+        const statusClass = status === 'overdue' ? 'date-overdue' : status === 'today' ? 'date-today' : 'date-future';
+        const accentColor = status === 'overdue' ? '#EF4444' : status === 'today' ? '#F59E0B' : 'var(--green-primary)';
+
+        let deadlineLabel = `Prazo: ${client.nextContactDate}`;
+        if (status === 'overdue' && client.nextContactDate) {
+          const days = Math.round((parseBRDate(todayStr).getTime() - parseBRDate(client.nextContactDate).getTime()) / (1000 * 60 * 60 * 24));
+          deadlineLabel = `Atrasado há ${days} dia${days > 1 ? 's' : ''} (${client.nextContactDate})`;
+        } else if (status === 'today') {
+          deadlineLabel = `Vence hoje (${client.nextContactDate})`;
+        }
+
+        return (
+          <div style={{ backgroundColor: '#161616', border: `1px solid ${accentColor}`, borderRadius: '8px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Clock size={18} style={{ color: accentColor, flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>Próxima Ação</span>
+                <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{client.nextAction}</span>
+                <span className={statusClass} style={{ fontSize: '12px' }}>{deadlineLabel}</span>
+              </div>
+            </div>
+            <button
+              className="btn-primary"
+              style={{ backgroundColor: 'var(--green-primary)', color: '#000', fontWeight: '700', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', gap: '6px' }}
+              onClick={() => {
+                onRegisterContact(client.id, `Ação concluída: ${client.nextAction}`);
+                alert('Ação concluída e registrada no histórico!');
+              }}
+            >
+              <CheckSquare size={13} />
+              <span>Concluir</span>
+            </button>
+          </div>
+        );
+      })()}
 
       {/* ── TWO COLUMN LAYOUT ── */}
       <div className="detail-layout" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px', alignItems: 'start' }}>
@@ -688,7 +727,7 @@ export default function ClientDetailView({
                     </span>
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Próximo contato: <strong style={{ color: '#fff' }}>{client.nextContactDate}</strong>
+                    Próximo contato: <strong className={getDateStatus(client.nextContactDate, todayStr) === 'overdue' ? 'date-overdue' : getDateStatus(client.nextContactDate, todayStr) === 'today' ? 'date-today' : ''} style={{ color: '#fff' }}>{client.nextContactDate}</strong>
                   </div>
                   <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>{client.criticalityJustification || 'Sem justificativa.'}</p>
                 </div>

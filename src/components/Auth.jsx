@@ -75,8 +75,8 @@ export default function Auth() {
             </div>
           )}
           {signupMessage && (
-            <div style={{ marginTop: '14px', padding: '10px 12px', backgroundColor: '#1E351F', border: '1px solid rgba(101, 255, 75, 0.3)', borderRadius: '6px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--green-primary)' }}>{signupMessage}</span>
+            <div style={{ marginTop: '14px', padding: '10px 12px', backgroundColor: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '6px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--badge-green)' }}>{signupMessage}</span>
             </div>
           )}
 

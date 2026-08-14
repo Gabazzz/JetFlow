@@ -1,20 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-primary: #0B0B0B;
-  --card-surface: #1B1B1B;
-  --surface-hover: #262626;
-  --surface-active: #333333;
+  --bg-primary: #0A0C10;
+  --card-surface: #191C21;
+  --surface-hover: #232730;
+  --surface-active: #2E323C;
   --green-primary: #65FF4B;
   --green-hover: #4eeb35;
   --text-primary: #FFFFFF;
   --text-secondary: #888888;
-  --border-color: #2E2E2E;
-  
+  --border-color: #2A2E38;
+
   --badge-red: #EF4444;
   --badge-yellow: #F59E0B;
   --badge-green: #10B981;
-  
+
+  /* Tipo de demanda (Onboarding/CS/Suporte) — família fria, deliberadamente
+     distante do verde de marca e da escala de criticidade (badge-*), pra
+     nunca competir visualmente com nenhuma das duas. Uso: só como
+     badge/tag de identificação de tipo — nunca em botão de ação nem como
+     indicador de status. */
+  --type-onboarding: #5B9DFF;
+  --type-cs: #B98AFF;
+  --type-suporte: #4DD9C7;
+
   --font-family: 'Inter', system-ui, sans-serif;
   --radius: 8px;
   --transition: 150ms ease-in-out;
@@ -306,6 +315,38 @@ button, input, select, textarea {
 @keyframes badgePulseRed {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
   50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+}
+
+/* Type-of-demand pills (Onboarding/CS/Suporte) — identification only, never
+   a status or an action. Deliberately more discreet than the criticality
+   badges above: no border, fully rounded, smaller — so it never competes
+   for attention with --badge-red/yellow/green. */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.type-onboarding {
+  background-color: rgba(91, 157, 255, 0.12);
+  color: var(--type-onboarding);
+}
+
+.type-cs {
+  background-color: rgba(185, 138, 255, 0.12);
+  color: var(--type-cs);
+}
+
+.type-suporte {
+  background-color: rgba(77, 217, 199, 0.12);
+  color: var(--type-suporte);
 }
 
 .btn-success-pulse {
@@ -1794,7 +1835,7 @@ button, input, select, textarea {
 .timeline-tracker-progress-val {
   font-size: 13px;
   font-weight: 600;
-  color: var(--green-primary);
+  color: var(--badge-green);
 }
 
 .timeline-tracker-steps {
@@ -1822,7 +1863,7 @@ button, input, select, textarea {
   top: 50%;
   transform: translateY(-50%);
   height: 4px;
-  background-color: var(--green-primary);
+  background-color: var(--badge-green);
   z-index: 2;
   transition: width 300ms ease-in-out;
 }
@@ -1849,8 +1890,8 @@ button, input, select, textarea {
 }
 
 .timeline-tracker-circle-completed {
-  background-color: var(--green-primary);
-  border-color: var(--green-primary);
+  background-color: var(--badge-green);
+  border-color: var(--badge-green);
   color: #000;
 }
 
@@ -2215,8 +2256,8 @@ input[type="checkbox"].premium-check:active {
   margin-right: 6px;
 }
 .status-dot-green {
-  background-color: var(--green-primary);
-  box-shadow: 0 0 6px var(--green-primary);
+  background-color: var(--badge-green);
+  box-shadow: 0 0 6px var(--badge-green);
 }
 .status-dot-red {
   background-color: var(--badge-red);

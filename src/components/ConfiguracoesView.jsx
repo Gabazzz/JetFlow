@@ -244,7 +244,7 @@ export default function ConfiguracoesView({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
-              {profileSaved && <span style={{ fontSize: '12px', color: 'var(--green-primary)', fontWeight: '600' }}>Salvo!</span>}
+              {profileSaved && <span style={{ fontSize: '12px', color: 'var(--badge-green)', fontWeight: '600' }}>Salvo!</span>}
               <button type="submit" className="btn-primary">Salvar Perfil</button>
             </div>
           </form>
@@ -291,7 +291,7 @@ export default function ConfiguracoesView({
                 >
                   Atualizar senha
                 </button>
-                {passwordStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--green-primary)', fontWeight: '600' }}>Senha atualizada!</span>}
+                {passwordStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--badge-green)', fontWeight: '600' }}>Senha atualizada!</span>}
                 {passwordStatus && passwordStatus !== 'saving' && passwordStatus !== 'saved' && (
                   <span style={{ fontSize: '12px', color: 'var(--badge-red)' }}>{passwordStatus}</span>
                 )}

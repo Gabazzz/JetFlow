@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield, X, MessageSquarePlus, Target as TargetIcon, ShieldAlert, MoreHorizontal, Download, Upload } from 'lucide-react';
 import KanbanView from './KanbanView';
 import ImportExportClientsModal from './ImportExportClientsModal';
-import { getClientPhase, PHASE_META, getTodayBR } from '../utils';
+import { getClientPhase, PHASE_META, getDemandType, getTodayBR } from '../utils';
 import { exportClientsToXlsx } from '../lib/clientImportExport';
 
 export default function ClientsListView({
@@ -183,6 +183,7 @@ export default function ClientsListView({
                 <tr>
                   <th>Cliente</th>
                   <th>Etapa</th>
+                  <th>Tipo</th>
                   <th>Fase CX</th>
                   <th>Responsável</th>
                   <th>Plano</th>
@@ -200,6 +201,7 @@ export default function ClientsListView({
                   const clientTickets = (tickets || []).filter(t => t.clientId === client.id);
                   const phase = getClientPhase(client, clientTickets, todayStr);
                   const phaseMeta = PHASE_META[phase];
+                  const demandType = getDemandType(phase);
 
                   return (
                     <tr key={client.id} className="client-row-hoverable" style={{ position: 'relative' }}>
@@ -216,6 +218,11 @@ export default function ClientsListView({
                       </td>
                       <td>
                         <span className="stage-pill-list">{client.stage}</span>
+                      </td>
+                      <td>
+                        <span className={`type-badge type-${demandType.toLowerCase()}`}>
+                          {demandType}
+                        </span>
                       </td>
                       <td>
                         <span

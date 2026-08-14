@@ -6,7 +6,7 @@ import {
   AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw,
   Hash, Wifi, Users as UsersIcon
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier, calculateNextContactDate, createDefaultAdditionalSteps, getTodayBR } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, createDefaultAdditionalSteps, getTodayBR } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 
@@ -289,6 +289,7 @@ export default function ClientDetailView({
   const clientTickets = tickets || [];
   const phase = getClientPhase(client, clientTickets, todayStr);
   const phaseMeta = PHASE_META[phase];
+  const demandType = getDemandType(phase);
   const healthScore = calculateHealthScore(client, clientTickets, todayStr);
   const healthTier = getHealthTier(healthScore);
 
@@ -333,6 +334,9 @@ export default function ClientDetailView({
               >
                 <span className={`status-dot ${getStatusDot()}`} style={{ width: '6px', height: '6px', margin: 0 }}></span>
                 {phase.toUpperCase()}
+              </span>
+              <span className={`type-badge type-${demandType.toLowerCase()}`}>
+                {demandType}
               </span>
               <span
                 title={`Health Score: ${healthScore}/100`}
@@ -405,7 +409,7 @@ export default function ClientDetailView({
       {client.nextAction && (() => {
         const status = getDateStatus(client.nextContactDate, todayStr);
         const statusClass = status === 'overdue' ? 'date-overdue' : status === 'today' ? 'date-today' : 'date-future';
-        const accentColor = status === 'overdue' ? '#EF4444' : status === 'today' ? '#F59E0B' : 'var(--green-primary)';
+        const accentColor = status === 'overdue' ? '#EF4444' : status === 'today' ? '#F59E0B' : 'var(--badge-green)';
 
         let deadlineLabel = `Prazo: ${client.nextContactDate}`;
         if (status === 'overdue' && client.nextContactDate) {
@@ -653,14 +657,14 @@ export default function ClientDetailView({
               <span className="timeline-tracker-title" style={{ fontSize: '10px', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700' }}>
                 LINHA DO TEMPO DE ONBOARDING
               </span>
-              <span className="timeline-tracker-progress-val" style={{ color: 'var(--green-primary)', fontWeight: '700', fontSize: '13px' }}>
+              <span className="timeline-tracker-progress-val" style={{ color: 'var(--badge-green)', fontWeight: '700', fontSize: '13px' }}>
                 PROGRESSO: {progressPct}%
               </span>
             </div>
-            
+
             <div className="timeline-tracker-steps" style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', alignItems: 'flex-start', padding: '0 10px' }}>
               <div className="timeline-tracker-line-bg" style={{ position: 'absolute', left: '20px', right: '20px', top: '16px', height: '2px', backgroundColor: '#252525', zIndex: 1 }} />
-              <div className="timeline-tracker-line-fill" style={{ position: 'absolute', left: '20px', top: '16px', height: '2px', width: `calc(${fillWidth} - 40px)`, backgroundColor: 'var(--green-primary)', zIndex: 2, transition: 'width 300ms ease-in-out' }} />
+              <div className="timeline-tracker-line-fill" style={{ position: 'absolute', left: '20px', top: '16px', height: '2px', width: `calc(${fillWidth} - 40px)`, backgroundColor: 'var(--badge-green)', zIndex: 2, transition: 'width 300ms ease-in-out' }} />
               
               {allStages.map((stage, idx) => {
                 const isCompleted = idx < currentStageIndex;
@@ -673,20 +677,20 @@ export default function ClientDetailView({
 
                 return (
                   <div key={stage} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 3, width: '60px' }}>
-                    <div 
-                      style={{ 
-                        width: '32px', 
-                        height: '32px', 
-                        borderRadius: '50%', 
-                        backgroundColor: isCompleted ? 'var(--green-primary)' : '#161616', 
-                        border: isCompleted 
-                          ? '2px solid var(--green-primary)' 
-                          : isActive 
-                            ? '2px solid var(--green-primary)' 
-                            : '2px solid #333', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
+                    <div
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        backgroundColor: isCompleted ? 'var(--badge-green)' : '#161616',
+                        border: isCompleted
+                          ? '2px solid var(--badge-green)'
+                          : isActive
+                            ? '2px solid var(--green-primary)'
+                            : '2px solid #333',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         boxShadow: isActive ? '0 0 8px rgba(101,255,75,0.4)' : 'none'
                       }}
                     >
@@ -700,7 +704,7 @@ export default function ClientDetailView({
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', textAlign: 'center' }}>
                       <span style={{ fontSize: '11px', fontWeight: '700', color: isActive ? 'var(--green-primary)' : '#fff' }}>{stage}</span>
-                      <span style={{ fontSize: '9px', fontWeight: '700', color: isCompleted ? 'var(--green-primary)' : isActive ? 'var(--green-primary)' : '#666', letterSpacing: '0.5px' }}>
+                      <span style={{ fontSize: '9px', fontWeight: '700', color: isCompleted ? 'var(--badge-green)' : isActive ? 'var(--green-primary)' : '#666', letterSpacing: '0.5px' }}>
                         {stepStateText}
                       </span>
                     </div>
@@ -820,7 +824,7 @@ export default function ClientDetailView({
                           ) : (
                             <>
                               {pendingItems.length === 0 && (
-                                <span style={{ color: 'var(--green-primary)', fontSize: '12px', fontWeight: '600' }}>✓ Checklist concluído.</span>
+                                <span style={{ color: 'var(--badge-green)', fontSize: '12px', fontWeight: '600' }}>✓ Checklist concluído.</span>
                               )}
                               {pendingItems.map(({ item, idx }) => (
                                 <label key={idx} className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>

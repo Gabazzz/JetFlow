@@ -6,12 +6,15 @@ import {
 import CustomDatePicker from './CustomDatePicker';
 import { getTodayBR, parseBRDate, getClientPhase, addDaysToBRDate } from '../utils';
 
-const ORIGIN_META = {
-  Onboarding: { color: 'var(--green-primary)', bg: '#1E351F' },
-  CS: { color: '#38BDF8', bg: '#0F2733' },
-  Suporte: { color: '#F59E0B', bg: '#3D2F1D' },
-  Pessoal: { color: '#A78BFA', bg: '#2A2140' }
+// Onboarding/CS/Suporte reuse the shared .type-badge pill + tokens; Pessoal
+// isn't one of the three official "tipo de demanda" categories, so it keeps
+// its own distinct color inline rather than a root-level token.
+const TYPE_BADGE_CLASS = {
+  Onboarding: 'type-onboarding',
+  CS: 'type-cs',
+  Suporte: 'type-suporte'
 };
+const PESSOAL_COLOR = { color: '#A78BFA', bg: 'rgba(167, 139, 250, 0.12)' };
 
 const FILTERS = ['Todas', 'Onboarding', 'CS', 'Suporte', 'Pessoal'];
 
@@ -249,7 +252,6 @@ export default function TarefasView({
   };
 
   const renderItemCard = (item, { isOverdue = false } = {}) => {
-    const meta = ORIGIN_META[item.origin];
     const isResolvingThis = item.kind === 'ticket' && resolvingTicketId === item.ticketId;
     const canSnooze = item.kind !== 'ticket' && !!item.dueDate;
 
@@ -286,9 +288,15 @@ export default function TarefasView({
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>{item.title}</span>
-              <span style={{ fontSize: '9px', fontWeight: '800', color: meta.color, backgroundColor: meta.bg, padding: '2px 7px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                {item.origin}
-              </span>
+              {item.origin === 'Pessoal' ? (
+                <span className="type-badge" style={{ color: PESSOAL_COLOR.color, backgroundColor: PESSOAL_COLOR.bg }}>
+                  {item.origin}
+                </span>
+              ) : (
+                <span className={`type-badge ${TYPE_BADGE_CLASS[item.origin]}`}>
+                  {item.origin}
+                </span>
+              )}
               {isOverdue && <AlertTriangle size={12} style={{ color: '#EF4444' }} />}
             </div>
 
@@ -374,7 +382,7 @@ export default function TarefasView({
               {completedTodayCount} de {totalTodayCount} concluídas hoje
             </span>
             <div style={{ width: '260px', maxWidth: '100%', height: '6px', backgroundColor: '#1E1E1E', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ width: `${progressPct}%`, height: '100%', backgroundColor: 'var(--green-primary)', transition: 'width 250ms ease-out' }} />
+              <div style={{ width: `${progressPct}%`, height: '100%', backgroundColor: 'var(--badge-green)', transition: 'width 250ms ease-out' }} />
             </div>
           </div>
 

@@ -163,7 +163,8 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>Pipeline de Implantação</h2>
-          
+          <span className="type-badge type-onboarding">Onboarding</span>
+
           {/* Circular avatars group */}
           <div style={{ display: 'flex', alignItems: 'center', position: 'relative', paddingLeft: '8px' }}>
             {teamInitials.map((initials, idx) => (
@@ -396,8 +397,8 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                   
                   // Map criticality levels to labels & colors
                   let criticalityLabel = 'Baixa';
-                  let criticalityColor = 'var(--green-primary)';
-                  let criticalityBg = '#1E351F';
+                  let criticalityColor = 'var(--badge-green)';
+                  let criticalityBg = 'rgba(16, 185, 129, 0.12)';
                   
                   if (client.criticality === 'Crítico') {
                     criticalityLabel = 'Alta';
@@ -413,11 +414,11 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                   const isEditingThis = editingAction?.clientId === client.id;
 
                   // High-fidelity border highlight for active/critical cards
-                  const borderLeftStyle = client.criticality === 'Crítico' 
-                    ? '3px solid var(--badge-red)' 
+                  const borderLeftStyle = client.criticality === 'Crítico'
+                    ? '3px solid var(--badge-red)'
                     : client.criticality === 'Atenção'
                       ? '3px solid var(--badge-yellow)'
-                      : '3px solid var(--green-primary)';
+                      : '3px solid var(--badge-green)';
 
                   return (
                     <div key={client.id}>
@@ -529,14 +530,16 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                             <span style={{ fontSize: '9px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PRAZO</span>
                             <span 
                               className={deadline.className} 
-                              style={{ 
-                                fontSize: '12px', 
+                              style={{
+                                fontSize: '12px',
                                 fontWeight: '700',
-                                color: deadline.className === 'date-today' 
-                                  ? 'var(--green-primary)' 
-                                  : deadline.className === 'date-overdue'
-                                    ? 'var(--badge-red)'
-                                    : '#888'
+                                color: deadline.className === 'date-overdue'
+                                  ? 'var(--badge-red)'
+                                  : deadline.className === 'date-today'
+                                    ? 'var(--badge-yellow)'
+                                    : deadline.text === '—'
+                                      ? '#888'
+                                      : 'var(--badge-green)'
                               }}
                             >
                               {deadline.text}

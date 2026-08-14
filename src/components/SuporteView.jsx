@@ -52,7 +52,10 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <LifeBuoy size={20} style={{ color: 'var(--green-primary)' }} />
           <div>
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff', margin: 0 }}>Chamados de Suporte</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff', margin: 0 }}>Chamados de Suporte</h3>
+              <span className="type-badge type-suporte">Suporte</span>
+            </div>
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{tickets.length} chamado{tickets.length !== 1 ? 's' : ''} no total</span>
           </div>
         </div>

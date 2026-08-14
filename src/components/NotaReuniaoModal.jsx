@@ -494,7 +494,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
 
         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
           <div>
-            {copyFeedback && <span style={{ fontSize: '12px', color: 'var(--green-primary)', fontWeight: '600' }}>✓ Nota copiada!</span>}
+            {copyFeedback && <span style={{ fontSize: '12px', color: 'var(--badge-green)', fontWeight: '600' }}>✓ Nota copiada!</span>}
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="button" className="btn-secondary" onClick={handleClear}>

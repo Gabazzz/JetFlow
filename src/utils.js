@@ -141,11 +141,19 @@ export function getClientPhase(client, clientTickets = [], systemDateStr = getTo
 }
 
 export const PHASE_META = {
-  'Onboarding': { color: 'var(--green-primary)', bg: '#1E351F', border: 'rgba(101, 255, 75, 0.3)' },
+  'Onboarding': { color: 'var(--type-onboarding)', bg: 'rgba(91, 157, 255, 0.12)', border: 'rgba(91, 157, 255, 0.35)' },
   'Ativação': { color: '#38BDF8', bg: '#0F2733', border: 'rgba(56, 189, 248, 0.35)' },
   'Ativo': { color: '#10B981', bg: '#0F2A20', border: 'rgba(16, 185, 129, 0.35)' },
   'Em Risco': { color: '#EF4444', bg: '#2A1414', border: 'rgba(239, 68, 68, 0.35)' }
 };
+
+// Coarse "tipo de demanda" (Onboarding vs CS) derived from the same phase
+// already computed by getClientPhase — kept separate from PHASE_META
+// because it answers a different question ("what kind of work is this")
+// rather than "how far along is this client's lifecycle".
+export function getDemandType(phase) {
+  return phase === 'Onboarding' ? 'Onboarding' : 'CS';
+}
 
 // ============================================================
 // Implantação: etapas adicionais + diff de checklist por reunião

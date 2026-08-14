@@ -197,8 +197,8 @@ export default function ImportExportClientsModal({ clients, stages, profileName,
 
         {step === 'result' && resultSummary && (
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '30px 20px', textAlign: 'center' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#1E351F', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Check size={24} style={{ color: 'var(--green-primary)' }} />
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Check size={24} style={{ color: 'var(--badge-green)' }} />
             </div>
             <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff', margin: 0 }}>Importação concluída</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>

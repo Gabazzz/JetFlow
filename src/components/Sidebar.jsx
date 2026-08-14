@@ -105,7 +105,7 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
     <aside className="sidebar">
       {/* Brand Header */}
       <div className="logo-container" style={{ display: 'flex', padding: '16px' }}>
-        <img src={jetflowLogo} alt="JetFlow" style={{ height: '48px', width: 'auto', objectFit: 'contain', alignSelf: 'flex-start' }} />
+        <img src={jetflowLogo} alt="JetFlow" style={{ height: '80px', width: 'auto', objectFit: 'contain', alignSelf: 'flex-start' }} />
       </div>
 
       {/* Global Search */}

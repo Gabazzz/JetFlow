@@ -287,6 +287,14 @@ export default function App() {
     setClients(prev => prev.filter(c => c.id !== clientId));
   };
 
+  const handleImportClients = ({ created, updated }) => {
+    setClients(prev => {
+      const updateMap = new Map(updated.map(u => [u.id, u.fields]));
+      const merged = prev.map(c => updateMap.has(c.id) ? { ...c, ...updateMap.get(c.id) } : c);
+      return [...created, ...merged];
+    });
+  };
+
   const handleUpdateClient = (clientId, fieldsToUpdate) => {
     setClients(prev => prev.map(c => 
       c.id === clientId ? { ...c, ...fieldsToUpdate } : c
@@ -652,7 +660,9 @@ export default function App() {
           modules={modules}
           tickets={tickets}
           stages={stages}
+          profile={profile}
           onAddClient={handleAddClient}
+          onImportClients={handleImportClients}
           onNavigate={handleNavigate}
           onUpdateClientStage={handleUpdateClientStage}
           onUpdateClientNextAction={handleUpdateClientNextAction}

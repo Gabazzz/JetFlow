@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield, X, MessageSquarePlus, Target as TargetIcon, ShieldAlert } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield, X, MessageSquarePlus, Target as TargetIcon, ShieldAlert, MoreHorizontal, Download, Upload } from 'lucide-react';
 import KanbanView from './KanbanView';
+import ImportExportClientsModal from './ImportExportClientsModal';
 import { getClientPhase, PHASE_META, getTodayBR } from '../utils';
+import { exportClientsToXlsx } from '../lib/clientImportExport';
 
 export default function ClientsListView({
   clients,
@@ -9,7 +11,9 @@ export default function ClientsListView({
   modules,
   tickets,
   stages,
+  profile,
   onAddClient,
+  onImportClients,
   onNavigate,
   onUpdateClientStage,
   onUpdateClientNextAction,
@@ -22,6 +26,28 @@ export default function ClientsListView({
   const todayStr = getTodayBR();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('lista'); // 'lista' or 'kanban'
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const moreMenuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setIsMoreMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleExport = async () => {
+    setIsMoreMenuOpen(false);
+    setIsExporting(true);
+    try {
+      await exportClientsToXlsx(clients);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Popover State: { clientId, type: 'contato' | 'acao' | 'criticidade' }
   const [activePopover, setActivePopover] = useState(null);
@@ -96,7 +122,42 @@ export default function ClientsListView({
           <Plus size={16} />
           <span>Novo Cliente</span>
         </button>
+
+        <div style={{ position: 'relative' }} ref={moreMenuRef}>
+          <button
+            className="btn-icon"
+            style={{ width: '38px', height: '38px', border: '1px solid var(--border-color)' }}
+            title="Exportar ou importar clientes"
+            onClick={() => setIsMoreMenuOpen(v => !v)}
+          >
+            <MoreHorizontal size={16} />
+          </button>
+          {isMoreMenuOpen && (
+            <div className="quick-action-menu" style={{ left: 'auto', right: 0, width: '220px' }}>
+              <button className="quick-action-item" disabled={isExporting} onClick={handleExport}>
+                <Download size={14} />
+                <span className="quick-action-item-title" style={{ fontWeight: '500' }}>
+                  {isExporting ? 'Exportando...' : 'Exportar clientes (.xlsx)'}
+                </span>
+              </button>
+              <button className="quick-action-item" onClick={() => { setIsMoreMenuOpen(false); setIsImportModalOpen(true); }}>
+                <Upload size={14} />
+                <span className="quick-action-item-title" style={{ fontWeight: '500' }}>Importar clientes (.xlsx)</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {isImportModalOpen && (
+        <ImportExportClientsModal
+          clients={clients}
+          stages={stages}
+          profileName={profile?.name}
+          onImport={onImportClients}
+          onClose={() => setIsImportModalOpen(false)}
+        />
+      )}
 
       {/* Conditional View Rendering */}
       {viewMode === 'kanban' ? (

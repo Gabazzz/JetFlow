@@ -101,10 +101,6 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
     }
   };
 
-  const handlePlaceholderClick = (label) => {
-    alert(`Módulo ${label} estará disponível em breve!`);
-  };
-
   return (
     <aside className="sidebar">
       {/* Brand Header */}
@@ -264,8 +260,8 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
               <span>Agenda</span>
             </button>
             <button
-              className="nav-item"
-              onClick={() => handlePlaceholderClick('Tarefas')}
+              className={`nav-item ${currentRoute === 'tarefas' ? 'active' : ''}`}
+              onClick={() => onNavigate('tarefas')}
             >
               <CheckSquare size={18} />
               <span>Tarefas</span>

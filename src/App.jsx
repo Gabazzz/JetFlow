@@ -7,6 +7,7 @@ import ClientDetailView from './components/ClientDetailView';
 import ConfiguracoesView from './components/ConfiguracoesView';
 import SuporteView from './components/SuporteView';
 import AgendaView from './components/AgendaView';
+import TarefasView from './components/TarefasView';
 import Auth from './components/Auth';
 
 import { initialProfile } from './data/data';
@@ -16,14 +17,25 @@ import {
   getDateStatus,
   createDefaultAdditionalSteps,
   getTodayBR,
-  getNowTimeBR
+  getNowTimeBR,
+  parseBRDate,
+  formatBRDate
 } from './utils';
 
 import { Bell, X, Plus } from 'lucide-react';
 import CustomDatePicker from './components/CustomDatePicker';
 import CustomSelect from './components/CustomSelect';
 import { supabase } from './lib/supabaseClient';
-import { loadAllData, clientToRow, ticketToRow, catalogToRow, syncTable, syncStages, syncProfile } from './lib/supabaseSync';
+import { loadAllData, clientToRow, ticketToRow, taskToRow, catalogToRow, syncTable, syncStages, syncProfile } from './lib/supabaseSync';
+
+// Pushes a BR-format date string ("DD/MM/YYYY") forward by N days — used by
+// every "snooze" action in the Tarefas queue. Falls back to today when the
+// item had no deadline yet.
+function addDaysToBRDate(brDateStr, days) {
+  const base = brDateStr ? parseBRDate(brDateStr) : parseBRDate(getTodayBR());
+  base.setDate(base.getDate() + days);
+  return formatBRDate(base);
+}
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState('dashboard');
@@ -44,11 +56,13 @@ export default function App() {
   const [clients, setClients] = useState([]);
   const [stages, setStages] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [standaloneTasks, setStandaloneTasks] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Last-known id sets per collection, used to detect deletions on sync.
   const lastClientIds = useRef(new Set());
   const lastTicketIds = useRef(new Set());
+  const lastTaskIds = useRef(new Set());
   const lastPlanIds = useRef(new Set());
   const lastModuleIds = useRef(new Set());
   const lastOfferIds = useRef(new Set());
@@ -83,12 +97,14 @@ export default function App() {
         additionalStepsBaseline: c.additionalStepsBaseline.length ? c.additionalStepsBaseline : createDefaultAdditionalSteps()
       })));
       setTickets(data.tickets);
+      setStandaloneTasks(data.tasks);
       lastPlanIds.current = new Set(data.plans.map(p => p.id));
       lastModuleIds.current = new Set(data.modules.map(m => m.id));
       lastOfferIds.current = new Set(data.offers.map(o => o.id));
       lastStageNames.current = new Set(data.stages);
       lastClientIds.current = new Set(data.clients.map(c => c.id));
       lastTicketIds.current = new Set(data.tickets.map(t => t.id));
+      lastTaskIds.current = new Set(data.tasks.map(t => t.id));
       setDataReady(true);
     })();
     return () => { cancelled = true; };
@@ -106,6 +122,11 @@ export default function App() {
     if (!dataReady || !userId) return;
     syncTable('tickets', tickets, t => ticketToRow(t, userId), lastTicketIds);
   }, [tickets, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('tasks', standaloneTasks, t => taskToRow(t, userId), lastTaskIds);
+  }, [standaloneTasks, dataReady, userId]);
 
   useEffect(() => {
     if (!dataReady || !userId) return;
@@ -136,7 +157,7 @@ export default function App() {
     await supabase.auth.signOut();
     setDataReady(false);
     setProfile(initialProfile);
-    setPlans([]); setModules([]); setOffers([]); setClients([]); setStages([]); setTickets([]);
+    setPlans([]); setModules([]); setOffers([]); setClients([]); setStages([]); setTickets([]); setStandaloneTasks([]);
   };
 
   // Global New Lead Modal Form State
@@ -512,6 +533,46 @@ export default function App() {
     setTickets(prev => prev.filter(t => t.id !== ticketId));
   };
 
+  const handleResolveTicket = (ticketId, note = '') => {
+    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'Resolvido', resolutionNote: note } : t));
+  };
+
+  // State Mutators — Standalone Tasks ("avulsas", Minha Fila Hoje)
+  const handleAddStandaloneTask = (title, dueDate = '') => {
+    setStandaloneTasks(prev => [
+      { id: `task_${Date.now()}`, title, dueDate, completed: false },
+      ...prev
+    ]);
+  };
+
+  const handleToggleStandaloneTask = (taskId) => {
+    setStandaloneTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+  };
+
+  const handleSnoozeStandaloneTask = (taskId) => {
+    setStandaloneTasks(prev => prev.map(t => t.id === taskId ? { ...t, dueDate: addDaysToBRDate(t.dueDate, 1) } : t));
+  };
+
+  // Queue-only mutators — completing/snoozing an item pulled into Minha Fila
+  // Hoje from a client's nextAction/reminder, without leaving the queue.
+  const handleCompleteClientNextAction = (clientId) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextAction: '' } : c));
+  };
+
+  const handleSnoozeClientNextContact = (clientId) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextContactDate: addDaysToBRDate(c.nextContactDate, 1) } : c));
+  };
+
+  const handleSnoozeClientReminder = (clientId, reminderId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        reminders: (c.reminders || []).map(r => r.id === reminderId ? { ...r, deadline: addDaysToBRDate(r.deadline, 1) } : r)
+      };
+    }));
+  };
+
   // Gather overdue or today's notifications
   const alertNotifications = [];
   const todayStrAlerts = getTodayBR();
@@ -646,6 +707,25 @@ export default function App() {
       return <AgendaView />;
     }
 
+    if (currentRoute === 'tarefas') {
+      return (
+        <TarefasView
+          clients={clients}
+          tickets={tickets}
+          standaloneTasks={standaloneTasks}
+          onNavigate={handleNavigate}
+          onCompleteClientNextAction={handleCompleteClientNextAction}
+          onSnoozeClientNextContact={handleSnoozeClientNextContact}
+          onRemoveClientReminder={handleRemoveClientReminder}
+          onSnoozeClientReminder={handleSnoozeClientReminder}
+          onResolveTicket={handleResolveTicket}
+          onAddStandaloneTask={handleAddStandaloneTask}
+          onToggleStandaloneTask={handleToggleStandaloneTask}
+          onSnoozeStandaloneTask={handleSnoozeStandaloneTask}
+        />
+      );
+    }
+
     if (currentRoute === 'suporte') {
       return (
         <SuporteView
@@ -704,6 +784,7 @@ export default function App() {
     if (currentRoute === 'clientes') return 'Lista de Clientes';
     if (currentRoute.startsWith('clientes/')) return 'Detalhes do Cliente';
     if (currentRoute === 'agenda') return 'Agenda';
+    if (currentRoute === 'tarefas') return 'Minha Fila Hoje';
     if (currentRoute === 'suporte') return 'Central de Suporte';
     if (currentRoute === 'configuracoes') return 'Configurações do Sistema';
     return 'JetFlow';

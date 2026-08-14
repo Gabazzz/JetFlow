@@ -95,7 +95,8 @@ export function ticketFromRow(row) {
     status: row.status,
     createdDate: row.created_date,
     origem: row.origem,
-    discordUrl: row.discord_url
+    discordUrl: row.discord_url,
+    resolutionNote: row.resolution_note || ''
   };
 }
 
@@ -110,7 +111,29 @@ export function ticketToRow(t, userId) {
     status: t.status || 'Aberto',
     created_date: t.createdDate || '',
     origem: t.origem || '',
-    discord_url: t.discordUrl || ''
+    discord_url: t.discordUrl || '',
+    resolution_note: t.resolutionNote || ''
+  };
+}
+
+// Standalone tasks — "avulsas", not tied to any client.
+export function taskFromRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    dueDate: row.due_date || '',
+    completed: !!row.completed,
+    createdAt: row.created_at
+  };
+}
+
+export function taskToRow(t, userId) {
+  return {
+    id: t.id,
+    user_id: userId,
+    title: t.title || '',
+    due_date: t.dueDate || '',
+    completed: !!t.completed
   };
 }
 
@@ -139,14 +162,15 @@ export function profileFromRow(row) {
 
 // Loads every collection for the signed-in user in one go.
 export async function loadAllData(userId) {
-  const [profileRes, plansRes, modulesRes, offersRes, stagesRes, clientsRes, ticketsRes] = await Promise.all([
+  const [profileRes, plansRes, modulesRes, offersRes, stagesRes, clientsRes, ticketsRes, tasksRes] = await Promise.all([
     supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('plans').select('*'),
     supabase.from('modules').select('*'),
     supabase.from('offers').select('*'),
     supabase.from('stages').select('*').order('position'),
     supabase.from('clients').select('*'),
-    supabase.from('tickets').select('*')
+    supabase.from('tickets').select('*'),
+    supabase.from('tasks').select('*')
   ]);
 
   return {
@@ -156,7 +180,8 @@ export async function loadAllData(userId) {
     offers: catalogFromRows(offersRes.data),
     stages: (stagesRes.data || []).map(r => r.name),
     clients: (clientsRes.data || []).map(clientFromRow),
-    tickets: (ticketsRes.data || []).map(ticketFromRow)
+    tickets: (ticketsRes.data || []).map(ticketFromRow),
+    tasks: (tasksRes.data || []).map(taskFromRow)
   };
 }
 

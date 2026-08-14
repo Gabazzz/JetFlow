@@ -575,7 +575,6 @@ export default function App() {
           onEditStage={handleEditStage}
           onRemoveStage={handleRemoveStage}
           onRemoveClient={handleRemoveClient}
-          onOpenNewLeadModal={() => setIsNewLeadModalOpen(true)}
           onNavigate={handleNavigate}
         />
       );
@@ -841,6 +840,7 @@ export default function App() {
                 criticalityJustification: newJustification,
                 activeModules: newSelectedModules,
                 observations: newObservations,
+                responsible: profile.name,
                 stage: 'Novo',
                 nextAction: 'Reunião de Alinhamento inicial',
                 nextContactDate: nextContact,

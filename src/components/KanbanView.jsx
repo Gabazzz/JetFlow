@@ -1,13 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, CheckCircle, Filter, ArrowUpDown, MoreHorizontal, Edit2, Trash2, Check, X, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { getDateStatus, parseBRDate, getTodayBR } from '../utils';
+import CustomSelect from './CustomSelect';
 
 const CRITICALITY_ORDER = { 'Crítico': 3, 'Atenção': 2, 'Estável': 1 };
 
-export default function KanbanView({ clients, stages, onUpdateClientStage, onUpdateClientNextAction, onEditStage, onRemoveStage, onRemoveClient, onOpenNewLeadModal, onNavigate }) {
+export default function KanbanView({ clients, stages, onUpdateClientStage, onUpdateClientNextAction, onEditStage, onRemoveStage, onRemoveClient, onNavigate }) {
   const [draggedClientId, setDraggedClientId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+
+  // "Add to stage" modal (pick an existing client + which stage to place it in)
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assignClientId, setAssignClientId] = useState('');
+  const [assignStage, setAssignStage] = useState('');
 
   // Inline editing state
   const [editingAction, setEditingAction] = useState(null);
@@ -206,12 +212,14 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
 
         {/* Filters and Order buttons */}
         <div style={{ display: 'flex', gap: '10px' }}>
-          {onOpenNewLeadModal && (
-            <button className="btn-primary" style={{ padding: '8px 16px', fontSize: '13px' }} onClick={onOpenNewLeadModal}>
-              <Plus size={14} />
-              <span>Novo Cliente</span>
-            </button>
-          )}
+          <button
+            className="btn-primary"
+            style={{ padding: '8px 16px', fontSize: '13px' }}
+            onClick={() => { setAssignClientId(''); setAssignStage(allStages[0] || ''); setIsAssignModalOpen(true); }}
+          >
+            <Plus size={14} />
+            <span>Adicionar ao Kanban</span>
+          </button>
           <div style={{ position: 'relative' }} ref={filterRef}>
             <button
               className="btn-secondary"
@@ -551,6 +559,47 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
           );
         })}
       </div>
+
+      {isAssignModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsAssignModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Adicionar ao Kanban</h3>
+              <button className="btn-icon" onClick={() => setIsAssignModalOpen(false)}><X size={16} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Cliente *</label>
+                <CustomSelect
+                  value={assignClientId}
+                  onChange={setAssignClientId}
+                  placeholder="Selecionar cliente..."
+                  options={clients.map(c => ({ value: c.id, label: c.name }))}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Etapa *</label>
+                <CustomSelect value={assignStage} onChange={setAssignStage} options={allStages} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn-secondary" onClick={() => setIsAssignModalOpen(false)}>Cancelar</button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={!assignClientId || !assignStage}
+                onClick={() => {
+                  onUpdateClientStage(assignClientId, assignStage);
+                  setIsAssignModalOpen(false);
+                }}
+              >
+                <Check size={14} />
+                <span>Adicionar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

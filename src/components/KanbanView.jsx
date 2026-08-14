@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, CheckCircle, Filter, ArrowUpDown, MoreHorizontal, Edit2, Trash2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { User, CheckCircle, Filter, ArrowUpDown, MoreHorizontal, Edit2, Trash2, Check, X, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { getDateStatus, parseBRDate, getTodayBR } from '../utils';
 
 const CRITICALITY_ORDER = { 'Crítico': 3, 'Atenção': 2, 'Estável': 1 };
 
-export default function KanbanView({ clients, stages, onUpdateClientStage, onUpdateClientNextAction, onEditStage, onRemoveStage, onNavigate }) {
+export default function KanbanView({ clients, stages, onUpdateClientStage, onUpdateClientNextAction, onEditStage, onRemoveStage, onRemoveClient, onOpenNewLeadModal, onNavigate }) {
   const [draggedClientId, setDraggedClientId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -206,6 +206,12 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
 
         {/* Filters and Order buttons */}
         <div style={{ display: 'flex', gap: '10px' }}>
+          {onOpenNewLeadModal && (
+            <button className="btn-primary" style={{ padding: '8px 16px', fontSize: '13px' }} onClick={onOpenNewLeadModal}>
+              <Plus size={14} />
+              <span>Novo Cliente</span>
+            </button>
+          )}
           <div style={{ position: 'relative' }} ref={filterRef}>
             <button
               className="btn-secondary"
@@ -434,19 +440,36 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                           >
                             {client.name}
                           </span>
-                          <span 
-                            style={{ 
-                              fontSize: '8px', 
-                              fontWeight: '800', 
-                              color: criticalityColor, 
-                              backgroundColor: criticalityBg, 
-                              padding: '2px 6px', 
-                              borderRadius: '4px',
-                              textTransform: 'uppercase'
-                            }}
-                          >
-                            {criticalityLabel}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            <span
+                              style={{
+                                fontSize: '8px',
+                                fontWeight: '800',
+                                color: criticalityColor,
+                                backgroundColor: criticalityBg,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                textTransform: 'uppercase'
+                              }}
+                            >
+                              {criticalityLabel}
+                            </span>
+                            {onRemoveClient && (
+                              <button
+                                className="btn-danger-icon"
+                                style={{ width: '20px', height: '20px' }}
+                                title="Excluir cliente"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Excluir "${client.name}"? Essa ação não pode ser desfeita.`)) {
+                                    onRemoveClient(client.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Responsible */}

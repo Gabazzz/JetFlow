@@ -269,6 +269,10 @@ export default function App() {
     setClients(prev => [newClient, ...prev]);
   };
 
+  const handleRemoveClient = (clientId) => {
+    setClients(prev => prev.filter(c => c.id !== clientId));
+  };
+
   const handleUpdateClient = (clientId, fieldsToUpdate) => {
     setClients(prev => prev.map(c => 
       c.id === clientId ? { ...c, ...fieldsToUpdate } : c
@@ -570,6 +574,8 @@ export default function App() {
           onUpdateClientNextAction={handleUpdateClientNextAction}
           onEditStage={handleEditStage}
           onRemoveStage={handleRemoveStage}
+          onRemoveClient={handleRemoveClient}
+          onOpenNewLeadModal={() => setIsNewLeadModalOpen(true)}
           onNavigate={handleNavigate}
         />
       );

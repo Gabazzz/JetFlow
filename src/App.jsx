@@ -22,7 +22,6 @@ import {
 import { Bell, X, Plus } from 'lucide-react';
 import CustomDatePicker from './components/CustomDatePicker';
 import CustomSelect from './components/CustomSelect';
-import { moduleChecklistsTemplate } from './data/data';
 import { supabase } from './lib/supabaseClient';
 import { loadAllData, clientToRow, ticketToRow, catalogToRow, syncTable, syncStages, syncProfile } from './lib/supabaseSync';
 
@@ -221,6 +220,10 @@ export default function App() {
       }
       return c;
     }));
+  };
+
+  const handleUpdateModuleChecklist = (id, checklist) => {
+    setModules(prev => prev.map(m => m.id === id ? { ...m, checklist } : m));
   };
 
   const handleRemoveModule = (id) => {
@@ -672,6 +675,7 @@ export default function App() {
           onAddModule={handleAddModule}
           onEditModule={handleEditModule}
           onRemoveModule={handleRemoveModule}
+          onUpdateModuleChecklist={handleUpdateModuleChecklist}
           offers={offers}
           onAddOffer={handleAddOffer}
           onEditOffer={handleEditOffer}
@@ -819,11 +823,12 @@ export default function App() {
               e.preventDefault();
               const nextContact = calculateNextContactDate(newCriticality, newEntryDate);
               
-              // Populate checklists
+              // Populate checklists from each module's configured template
               const clientChecklists = {};
               newSelectedModules.forEach(mod => {
-                clientChecklists[mod] = moduleChecklistsTemplate[mod] 
-                  ? JSON.parse(JSON.stringify(moduleChecklistsTemplate[mod])) 
+                const modObj = modules.find(m => m.name === mod);
+                clientChecklists[mod] = modObj?.checklist
+                  ? JSON.parse(JSON.stringify(modObj.checklist))
                   : [];
               });
 

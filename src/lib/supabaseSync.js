@@ -115,11 +115,17 @@ export function ticketToRow(t, userId) {
 }
 
 export function catalogFromRows(rows) {
-  return (rows || []).map(r => ({ id: r.id, name: r.name }));
+  return (rows || []).map(r => ({
+    id: r.id,
+    name: r.name,
+    ...(r.checklist !== undefined ? { checklist: r.checklist || [] } : {})
+  }));
 }
 
 export function catalogToRow(table, item, userId) {
-  return { id: item.id, user_id: userId, name: item.name };
+  const row = { id: item.id, user_id: userId, name: item.name };
+  if (table === 'modules') row.checklist = item.checklist || [];
+  return row;
 }
 
 export function profileFromRow(row) {

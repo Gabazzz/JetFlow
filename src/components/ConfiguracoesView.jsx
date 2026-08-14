@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { User, Layers, Tag, Box, Plus, Trash2, Edit2, Check, X, Camera, GripVertical, Kanban, LogOut } from 'lucide-react';
+import { User, Layers, Tag, Box, Plus, Trash2, Edit2, Check, X, Camera, GripVertical, Kanban, LogOut, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function ConfiguracoesView({
   profile, onUpdateProfile,
   accountEmail, onSignOut,
   plans, onAddPlan, onEditPlan, onRemovePlan,
-  modules, onAddModule, onEditModule, onRemoveModule,
+  modules, onAddModule, onEditModule, onRemoveModule, onUpdateModuleChecklist,
   offers, onAddOffer, onEditOffer, onRemoveOffer,
   stages, onAddStage, onEditStage, onRemoveStage, onReorderStages
 }) {
@@ -28,6 +28,8 @@ export default function ConfiguracoesView({
   const [newPlanName, setNewPlanName] = useState('');
   const [addingModule, setAddingModule] = useState(false);
   const [newModuleName, setNewModuleName] = useState('');
+  const [expandedModuleId, setExpandedModuleId] = useState(null);
+  const [newStepText, setNewStepText] = useState('');
   const [addingOffer, setAddingOffer] = useState(false);
   const [newOfferName, setNewOfferName] = useState('');
   const [addingStage, setAddingStage] = useState(false);
@@ -391,18 +393,140 @@ export default function ConfiguracoesView({
         })}
 
         {/* Tab: Módulos */}
-        {activeTab === 'modulos' && renderInlineListSection({
-          title: 'Gerenciar Módulos', items: modules,
-          getKey: m => m.id, getName: m => m.name,
-          editingId: editingModuleId, editName: editModuleName, setEditName: setEditModuleName,
-          onStartEdit: (m) => { setEditingModuleId(m.id); setEditModuleName(m.name); },
-          onConfirmEdit: (id) => { onEditModule(id, editModuleName); setEditingModuleId(null); },
-          onCancelEdit: () => setEditingModuleId(null),
-          onRemove: onRemoveModule,
-          isAdding: addingModule, setIsAdding: setAddingModule,
-          newName: newModuleName, setNewName: setNewModuleName,
-          onConfirmAdd: confirmAddModule
-        })}
+        {activeTab === 'modulos' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 className="section-title">Gerenciar Módulos</h3>
+              {!addingModule && (
+                <button className="btn-primary" style={{ padding: '8px 14px', fontSize: '13px' }} onClick={() => setAddingModule(true)}>
+                  <Plus size={14} /><span>Adicionar</span>
+                </button>
+              )}
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '-8px' }}>
+              Clique em um módulo para configurar as etapas do checklist de implantação dele. É esse checklist que aparece no Detalhe do Cliente e na Nota de Reunião.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {modules.map(mod => {
+                const isEditingThis = editingModuleId === mod.id;
+                const isExpanded = expandedModuleId === mod.id;
+                const checklist = mod.checklist || [];
+
+                const addStep = () => {
+                  if (!newStepText.trim()) return;
+                  onUpdateModuleChecklist(mod.id, [...checklist, { label: newStepText.trim(), checked: false }]);
+                  setNewStepText('');
+                };
+
+                return (
+                  <div
+                    key={mod.id}
+                    className={`settings-list-item ${isEditingThis ? 'edit-mode-active' : ''}`}
+                    style={{ flexDirection: 'column', alignItems: 'stretch', gap: isExpanded ? '14px' : 0 }}
+                  >
+                    {!isEditingThis ? (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <button
+                          type="button"
+                          onClick={() => { setExpandedModuleId(isExpanded ? null : mod.id); setNewStepText(''); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0, flex: 1, textAlign: 'left' }}
+                        >
+                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          <span style={{ fontWeight: '500' }}>{mod.name}</span>
+                          <span style={{ fontSize: '11px', color: '#666' }}>({checklist.length} etapa{checklist.length !== 1 ? 's' : ''})</span>
+                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn-icon" onClick={() => { setEditingModuleId(mod.id); setEditModuleName(mod.name); }} title="Renomear"><Edit2 size={14} /></button>
+                          <button className="btn-danger-icon" onClick={() => onRemoveModule(mod.id)} title="Remover"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', width: '100%', gap: '12px', alignItems: 'center' }}>
+                        <input
+                          type="text" className="form-input" style={{ flex: 1 }}
+                          value={editModuleName} onChange={e => setEditModuleName(e.target.value)}
+                          autoFocus
+                          onKeyDown={e => { if (e.key === 'Enter') { onEditModule(mod.id, editModuleName); setEditingModuleId(null); } if (e.key === 'Escape') setEditingModuleId(null); }}
+                        />
+                        <button className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={() => { onEditModule(mod.id, editModuleName); setEditingModuleId(null); }}><Check size={14} /></button>
+                        <button className="btn-icon" style={{ color: 'var(--badge-red)' }} onClick={() => setEditingModuleId(null)}><X size={14} /></button>
+                      </div>
+                    )}
+
+                    {isExpanded && (
+                      <div style={{ paddingLeft: '22px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {checklist.length === 0 && (
+                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Nenhuma etapa configurada ainda.</span>
+                        )}
+                        {checklist.map((step, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <input
+                              type="text" className="form-input" style={{ flex: 1, fontSize: '13px' }}
+                              value={step.label}
+                              onChange={e => {
+                                const updated = checklist.map((s, i) => i === idx ? { ...s, label: e.target.value } : s);
+                                onUpdateModuleChecklist(mod.id, updated);
+                              }}
+                            />
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#888', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox" className="premium-check"
+                                checked={!!step.checked}
+                                onChange={() => {
+                                  const updated = checklist.map((s, i) => i === idx ? { ...s, checked: !s.checked } : s);
+                                  onUpdateModuleChecklist(mod.id, updated);
+                                }}
+                              />
+                              Já vem marcado
+                            </label>
+                            <button
+                              className="btn-danger-icon"
+                              onClick={() => onUpdateModuleChecklist(mod.id, checklist.filter((_, i) => i !== idx))}
+                              title="Remover etapa"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text" className="form-input" style={{ flex: 1 }}
+                            placeholder="Nova etapa..."
+                            value={newStepText}
+                            onChange={e => setNewStepText(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addStep(); } }}
+                          />
+                          <button type="button" className="btn-secondary" onClick={addStep}>
+                            <Plus size={14} /><span>Adicionar etapa</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {modules.length === 0 && !addingModule && (
+                <div className="empty-state"><span className="empty-state-icon">📋</span><p>Nenhum módulo cadastrado. Clique em Adicionar.</p></div>
+              )}
+
+              {addingModule && (
+                <div className="settings-inline-add-row">
+                  <input
+                    type="text" className="form-input" style={{ flex: 1 }}
+                    value={newModuleName} onChange={e => setNewModuleName(e.target.value)}
+                    placeholder="Nome do novo módulo..."
+                    autoFocus
+                    onKeyDown={e => handleKeyDownInlineAdd(e, confirmAddModule, () => { setAddingModule(false); setNewModuleName(''); })}
+                  />
+                  <button className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={confirmAddModule}><Check size={16} /></button>
+                  <button className="btn-icon" style={{ color: 'var(--badge-red)' }} onClick={() => { setAddingModule(false); setNewModuleName(''); }}><X size={16} /></button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Tab: Ofertas */}
         {activeTab === 'ofertas' && renderInlineListSection({

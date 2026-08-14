@@ -104,9 +104,8 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
   return (
     <aside className="sidebar">
       {/* Brand Header */}
-      <div className="logo-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '16px' }}>
-        <img src={jetflowLogo} alt="JetFlow" style={{ height: '30px', width: 'auto', objectFit: 'contain', alignSelf: 'flex-start' }} />
-        <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>CRM Onboarding</span>
+      <div className="logo-container" style={{ display: 'flex', padding: '16px' }}>
+        <img src={jetflowLogo} alt="JetFlow" style={{ height: '48px', width: 'auto', objectFit: 'contain', alignSelf: 'flex-start' }} />
       </div>
 
       {/* Global Search */}

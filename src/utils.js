@@ -82,6 +82,15 @@ export function getTodayBR() {
   return `${day}/${month}/${year}`;
 }
 
+// Pushes a BR-format date string ("DD/MM/YYYY") forward (or back) by N days.
+// Falls back to today when there's no date yet — used by every "snooze"
+// action and by day-by-day navigation (e.g. the Tarefas queue).
+export function addDaysToBRDate(brDateStr, days) {
+  const base = brDateStr ? parseBRDate(brDateStr) : parseBRDate(getTodayBR());
+  base.setDate(base.getDate() + days);
+  return formatBRDate(base);
+}
+
 export function getNowTimeBR() {
   const { hour, minute } = getSaoPauloDateParts();
   return `${hour}:${minute}`;

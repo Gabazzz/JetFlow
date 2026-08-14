@@ -18,8 +18,7 @@ import {
   createDefaultAdditionalSteps,
   getTodayBR,
   getNowTimeBR,
-  parseBRDate,
-  formatBRDate
+  addDaysToBRDate
 } from './utils';
 
 import { Bell, X, Plus } from 'lucide-react';
@@ -27,15 +26,6 @@ import CustomDatePicker from './components/CustomDatePicker';
 import CustomSelect from './components/CustomSelect';
 import { supabase } from './lib/supabaseClient';
 import { loadAllData, clientToRow, ticketToRow, taskToRow, catalogToRow, syncTable, syncStages, syncProfile } from './lib/supabaseSync';
-
-// Pushes a BR-format date string ("DD/MM/YYYY") forward by N days — used by
-// every "snooze" action in the Tarefas queue. Falls back to today when the
-// item had no deadline yet.
-function addDaysToBRDate(brDateStr, days) {
-  const base = brDateStr ? parseBRDate(brDateStr) : parseBRDate(getTodayBR());
-  base.setDate(base.getDate() + days);
-  return formatBRDate(base);
-}
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState('dashboard');
@@ -573,6 +563,16 @@ export default function App() {
     }));
   };
 
+  const handleSnoozeClientTask = (clientId, taskId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        tasks: (c.tasks || []).map(t => t.id === taskId ? { ...t, deadline: addDaysToBRDate(t.deadline, 1) } : t)
+      };
+    }));
+  };
+
   // Gather overdue or today's notifications
   const alertNotifications = [];
   const todayStrAlerts = getTodayBR();
@@ -718,6 +718,8 @@ export default function App() {
           onSnoozeClientNextContact={handleSnoozeClientNextContact}
           onRemoveClientReminder={handleRemoveClientReminder}
           onSnoozeClientReminder={handleSnoozeClientReminder}
+          onCompleteClientTask={handleCompleteClientTask}
+          onSnoozeClientTask={handleSnoozeClientTask}
           onResolveTicket={handleResolveTicket}
           onAddStandaloneTask={handleAddStandaloneTask}
           onToggleStandaloneTask={handleToggleStandaloneTask}

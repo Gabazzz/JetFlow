@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import jetflowLogo from '../assets/jetflow-logo.webp';
 
 export default function Auth() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
@@ -38,16 +39,8 @@ export default function Auth() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)', padding: '20px' }}>
       <div style={{ width: '100%', maxWidth: '380px', backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '12px', padding: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '28px' }}>
-          <div style={{ backgroundColor: 'var(--green-primary)', padding: '6px', borderRadius: '6px' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 22H22L12 2Z" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '15px', fontWeight: '700', color: '#fff', lineHeight: '1.2' }}>Jetsales</span>
-            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>CRM Onboarding</span>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px' }}>
+          <img src={jetflowLogo} alt="JetFlow" style={{ maxWidth: '220px', width: '100%', height: 'auto' }} />
         </div>
 
         <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>

@@ -7,6 +7,7 @@ import {
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import NotaReuniaoModal from './NotaReuniaoModal';
+import jetflowIcon from '../assets/jetflow-icon.png';
 
 export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket, onUpdateClient, onUpdateChecklist, onUpdateAdditionalSteps }) {
   // Client context — reused as-is when the quick action is opened from within a client's page
@@ -108,13 +109,9 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
     <aside className="sidebar">
       {/* Brand Header */}
       <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px' }}>
-        <div style={{ backgroundColor: 'var(--green-primary)', padding: '6px', borderRadius: '6px' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 22H22L12 2Z" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
+        <img src={jetflowIcon} alt="JetFlow" style={{ width: '32px', height: '32px', borderRadius: '7px', flexShrink: 0 }} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span className="logo-text" style={{ fontSize: '15px', fontWeight: '700', color: '#fff', lineHeight: '1.2' }}>Jetsales</span>
+          <span className="logo-text" style={{ fontSize: '15px', fontWeight: '700', color: '#fff', lineHeight: '1.2' }}>JetFlow</span>
           <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>CRM Onboarding</span>
         </div>
       </div>

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Sparkles, Eraser, Copy, RefreshCw, Building2, Calendar,
-  Clock, Users, DollarSign,
-  AlertTriangle, Video, Plus, Trash2
+  Clock, Users, DollarSign, Plus, Trash2
 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
@@ -16,7 +15,8 @@ const STATUS_OPTIONS = [
   { value: 'Implantação concluída', emoji: '✅' }
 ];
 
-const NUMERO_REUNIAO_OPTIONS = Array.from({ length: 20 }, (_, i) => `${i + 1}ª reunião`);
+const NUMERO_REUNIAO_BASE = Array.from({ length: 8 }, (_, i) => `${i + 1}ª reunião`);
+const NUMERO_REUNIAO_OPTIONS = [...NUMERO_REUNIAO_BASE, 'Retreinamento', 'Outro'];
 
 const UPSELL_STATUS_PHRASE = {
   'Interesse demonstrado': (produtos) => `Interesse demonstrado em ${produtos}.`,
@@ -28,56 +28,82 @@ const UPSELL_STATUS_PHRASE = {
 
 const EMPTY_DIFF = { moduleGroups: [], doneSteps: [], pendingSteps: [] };
 
-function DynamicListField({ items, onAdd, onRemove, placeholder, addLabel }) {
-  const [value, setValue] = useState('');
-  const handleAdd = () => {
-    if (!value.trim()) return;
-    onAdd(value.trim());
-    setValue('');
-  };
+function SectionHeader({ number, title }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      {items.map((item, idx) => (
-        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ flex: 1, fontSize: '13px', padding: '8px 10px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px', color: '#ddd' }}>{item}</span>
-          <button type="button" className="btn-danger-icon" onClick={() => onRemove(idx)} title="Remover"><Trash2 size={13} /></button>
-        </div>
-      ))}
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <input
-          type="text"
-          className="form-input"
-          style={{ flex: 1 }}
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          placeholder={placeholder}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
-        />
-        <button type="button" className="btn-secondary" onClick={handleAdd}>
-          <Plus size={14} />
-          <span>{addLabel}</span>
-        </button>
-      </div>
+    <div className="nota-section-header">
+      <span className="nota-section-header-label">{number}. {title}</span>
+      <span className="nota-section-header-line" />
     </div>
   );
+}
+
+// Shared by "O que foi realizado" and "O que ficou pendente" — both read the
+// same live checklist diff, just filtered to done vs. pending, and render
+// each item as a toggleable pill instead of a checkbox row.
+function ModulePillGrid({ groups, onToggle, emptyText }) {
+  if (groups.length === 0) {
+    return <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{emptyText}</span>;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {groups.map(g => (
+        <div key={g.groupName}>
+          <span className="nota-module-group-label">{g.groupName}</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+            {g.items.map(it => (
+              <button
+                key={it.key}
+                type="button"
+                className={`preset-pill ${it.checked ? 'active' : ''}`}
+                onClick={() => onToggle(it)}
+              >
+                {it.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function buildPillGroups(moduleGroups, steps, done) {
+  const groups = moduleGroups
+    .filter(m => (done ? m.done.length > 0 : m.pending.length > 0))
+    .map(m => ({
+      groupName: m.moduleName,
+      items: (done ? m.done : m.pending).map(({ item, idx }) => ({
+        key: `${m.moduleName}__${idx}`,
+        label: item.label,
+        checked: done,
+        moduleName: m.moduleName,
+        idx
+      }))
+    }));
+  if (steps.length > 0) {
+    groups.push({
+      groupName: 'Etapas Adicionais',
+      items: steps.map(step => ({ key: `step__${step.id}`, label: step.label, checked: done, stepId: step.id }))
+    });
+  }
+  return groups;
 }
 
 const initialFormState = () => ({
   numeroReuniao: '',
   data: getTodayBR(),
   proximaReuniao: '',
-  duracaoHoras: '',
-  duracaoMinutos: '',
+  duracaoTexto: '',
   participantes: [],
   status: 'Em andamento',
-  pendenciasManual: [],
   upsellProdutos: [],
   upsellStatus: 'Interesse demonstrado',
-  pontosAtencao: [],
-  gravacao: ''
+  upsellObservacao: '',
+  observacoes: '',
+  gravacoes: ['']
 });
 
-function computeRealizadoLines(form, diff) {
+function computeRealizadoLines(diff) {
   const lines = [];
   diff.moduleGroups.forEach(m => {
     m.done.forEach(({ item }) => lines.push(getItemDoneText(item)));
@@ -86,12 +112,12 @@ function computeRealizadoLines(form, diff) {
   return lines;
 }
 
-function computePendenciaLines(form, diff) {
+function computePendenciaLines(diff) {
   const lines = [];
   diff.moduleGroups.forEach(m => {
     m.pending.forEach(({ item }) => lines.push(getItemPendingText(item)));
   });
-  form.pendenciasManual.forEach(p => lines.push(p));
+  diff.pendingSteps.forEach(step => lines.push(getItemPendingText(step)));
   return lines;
 }
 
@@ -104,31 +130,21 @@ function buildNotaText(form, diff, responsavelNome) {
 
   lines.push(`📅 Data: ${form.data}`);
   if (form.proximaReuniao) lines.push(`📅 Próxima reunião: ${form.proximaReuniao}`);
-
-  const h = parseInt(form.duracaoHoras, 10) || 0;
-  const m = parseInt(form.duracaoMinutos, 10) || 0;
-  if (h > 0 || m > 0) {
-    let duracaoStr = '';
-    if (h > 0 && m > 0) duracaoStr = `${h}h e ${m}min`;
-    else if (h > 0) duracaoStr = `${h}h`;
-    else duracaoStr = `${m}min`;
-    lines.push(`⏱️ Duração: ${duracaoStr}`);
-  }
-
+  if (form.duracaoTexto.trim()) lines.push(`⏱️ Duração: ${form.duracaoTexto.trim()}`);
   if (form.participantes.length > 0) lines.push(`👥 Participantes: ${form.participantes.join(', ')}`);
 
   lines.push('');
   const statusMeta = STATUS_OPTIONS.find(s => s.value === form.status) || STATUS_OPTIONS[0];
   lines.push(`${statusMeta.emoji} STATUS: ${statusMeta.value}`);
 
-  const realizadoLines = computeRealizadoLines(form, diff);
+  const realizadoLines = computeRealizadoLines(diff);
   if (realizadoLines.length > 0) {
     lines.push('');
     lines.push('🛠️ REALIZADO:');
     realizadoLines.forEach(p => lines.push(`• ${p}`));
   }
 
-  const pendenciaLines = computePendenciaLines(form, diff);
+  const pendenciaLines = computePendenciaLines(diff);
   if (pendenciaLines.length > 0) {
     lines.push('');
     lines.push('🔍 PENDÊNCIAS:');
@@ -140,18 +156,20 @@ function buildNotaText(form, diff, responsavelNome) {
     lines.push('💰 UPSELL / OPORTUNIDADE:');
     const phraseFn = UPSELL_STATUS_PHRASE[form.upsellStatus] || UPSELL_STATUS_PHRASE['Interesse demonstrado'];
     lines.push(phraseFn(form.upsellProdutos.join(', ')));
+    if (form.upsellObservacao.trim()) lines.push(form.upsellObservacao.trim());
   }
 
-  if (form.pontosAtencao.length > 0) {
+  if (form.observacoes.trim()) {
     lines.push('');
-    lines.push('⚠️ PONTOS DE ATENÇÃO:');
-    form.pontosAtencao.forEach(p => lines.push(`• ${p}`));
+    lines.push('📝 OBSERVAÇÕES:');
+    lines.push(form.observacoes.trim());
   }
 
-  if (form.gravacao.trim()) {
+  const gravacoesValidas = form.gravacoes.map(g => g.trim()).filter(Boolean);
+  if (gravacoesValidas.length > 0) {
     lines.push('');
     lines.push('🎥 GRAVAÇÃO:');
-    lines.push(form.gravacao.trim());
+    gravacoesValidas.forEach(g => lines.push(gravacoesValidas.length > 1 ? `• ${g}` : g));
   }
 
   return lines.join('\n');
@@ -180,7 +198,11 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
     if (client?.id !== lastClientId.current) {
       lastClientId.current = client?.id || null;
       generatedOnceRef.current = false;
-      setForm(prev => ({ ...prev, pendenciasManual: [] }));
+      if (client) {
+        const count = client.meetingNotesCount || 0;
+        const defaultNumero = count < NUMERO_REUNIAO_BASE.length ? NUMERO_REUNIAO_BASE[count] : 'Outro';
+        setForm(prev => ({ ...prev, numeroReuniao: defaultNumero }));
+      }
     }
   }, [client?.id]);
 
@@ -198,6 +220,11 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
     const steps = client.additionalSteps || [];
     const updated = steps.map(s => s.id === stepId ? { ...s, checked: !s.checked } : s);
     onUpdateAdditionalSteps(client.id, updated);
+  };
+
+  const handleTogglePillItem = (it) => {
+    if (it.stepId) handleToggleStep(it.stepId);
+    else handleToggleModuleItem(it.moduleName, it.idx);
   };
 
   const toggleUpsellProduto = (produto) => {
@@ -218,19 +245,22 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
     setField('participantes', form.participantes.filter(p => p !== name));
   };
 
+  const updateGravacao = (idx, value) => setForm(prev => ({ ...prev, gravacoes: prev.gravacoes.map((g, i) => i === idx ? value : g) }));
+  const addGravacao = () => setForm(prev => ({ ...prev, gravacoes: [...prev.gravacoes, ''] }));
+  const removeGravacao = (idx) => setForm(prev => ({ ...prev, gravacoes: prev.gravacoes.filter((_, i) => i !== idx) }));
+
   const isFormDirty = () => {
     const initial = initialFormState();
     return (
       form.numeroReuniao !== '' ||
       form.proximaReuniao !== '' ||
-      form.duracaoHoras !== '' ||
-      form.duracaoMinutos !== '' ||
+      form.duracaoTexto !== '' ||
       form.participantes.length > 0 ||
       form.status !== initial.status ||
-      form.pendenciasManual.length > 0 ||
       form.upsellProdutos.length > 0 ||
-      form.pontosAtencao.length > 0 ||
-      form.gravacao !== '' ||
+      form.upsellObservacao !== '' ||
+      form.observacoes !== '' ||
+      form.gravacoes.some(g => g.trim() !== '') ||
       generatedNote !== null ||
       (!contextClient && selectedClientId !== '')
     );
@@ -276,25 +306,23 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
 
   // A nota é uma fotografia da reunião: só quando o modal fecha — e uma
   // nota chegou a ser gerada — o "retrato" salvo do checklist avança, para
-  // que a próxima reunião comece o diff do zero. Marcar itens aqui dentro
-  // já grava no checklist real na hora; isso só controla o que conta como
-  // "já reportado" pela próxima nota.
+  // que a próxima reunião comece o diff do zero, e o contador de reuniões
+  // sobe (usado para pré-selecionar "Qual reunião?" na próxima nota).
+  // Marcar itens aqui dentro já grava no checklist real na hora; isso só
+  // controla o que conta como "já reportado" pela próxima nota.
   const handleClose = () => {
     if (generatedOnceRef.current && client) {
       onUpdateClient(client.id, {
         checklistBaseline: JSON.parse(JSON.stringify(client.checklists || {})),
-        additionalStepsBaseline: JSON.parse(JSON.stringify(client.additionalSteps || []))
+        additionalStepsBaseline: JSON.parse(JSON.stringify(client.additionalSteps || [])),
+        meetingNotesCount: (client.meetingNotesCount || 0) + 1
       });
     }
     onClose();
   };
 
-  const hasChecklistItems = diff.moduleGroups.length > 0 || diff.doneSteps.length > 0 || diff.pendingSteps.length > 0;
-  const moduleUnified = diff.moduleGroups.map(m => ({
-    moduleName: m.moduleName,
-    items: [...m.done, ...m.pending].sort((a, b) => a.idx - b.idx)
-  }));
-  const stepsUnified = [...diff.doneSteps, ...diff.pendingSteps];
+  const doneGroups = buildPillGroups(diff.moduleGroups, diff.doneSteps, true);
+  const pendingGroups = buildPillGroups(diff.moduleGroups, diff.pendingSteps, false);
   const offerNames = (availableOffers || []).map(o => o.name);
 
   return (
@@ -307,9 +335,9 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
 
         <div className="modal-body nota-reuniao-layout">
           {/* ── FORM COLUMN ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '26px' }}>
 
-            {/* Client context */}
+            {/* Client context — obrigatório, fora da numeração */}
             {contextClient ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', backgroundColor: '#1E351F', border: '1px solid rgba(101, 255, 75, 0.3)', borderRadius: '8px' }}>
                 <Building2 size={15} style={{ color: 'var(--green-primary)' }} />
@@ -328,130 +356,124 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
               </div>
             )}
 
-            <div className="form-grid">
+            {/* 1. DADOS DA REUNIÃO */}
+            <div className="nota-section">
+              <SectionHeader number={1} title="Dados da Reunião" />
+
               <div className="form-group">
-                <label className="form-label">Número da reunião *</label>
+                <label className="form-label">Qual reunião? *</label>
                 <CustomSelect
                   value={form.numeroReuniao}
                   onChange={v => setField('numeroReuniao', v)}
                   placeholder="Selecionar..."
                   options={NUMERO_REUNIAO_OPTIONS}
                 />
-                {showValidation && !form.numeroReuniao.trim() && <span style={{ fontSize: '11px', color: 'var(--badge-red)' }}>Selecione o número da reunião.</span>}
+                {showValidation && !form.numeroReuniao.trim() && <span style={{ fontSize: '11px', color: 'var(--badge-red)' }}>Selecione a reunião.</span>}
               </div>
-              <div className="form-group">
-                <label className="form-label"><Calendar size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Data da reunião</label>
-                <CustomDatePicker value={form.data} onChange={v => setField('data', v)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label"><Calendar size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Próxima reunião</label>
-                <CustomDatePicker value={form.proximaReuniao} onChange={v => setField('proximaReuniao', v)} />
-              </div>
+
               <div className="form-group">
                 <label className="form-label"><Clock size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Duração</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input type="number" min="0" className="form-input" placeholder="Horas" value={form.duracaoHoras} onChange={e => setField('duracaoHoras', e.target.value)} />
-                  <input type="number" min="0" className="form-input" placeholder="Minutos" value={form.duracaoMinutos} onChange={e => setField('duracaoMinutos', e.target.value)} />
-                </div>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label"><Users size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Participantes</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ flex: 1 }}
-                  placeholder="Nome e Enter para adicionar..."
-                  value={participantInput}
-                  onChange={e => setParticipantInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addParticipant(); } }}
+                  placeholder='Ex: "1h", "1 hora e 30 min", "45 minutos"'
+                  value={form.duracaoTexto}
+                  onChange={e => setField('duracaoTexto', e.target.value)}
                 />
-                <button type="button" className="btn-secondary" onClick={addParticipant}><Plus size={14} /></button>
               </div>
-              {form.participantes.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
-                  {form.participantes.map(p => (
-                    <span key={p} className="badge" style={{ backgroundColor: '#1E1E1E', border: '1px solid #333', color: '#ddd', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      {p}
-                      <X size={11} style={{ cursor: 'pointer' }} onClick={() => removeParticipant(p)} />
-                    </span>
-                  ))}
+
+              <div className="form-group">
+                <label className="form-label"><Users size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Participantes</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ flex: 1 }}
+                    placeholder="Nome e Enter para adicionar..."
+                    value={participantInput}
+                    onChange={e => setParticipantInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addParticipant(); } }}
+                  />
+                  <button type="button" className="btn-secondary" onClick={addParticipant}><Plus size={14} /></button>
                 </div>
-              )}
+                {form.participantes.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
+                    {form.participantes.map(p => (
+                      <span key={p} className="badge" style={{ backgroundColor: '#1E1E1E', border: '1px solid #333', color: '#ddd', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        {p}
+                        <X size={11} style={{ cursor: 'pointer' }} onClick={() => removeParticipant(p)} />
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label"><Calendar size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Data da reunião</label>
+                  <CustomDatePicker value={form.data} onChange={v => setField('data', v)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label"><Calendar size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Próxima reunião</label>
+                  <CustomDatePicker value={form.proximaReuniao} onChange={v => setField('proximaReuniao', v)} />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Status da implantação</label>
+                <CustomSelect
+                  value={form.status}
+                  onChange={v => setField('status', v)}
+                  options={STATUS_OPTIONS.map(s => ({ value: s.value, label: `${s.emoji} ${s.value}` }))}
+                />
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Status da implantação</label>
-              <CustomSelect
-                value={form.status}
-                onChange={v => setField('status', v)}
-                options={STATUS_OPTIONS.map(s => ({ value: s.value, label: `${s.emoji} ${s.value}` }))}
-              />
-            </div>
-
-            {/* Pendências — checklist real do cliente, sempre visível e marcável
-                aqui mesmo: marcar um item já conclui a tarefa no módulo e ele
-                entra em REALIZADO na nota; o que ficar sem marcar é o que
-                resta para a próxima reunião. */}
-            <div className="form-group">
-              <label className="form-label">🔍 Pendências (marque o que foi feito nesta reunião)</label>
+            {/* 2. O QUE FOI REALIZADO */}
+            <div className="nota-section">
+              <SectionHeader number={2} title="O que foi realizado" />
               {!client ? (
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Selecione o cliente para ver o checklist.</span>
-              ) : !hasChecklistItems ? (
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Nenhum módulo contratado ou etapa adicional para este cliente.</span>
               ) : (
-                <div className="checkbox-group" style={{ gridTemplateColumns: '1fr', gap: '14px' }}>
-                  {moduleUnified.map(m => (
-                    <div key={m.moduleName}>
-                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.moduleName}</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                        {m.items.map(({ item, idx }) => (
-                          <label key={item.label} className="checkbox-label">
-                            <input type="checkbox" className="premium-check" checked={item.checked} onChange={() => handleToggleModuleItem(m.moduleName, idx)} />
-                            <span>{item.checked ? getItemDoneText(item) : getItemPendingText(item)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  {stepsUnified.length > 0 && (
-                    <div>
-                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Etapas Adicionais</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                        {stepsUnified.map(step => (
-                          <label key={step.id} className="checkbox-label">
-                            <input type="checkbox" className="premium-check" checked={step.checked} onChange={() => handleToggleStep(step.id)} />
-                            <span>{step.checked ? getItemDoneText(step) : getItemPendingText(step)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <ModulePillGrid
+                  groups={doneGroups}
+                  onToggle={handleTogglePillItem}
+                  emptyText="Nada marcado como realizado ainda nesta reunião."
+                />
               )}
-              <DynamicListField
-                items={form.pendenciasManual}
-                onAdd={(v) => setField('pendenciasManual', [...form.pendenciasManual, v])}
-                onRemove={(idx) => setField('pendenciasManual', form.pendenciasManual.filter((_, i) => i !== idx))}
-                placeholder="Outra pendência..."
-                addLabel="Adicionar pendência"
-              />
             </div>
 
-            <div className="form-group">
-              <label className="form-label"><DollarSign size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Upsell / Oportunidade</label>
-              <div className="checkbox-group" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+            {/* 3. O QUE FICOU PENDENTE */}
+            <div className="nota-section">
+              <SectionHeader number={3} title="O que ficou pendente" />
+              {!client ? (
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Selecione o cliente para ver o checklist.</span>
+              ) : (
+                <ModulePillGrid
+                  groups={pendingGroups}
+                  onToggle={handleTogglePillItem}
+                  emptyText="Nenhuma pendência — tudo em dia."
+                />
+              )}
+            </div>
+
+            {/* 4. POSSÍVEL UPSELL */}
+            <div className="nota-section">
+              <SectionHeader number={4} title="Possível Upsell" />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {offerNames.map(produto => (
-                  <label key={produto} className="checkbox-label">
-                    <input type="checkbox" className="premium-check" checked={form.upsellProdutos.includes(produto)} onChange={() => toggleUpsellProduto(produto)} />
-                    <span>{produto}</span>
-                  </label>
+                  <button
+                    key={produto}
+                    type="button"
+                    className={`preset-pill ${form.upsellProdutos.includes(produto) ? 'active' : ''}`}
+                    onClick={() => toggleUpsellProduto(produto)}
+                  >
+                    {produto}
+                  </button>
                 ))}
               </div>
               {form.upsellProdutos.length > 0 && (
-                <div style={{ marginTop: '8px' }}>
+                <div style={{ marginTop: '4px' }}>
                   <CustomSelect
                     value={form.upsellStatus}
                     onChange={v => setField('upsellStatus', v)}
@@ -459,22 +481,56 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
                   />
                 </div>
               )}
+              <div className="form-group" style={{ marginTop: '4px' }}>
+                <label className="form-label"><DollarSign size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Observação sobre o possível upsell</label>
+                <textarea
+                  className="form-textarea"
+                  rows={2}
+                  placeholder="Ex: cliente demonstrou interesse em X pelo motivo Y..."
+                  value={form.upsellObservacao}
+                  onChange={e => setField('upsellObservacao', e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label"><AlertTriangle size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Pontos de atenção</label>
-              <DynamicListField
-                items={form.pontosAtencao}
-                onAdd={(v) => setField('pontosAtencao', [...form.pontosAtencao, v])}
-                onRemove={(idx) => setField('pontosAtencao', form.pontosAtencao.filter((_, i) => i !== idx))}
-                placeholder="Ex.: Aguardar acesso ao Instagram"
-                addLabel="Adicionar"
+            {/* 5. OBSERVAÇÕES */}
+            <div className="nota-section">
+              <SectionHeader number={5} title="Observações" />
+              <textarea
+                className="form-textarea"
+                rows={4}
+                placeholder="Qualquer outra informação relevante da reunião..."
+                value={form.observacoes}
+                onChange={e => setField('observacoes', e.target.value)}
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label"><Video size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />Link da gravação</label>
-              <input type="url" className="form-input" placeholder="https://..." value={form.gravacao} onChange={e => setField('gravacao', e.target.value)} />
+            {/* 6. GRAVAÇÃO */}
+            <div className="nota-section">
+              <SectionHeader number={6} title="Gravação" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {form.gravacoes.map((link, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="url"
+                      className="form-input"
+                      style={{ flex: 1 }}
+                      placeholder="https://..."
+                      value={link}
+                      onChange={e => updateGravacao(idx, e.target.value)}
+                    />
+                    {form.gravacoes.length > 1 && (
+                      <button type="button" className="btn-danger-icon" onClick={() => removeGravacao(idx)} title="Remover">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" className="nota-add-dashed-btn" onClick={addGravacao}>
+                  <Plus size={13} />
+                  <span>Adicionar outra gravação</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -492,33 +548,35 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
           </div>
         </div>
 
-        <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-          <div>
-            {copyFeedback && <span style={{ fontSize: '12px', color: 'var(--badge-green)', fontWeight: '600' }}>✓ Nota copiada!</span>}
+        <div className="modal-footer" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+            <div>
+              {copyFeedback && <span style={{ fontSize: '12px', color: 'var(--badge-green)', fontWeight: '600' }}>✓ Nota copiada!</span>}
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="btn-secondary" onClick={handleClear}>
+                <Eraser size={14} />
+                <span>Limpar</span>
+              </button>
+              {generatedNote && (
+                <button type="button" className="btn-secondary" onClick={handleGenerate}>
+                  <RefreshCw size={14} />
+                  <span>Gerar Novamente</span>
+                </button>
+              )}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="button" className="btn-secondary" onClick={handleClear}>
-              <Eraser size={14} />
-              <span>Limpar</span>
+          {generatedNote ? (
+            <button type="button" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleCopy}>
+              <Copy size={14} />
+              <span>Copiar Nota</span>
             </button>
-            {generatedNote && (
-              <button type="button" className="btn-secondary" onClick={handleGenerate}>
-                <RefreshCw size={14} />
-                <span>Gerar Novamente</span>
-              </button>
-            )}
-            {generatedNote ? (
-              <button type="button" className="btn-primary" onClick={handleCopy}>
-                <Copy size={14} />
-                <span>Copiar Nota</span>
-              </button>
-            ) : (
-              <button type="button" className="btn-primary" onClick={handleGenerate}>
-                <Sparkles size={14} />
-                <span>Gerar Nota</span>
-              </button>
-            )}
-          </div>
+          ) : (
+            <button type="button" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleGenerate}>
+              <Sparkles size={14} />
+              <span>Gerar Nota</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

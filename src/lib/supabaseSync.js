@@ -43,7 +43,8 @@ export function clientFromRow(row) {
     quickLinks: row.quick_links || {},
     meetings: row.meetings || [],
     tasks: row.tasks || [],
-    interestOffers: row.interest_offers || []
+    interestOffers: row.interest_offers || [],
+    meetingNotesCount: row.meeting_notes_count || 0
   };
 }
 
@@ -81,7 +82,8 @@ export function clientToRow(client, userId) {
     quick_links: client.quickLinks || {},
     meetings: client.meetings || [],
     tasks: client.tasks || [],
-    interest_offers: client.interestOffers || []
+    interest_offers: client.interestOffers || [],
+    meeting_notes_count: client.meetingNotesCount || 0
   };
 }
 

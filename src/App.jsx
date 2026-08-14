@@ -501,6 +501,10 @@ export default function App() {
     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, discordUrl } : t));
   };
 
+  const handleRemoveTicket = (ticketId) => {
+    setTickets(prev => prev.filter(t => t.id !== ticketId));
+  };
+
   // Gather overdue or today's notifications
   const alertNotifications = [];
   const todayStrAlerts = getTodayBR();
@@ -546,6 +550,7 @@ export default function App() {
         <DashboardView
           clients={clients}
           tickets={tickets}
+          profile={profile}
           onAddReminder={handleAddClientReminder}
           onUpdateReminder={handleEditClientReminder}
           onRemoveReminder={handleRemoveClientReminder}
@@ -641,6 +646,7 @@ export default function App() {
           onAddTicket={handleAddTicket}
           onUpdateTicketStatus={handleUpdateTicketStatus}
           onUpdateTicketLink={handleUpdateTicketLink}
+          onRemoveTicket={handleRemoveTicket}
           onNavigate={handleNavigate}
         />
       );

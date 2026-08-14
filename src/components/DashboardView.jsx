@@ -18,6 +18,7 @@ function formatEventTime(iso) {
 export default function DashboardView({
   clients,
   tickets,
+  profile,
   onAddReminder,
   onUpdateReminder,
   onRemoveReminder,
@@ -414,7 +415,7 @@ export default function DashboardView({
                             {m.title} - <span style={{ color: 'var(--green-primary)' }}>{m.clientName}</span>
                           </span>
                           <span style={{ fontSize: '11px', color: '#888' }}>
-                            🕐 {m.time} - 16:00 · Responsável: Gabriel Almeida
+                            🕐 {m.time} - 16:00 · Responsável: {profile?.name || 'Não definido'}
                           </span>
                         </div>
                       </div>

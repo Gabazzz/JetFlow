@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, LifeBuoy, ArrowRight, RotateCcw, Mail, MessageCircle, LayoutGrid, Link, Edit2, Check } from 'lucide-react';
+import { Plus, X, LifeBuoy, ArrowRight, RotateCcw, Mail, MessageCircle, LayoutGrid, Link, Edit2, Check, Trash2 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
 const PRIORITY_BADGE = {
@@ -21,7 +21,7 @@ const COLUMNS = [
   { status: 'Resolvido', label: 'Resolvido', accent: '#10B981', nextLabel: 'Reabrir', nextStatus: 'Aberto' }
 ];
 
-export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTicketStatus, onUpdateTicketLink, onNavigate }) {
+export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTicketStatus, onUpdateTicketLink, onRemoveTicket, onNavigate }) {
   const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
   const [tClientId, setTClientId] = useState('');
   const [tSubject, setTSubject] = useState('');
@@ -91,7 +91,21 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                           <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff', lineHeight: '1.4' }}>{ticket.subject}</span>
-                          <span className={`badge ${PRIORITY_BADGE[ticket.priority] || 'badge-estavel'}`} style={{ flexShrink: 0, fontSize: '9px' }}>{ticket.priority}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            <span className={`badge ${PRIORITY_BADGE[ticket.priority] || 'badge-estavel'}`} style={{ fontSize: '9px' }}>{ticket.priority}</span>
+                            <button
+                              className="btn-danger-icon"
+                              style={{ width: '22px', height: '22px' }}
+                              title="Excluir chamado"
+                              onClick={() => {
+                                if (window.confirm('Excluir este chamado de suporte? Essa ação não pode ser desfeita.')) {
+                                  onRemoveTicket(ticket.id);
+                                }
+                              }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </div>
 
                         {ticket.description && (

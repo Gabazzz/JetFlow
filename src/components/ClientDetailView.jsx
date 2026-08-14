@@ -9,6 +9,7 @@ import {
 import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, calculateHealthScore, getHealthTier, calculateNextContactDate, createDefaultAdditionalSteps, getTodayBR } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
+import { moduleChecklistsTemplate } from '../data/data';
 
 export default function ClientDetailView({ 
   client, 
@@ -150,7 +151,21 @@ export default function ClientDetailView({
   };
 
   const handleSavePlan = () => {
-    onUpdateClient(client.id, { plan, activeModules });
+    // Newly added modules need their checklist (and baseline) seeded from the
+    // template — otherwise getChecklistDiff finds zero items and the module
+    // never shows up in the meeting note.
+    const existingChecklists = client.checklists || {};
+    const existingBaseline = client.checklistBaseline || {};
+    const checklists = { ...existingChecklists };
+    const checklistBaseline = { ...existingBaseline };
+    activeModules.forEach(modName => {
+      if (!checklists[modName] && moduleChecklistsTemplate[modName]) {
+        checklists[modName] = JSON.parse(JSON.stringify(moduleChecklistsTemplate[modName]));
+        checklistBaseline[modName] = JSON.parse(JSON.stringify(moduleChecklistsTemplate[modName]));
+      }
+    });
+
+    onUpdateClient(client.id, { plan, activeModules, checklists, checklistBaseline });
     setIsEditingPlan(false);
   };
 

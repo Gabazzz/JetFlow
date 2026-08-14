@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { parseBRDate, formatBRDate, getTodayBR } from '../utils';
+import useFloatingPosition from '../hooks/useFloatingPosition';
 
 export default function CustomDatePicker({ value, onChange, placeholder = 'DD/MM/AAAA', required = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const floatPos = useFloatingPosition(triggerRef, isOpen, { maxHeight: 340 });
 
   const today = parseBRDate(getTodayBR());
 
@@ -26,7 +31,9 @@ export default function CustomDatePicker({ value, onChange, placeholder = 'DD/MM
   // Handle clicking outside to close
   useEffect(() => {
     function handleClickOutside(event) {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      const insideContainer = containerRef.current && containerRef.current.contains(event.target);
+      const insideDropdown = dropdownRef.current && dropdownRef.current.contains(event.target);
+      if (!insideContainer && !insideDropdown) {
         setIsOpen(false);
       }
     }
@@ -143,16 +150,17 @@ export default function CustomDatePicker({ value, onChange, placeholder = 'DD/MM
   return (
     <div className="custom-datepicker" ref={containerRef} style={{ position: 'relative', width: '100%' }}>
       {/* Date display input trigger */}
-      <div 
+      <div
+        ref={triggerRef}
         style={{ display: 'flex', alignItems: 'center', position: 'relative', cursor: 'pointer' }}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <input 
-          type="text" 
-          className="form-input" 
-          value={value} 
-          placeholder={placeholder} 
-          readOnly 
+        <input
+          type="text"
+          className="form-input"
+          value={value}
+          placeholder={placeholder}
+          readOnly
           required={required}
           style={{ width: '100%', paddingRight: '36px', cursor: 'pointer' }}
         />
@@ -160,8 +168,18 @@ export default function CustomDatePicker({ value, onChange, placeholder = 'DD/MM
       </div>
 
       {/* Dropdown calendar menu */}
-      {isOpen && (
-        <div className="datepicker-dropdown" onClick={(e) => e.stopPropagation()}>
+      {isOpen && floatPos && createPortal(
+        <div
+          ref={dropdownRef}
+          className="datepicker-dropdown"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            left: floatPos.left,
+            top: floatPos.top ?? undefined,
+            bottom: floatPos.bottom ?? undefined
+          }}
+        >
           <div className="datepicker-header">
             <button type="button" className="btn-icon" style={{ width: '28px', height: '28px' }} onClick={handlePrevMonth}>
               <ChevronLeft size={14} />
@@ -202,7 +220,8 @@ export default function CustomDatePicker({ value, onChange, placeholder = 'DD/MM
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

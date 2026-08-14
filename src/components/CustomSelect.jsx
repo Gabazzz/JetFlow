@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check, Search } from 'lucide-react';
+import useFloatingPosition from '../hooks/useFloatingPosition';
 
 // Drop-in replacement for a native <select> — the browser's own dropdown
 // list can't be restyled, so this renders a fully custom, theme-matched one.
@@ -18,7 +20,10 @@ export default function CustomSelect({
   const [search, setSearch] = useState('');
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const wrapperRef = useRef(null);
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
   const searchRef = useRef(null);
+  const floatPos = useFloatingPosition(triggerRef, isOpen);
 
   const normalizedOptions = useMemo(
     () => options.map(opt => (typeof opt === 'string' ? { value: opt, label: opt } : opt)),
@@ -35,7 +40,9 @@ export default function CustomSelect({
 
   useEffect(() => {
     function handleClickOutside(e) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setIsOpen(false);
+      const insideWrapper = wrapperRef.current && wrapperRef.current.contains(e.target);
+      const insideDropdown = dropdownRef.current && dropdownRef.current.contains(e.target);
+      if (!insideWrapper && !insideDropdown) setIsOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -79,6 +86,7 @@ export default function CustomSelect({
     <div className="custom-select" style={style} ref={wrapperRef} onKeyDown={handleKeyDown}>
       <button
         type="button"
+        ref={triggerRef}
         className={`custom-select-trigger ${isOpen ? 'open' : ''}`}
         onClick={() => !disabled && setIsOpen(v => !v)}
         disabled={disabled}
@@ -87,8 +95,19 @@ export default function CustomSelect({
         <ChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease-out', flexShrink: 0 }} />
       </button>
 
-      {isOpen && (
-        <div className="custom-select-dropdown">
+      {isOpen && floatPos && createPortal(
+        <div
+          ref={dropdownRef}
+          className="custom-select-dropdown"
+          style={{
+            position: 'fixed',
+            left: floatPos.left,
+            width: floatPos.width,
+            top: floatPos.top ?? undefined,
+            bottom: floatPos.bottom ?? undefined,
+            transformOrigin: floatPos.openUp ? 'bottom center' : 'top center'
+          }}
+        >
           {searchable && (
             <div className="custom-select-search">
               <Search size={13} />
@@ -119,7 +138,8 @@ export default function CustomSelect({
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

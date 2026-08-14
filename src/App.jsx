@@ -727,7 +727,7 @@ export default function App() {
     }
 
     if (currentRoute === 'agenda') {
-      return <AgendaView />;
+      return <AgendaView clients={clients} accountEmail={session.user.email} />;
     }
 
     if (currentRoute === 'tarefas') {

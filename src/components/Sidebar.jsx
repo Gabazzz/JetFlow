@@ -7,7 +7,7 @@ import {
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import NotaReuniaoModal from './NotaReuniaoModal';
-import jetflowIcon from '../assets/jetflow-icon.png';
+import jetflowLogo from '../assets/jetflow-logo.webp';
 
 export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket, onUpdateClient, onUpdateChecklist, onUpdateAdditionalSteps }) {
   // Client context — reused as-is when the quick action is opened from within a client's page
@@ -104,12 +104,9 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
   return (
     <aside className="sidebar">
       {/* Brand Header */}
-      <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px' }}>
-        <img src={jetflowIcon} alt="JetFlow" style={{ width: '32px', height: '32px', borderRadius: '7px', flexShrink: 0 }} />
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span className="logo-text" style={{ fontSize: '15px', fontWeight: '700', color: '#fff', lineHeight: '1.2' }}>JetFlow</span>
-          <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>CRM Onboarding</span>
-        </div>
+      <div className="logo-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '16px' }}>
+        <img src={jetflowLogo} alt="JetFlow" style={{ height: '30px', width: 'auto', objectFit: 'contain', alignSelf: 'flex-start' }} />
+        <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>CRM Onboarding</span>
       </div>
 
       {/* Global Search */}

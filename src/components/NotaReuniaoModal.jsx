@@ -31,7 +31,8 @@ const EMPTY_DIFF = { moduleGroups: [], doneSteps: [], pendingSteps: [] };
 function SectionHeader({ number, title }) {
   return (
     <div className="nota-section-header">
-      <span className="nota-section-header-label">{number}. {title}</span>
+      <span className="nota-section-header-number">{number}</span>
+      <span className="nota-section-header-label">{title}</span>
       <span className="nota-section-header-line" />
     </div>
   );
@@ -335,7 +336,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
 
         <div className="modal-body nota-reuniao-layout">
           {/* ── FORM COLUMN ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '26px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
             {/* Client context — obrigatório, fora da numeração */}
             {contextClient ? (

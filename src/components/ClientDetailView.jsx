@@ -900,13 +900,16 @@ export default function ClientDetailView({
           </div>
 
           {/* Section: Tarefas */}
-          {(client.tasks && client.tasks.length > 0) && (
+          {(() => {
+            const openTasks = (client.tasks || []).filter(t => !t.completed);
+            if (openTasks.length === 0) return null;
+            return (
             <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
               <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>
-                TAREFAS ({client.tasks.length})
+                TAREFAS ({openTasks.length})
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {client.tasks.map(task => (
+                {openTasks.map(task => (
                   <label
                     key={task.id}
                     className="checklist-item"
@@ -924,7 +927,8 @@ export default function ClientDetailView({
                 ))}
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* Section: Chamados de Suporte */}
           <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>

@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   CheckSquare, Clock, ExternalLink, Plus, X, User, AlertTriangle,
-  MessageSquare, Check, ChevronLeft, ChevronRight
+  MessageSquare, Check, ChevronLeft, ChevronRight, ChevronDown, Undo2
 } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 import { getTodayBR, parseBRDate, getClientPhase, addDaysToBRDate } from '../utils';
@@ -54,6 +54,7 @@ export default function TarefasView({
   onSnoozeClientReminder,
   onCompleteClientTask,
   onSnoozeClientTask,
+  onUncompleteClientTask,
   onResolveTicket,
   onAddStandaloneTask,
   onToggleStandaloneTask,
@@ -67,6 +68,7 @@ export default function TarefasView({
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [isCompletedOpen, setIsCompletedOpen] = useState(false);
 
   const todayStr = getTodayBR();
   const todayDateObj = parseBRDate(todayStr);
@@ -118,6 +120,7 @@ export default function TarefasView({
       });
 
       (client.tasks || []).forEach(t => {
+        if (t.completed) return;
         items.push({
           id: `clienttask_${t.id}`,
           kind: 'clientTask',
@@ -166,10 +169,64 @@ export default function TarefasView({
     return items;
   }, [clients, tickets, standaloneTasks, todayStr]);
 
+  // Items already finished, kept around just for the collapsed "Concluídas"
+  // section on the day they were completed. Next-action/reminder/ticket
+  // items don't carry a completion date today, so only standalone and
+  // client tasks (which do) show up here.
+  const completedItems = useMemo(() => {
+    const items = [];
+
+    clients.forEach(client => {
+      const clientTickets = tickets.filter(t => t.clientId === client.id);
+      const phase = getClientPhase(client, clientTickets, todayStr);
+      const origin = phase === 'Onboarding' ? 'Onboarding' : 'CS';
+
+      (client.tasks || []).forEach(t => {
+        if (!t.completed || !t.completedAt) return;
+        items.push({
+          id: `clienttask_${t.id}`,
+          kind: 'clientTask',
+          clientTaskId: t.id,
+          title: t.text,
+          clientId: client.id,
+          clientName: client.name,
+          origin,
+          completedAt: t.completedAt
+        });
+      });
+    });
+
+    standaloneTasks.forEach(t => {
+      if (!t.completed || !t.completedAt) return;
+      items.push({
+        id: `task_${t.id}`,
+        kind: 'task',
+        taskId: t.id,
+        title: t.title,
+        clientId: null,
+        clientName: null,
+        origin: 'Pessoal',
+        completedAt: t.completedAt
+      });
+    });
+
+    return items;
+  }, [clients, tickets, standaloneTasks, todayStr]);
+
   const filteredItems = useMemo(() => {
     if (activeFilter === 'Todas') return allItems;
     return allItems.filter(i => i.origin === activeFilter);
   }, [allItems, activeFilter]);
+
+  const completedForSelectedDay = useMemo(() => {
+    return completedItems.filter(i =>
+      i.completedAt === selectedDateBR && (activeFilter === 'Todas' || i.origin === activeFilter)
+    );
+  }, [completedItems, selectedDateBR, activeFilter]);
+
+  useEffect(() => {
+    setIsCompletedOpen(false);
+  }, [selectedDateBR]);
 
   // Everything is scoped to the selected date: overdue items only make
   // sense relative to today, items due exactly on the selected date always
@@ -228,6 +285,11 @@ export default function TarefasView({
     else if (item.kind === 'reminder') onSnoozeClientReminder(item.clientId, item.reminderId);
     else if (item.kind === 'clientTask') onSnoozeClientTask(item.clientId, item.clientTaskId);
     else if (item.kind === 'task') onSnoozeStandaloneTask(item.taskId);
+  };
+
+  const handleUndoComplete = (item) => {
+    if (item.kind === 'clientTask') onUncompleteClientTask(item.clientId, item.clientTaskId);
+    else if (item.kind === 'task') onToggleStandaloneTask(item.taskId);
   };
 
   const handleConfirmResolveTicket = (item) => {
@@ -455,6 +517,67 @@ export default function TarefasView({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Concluídas — collapsed by default, scoped to the day being browsed */}
+      {completedForSelectedDay.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button
+            onClick={() => setIsCompletedOpen(o => !o)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+              color: '#666', alignSelf: 'flex-start'
+            }}
+          >
+            <ChevronDown size={14} style={{ transform: isCompletedOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease-out' }} />
+            <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Concluídas {selectedDateLabel === 'Hoje' ? 'hoje' : `em ${selectedDateBR}`}
+            </span>
+            <span style={{ fontSize: '11px', color: '#555' }}>({completedForSelectedDay.length})</span>
+          </button>
+
+          {isCompletedOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {completedForSelectedDay.map(item => (
+                <div
+                  key={item.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    backgroundColor: '#141414', border: '1px solid #232323', borderRadius: '8px',
+                    padding: '10px 16px'
+                  }}
+                >
+                  <Check size={14} style={{ color: 'var(--badge-green)', flexShrink: 0 }} />
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '13px', color: '#888', textDecoration: 'line-through' }}>{item.title}</span>
+                    {item.origin === 'Pessoal' ? (
+                      <span className="type-badge" style={{ color: PESSOAL_COLOR.color, backgroundColor: PESSOAL_COLOR.bg }}>
+                        {item.origin}
+                      </span>
+                    ) : (
+                      <span className={`type-badge ${TYPE_BADGE_CLASS[item.origin]}`}>
+                        {item.origin}
+                      </span>
+                    )}
+                    {item.clientName && (
+                      <span
+                        style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#666', cursor: 'pointer' }}
+                        onClick={() => onNavigate(`clientes/${item.clientId}`)}
+                      >
+                        <User size={10} />
+                        {item.clientName}
+                      </span>
+                    )}
+                  </div>
+                  <button className="btn-icon" style={{ width: '28px', height: '28px' }} title="Desfazer conclusão" onClick={() => handleUndoComplete(item)}>
+                    <Undo2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -369,7 +369,7 @@ export default function App() {
         const task = (c.tasks || []).find(t => t.id === taskId);
         return {
           ...c,
-          tasks: (c.tasks || []).filter(t => t.id !== taskId),
+          tasks: (c.tasks || []).map(t => t.id === taskId ? { ...t, completed: true, completedAt: getTodayBR() } : t),
           activityHistory: task ? [
             { avatar: profile.avatarInitials, name: profile.name, action: `Concluiu tarefa: ${task.text}`, date: `${getTodayBR()} às ${getNowTimeBR()}`, isObservation: false },
             ...(c.activityHistory || [])
@@ -538,13 +538,16 @@ export default function App() {
   // State Mutators — Standalone Tasks ("avulsas", Minha Fila Hoje)
   const handleAddStandaloneTask = (title, dueDate = '') => {
     setStandaloneTasks(prev => [
-      { id: `task_${Date.now()}`, title, dueDate, completed: false },
+      { id: `task_${Date.now()}`, title, dueDate, completed: false, completedAt: '' },
       ...prev
     ]);
   };
 
   const handleToggleStandaloneTask = (taskId) => {
-    setStandaloneTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+    setStandaloneTasks(prev => prev.map(t => t.id === taskId
+      ? { ...t, completed: !t.completed, completedAt: !t.completed ? getTodayBR() : '' }
+      : t
+    ));
   };
 
   const handleSnoozeStandaloneTask = (taskId) => {
@@ -577,6 +580,16 @@ export default function App() {
       return {
         ...c,
         tasks: (c.tasks || []).map(t => t.id === taskId ? { ...t, deadline: addDaysToBRDate(t.deadline, 1) } : t)
+      };
+    }));
+  };
+
+  const handleUncompleteClientTask = (clientId, taskId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        tasks: (c.tasks || []).map(t => t.id === taskId ? { ...t, completed: false, completedAt: '' } : t)
       };
     }));
   };
@@ -729,6 +742,7 @@ export default function App() {
           onRemoveClientReminder={handleRemoveClientReminder}
           onSnoozeClientReminder={handleSnoozeClientReminder}
           onCompleteClientTask={handleCompleteClientTask}
+          onUncompleteClientTask={handleUncompleteClientTask}
           onSnoozeClientTask={handleSnoozeClientTask}
           onResolveTicket={handleResolveTicket}
           onAddStandaloneTask={handleAddStandaloneTask}

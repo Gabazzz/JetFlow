@@ -123,6 +123,7 @@ export function taskFromRow(row) {
     title: row.title,
     dueDate: row.due_date || '',
     completed: !!row.completed,
+    completedAt: row.completed_at || '',
     createdAt: row.created_at
   };
 }
@@ -133,7 +134,8 @@ export function taskToRow(t, userId) {
     user_id: userId,
     title: t.title || '',
     due_date: t.dueDate || '',
-    completed: !!t.completed
+    completed: !!t.completed,
+    completed_at: t.completedAt || null
   };
 }
 

@@ -3,7 +3,7 @@ import { Calendar, Video, MapPin, ExternalLink, RefreshCw, ChevronLeft, ChevronR
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
-import { getTodayBR, toISODate, parseBRDate, formatBRDate } from '../utils';
+import { getTodayBR, getNowTimeBR, toISODate, parseBRDate, formatBRDate } from '../utils';
 
 function formatEventTime(iso) {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
@@ -39,7 +39,7 @@ function addMinutesToTime(hhmm, minutes) {
   return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
 }
 
-export default function AgendaView({ clients = [], accountEmail = '' }) {
+export default function AgendaView({ clients = [], accountEmail = '', profile, onUpdateClient }) {
   const [dateBR, setDateBR] = useState(getTodayBR());
   const [status, setStatus] = useState({ loading: true, connected: false, email: null });
   const [connecting, setConnecting] = useState(false);
@@ -55,6 +55,10 @@ export default function AgendaView({ clients = [], accountEmail = '' }) {
   const [meetingTime, setMeetingTime] = useState('09:00');
   const [meetingDuration, setMeetingDuration] = useState(30);
   const [extraGuestEmail, setExtraGuestEmail] = useState('');
+  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createReauthRequired, setCreateReauthRequired] = useState(false);
+  const [createdEvent, setCreatedEvent] = useState(null);
 
   const checkStatus = useCallback(async () => {
     const { data, error } = await supabase.functions.invoke('google-calendar-status');
@@ -135,6 +139,9 @@ export default function AgendaView({ clients = [], accountEmail = '' }) {
     setMeetingTime('09:00');
     setMeetingDuration(30);
     setExtraGuestEmail('');
+    setCreateError('');
+    setCreateReauthRequired(false);
+    setCreatedEvent(null);
     setMeetingStep('form');
     setIsNewMeetingOpen(true);
   };
@@ -154,7 +161,56 @@ export default function AgendaView({ clients = [], accountEmail = '' }) {
   const handleSubmitMeetingForm = (e) => {
     e.preventDefault();
     if (!meetingTitle.trim()) return;
+    setCreateError('');
+    setCreateReauthRequired(false);
     setMeetingStep('preview');
+  };
+
+  const handleCreateMeeting = async () => {
+    setIsCreatingMeeting(true);
+    setCreateError('');
+    setCreateReauthRequired(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-create-event`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: meetingTitle.trim(),
+          date: toISODate(meetingDateBR),
+          time: meetingTime,
+          durationMinutes: meetingDuration,
+          guests: meetingGuests.map(g => g.email).filter(Boolean)
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setCreateError(data.error || 'Erro ao criar reunião.');
+        setCreateReauthRequired(!!data.reauthRequired);
+        return;
+      }
+      setCreatedEvent(data.event);
+      if (selectedMeetingClient) {
+        onUpdateClient(selectedMeetingClient.id, {
+          activityHistory: [
+            {
+              avatar: profile.avatarInitials,
+              name: profile.name,
+              action: `Agendou reunião no Google Agenda: ${meetingTitle.trim()}`,
+              date: `${getTodayBR()} às ${getNowTimeBR()}`,
+              isObservation: false
+            },
+            ...(selectedMeetingClient.activityHistory || [])
+          ]
+        });
+      }
+      if (meetingDateBR === dateBR) loadEvents();
+      setMeetingStep('success');
+    } catch (e) {
+      setCreateError('Erro ao criar reunião. Tente novamente.');
+    } finally {
+      setIsCreatingMeeting(false);
+    }
   };
 
   if (status.loading) {
@@ -249,9 +305,8 @@ export default function AgendaView({ clients = [], accountEmail = '' }) {
         </div>
       )}
 
-      {/* New meeting modal — UI-only preview for now; wiring the actual
-          Google Calendar event creation (calendar.events scope) is the
-          next step. */}
+      {/* New meeting modal — creates a real event on the user's primary
+          Google Calendar (Meet link + email invites via sendUpdates=all). */}
       {isNewMeetingOpen && (
         <div className="modal-overlay" onClick={() => setIsNewMeetingOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
@@ -366,16 +421,56 @@ export default function AgendaView({ clients = [], accountEmail = '' }) {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 12px', backgroundColor: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '6px' }}>
-                    <AlertCircle size={14} style={{ color: '#38BDF8', flexShrink: 0, marginTop: '1px' }} />
-                    <span style={{ fontSize: '12px', color: '#38BDF8' }}>
-                      Prévia apenas — a criação real do evento no Google Agenda (com link do Meet automático) ainda será conectada.
-                    </span>
+                  {createError && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', backgroundColor: '#2A1414', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <AlertCircle size={14} style={{ color: '#EF4444', flexShrink: 0, marginTop: '1px' }} />
+                        <span style={{ fontSize: '12px', color: '#EF4444' }}>{createError}</span>
+                      </div>
+                      {createReauthRequired && (
+                        <button type="button" className="btn-secondary" style={{ alignSelf: 'flex-start', padding: '6px 12px', fontSize: '12px' }} onClick={handleConnect} disabled={connecting}>
+                          {connecting ? 'Abrindo...' : 'Reconectar Google Agenda'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn-secondary" onClick={() => setMeetingStep('form')} disabled={isCreatingMeeting}>Voltar</button>
+                  <button type="button" className="btn-primary" onClick={handleCreateMeeting} disabled={isCreatingMeeting}>
+                    {isCreatingMeeting ? 'Criando...' : 'Criar Reunião'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {meetingStep === 'success' && createdEvent && (
+              <>
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '30px 20px', textAlign: 'center' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Calendar size={22} style={{ color: 'var(--badge-green)' }} />
+                  </div>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff', margin: 0 }}>Reunião criada!</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                    Convite enviado por e-mail para os participantes.
+                  </p>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {createdEvent.htmlLink && (
+                      <a href={createdEvent.htmlLink} target="_blank" rel="noreferrer" className="btn-secondary">
+                        <ExternalLink size={13} />
+                        <span>Abrir no Google Agenda</span>
+                      </a>
+                    )}
+                    {createdEvent.meetLink && (
+                      <a href={createdEvent.meetLink} target="_blank" rel="noreferrer" className="btn-primary">
+                        <Video size={13} />
+                        <span>Entrar no Meet</span>
+                      </a>
+                    )}
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn-secondary" onClick={() => setMeetingStep('form')}>Voltar</button>
-                  <button type="button" className="btn-primary" onClick={() => setIsNewMeetingOpen(false)}>Fechar</button>
+                  <button type="button" className="btn-primary" onClick={() => setIsNewMeetingOpen(false)}>Concluir</button>
                 </div>
               </>
             )}

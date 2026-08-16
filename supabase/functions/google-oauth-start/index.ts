@@ -7,7 +7,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GOOGLE_CLIENT_ID = "245398876872-amkfu3q4pp1q3bg7aug1r0kht7n4pmm4.apps.googleusercontent.com";
 const REDIRECT_URI = "https://lgrusomfgvblcsgbiwdb.supabase.co/functions/v1/google-oauth-callback";
-const SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
+// calendar.events covers both reading and creating/editing events on the
+// user's calendars — the readonly scope used before doesn't allow creating
+// the "Nova Reunião" events, so this widens it in place. Existing connected
+// users need to reconnect once (prompt=consent below always re-shows the
+// grant screen, and the callback upserts the token row on the new scope).
+const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

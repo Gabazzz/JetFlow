@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Video, MapPin, ExternalLink, RefreshCw, ChevronLeft, ChevronRight, LogOut, AlertCircle, Plus, X, Users, Clock as ClockIcon } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Calendar, Video, MapPin, ExternalLink, RefreshCw, ChevronLeft, ChevronRight, LogOut, AlertCircle, Plus, X, Users, Clock as ClockIcon, Pencil } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
@@ -39,6 +39,47 @@ function addMinutesToTime(hhmm, minutes) {
   return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
 }
 
+function timeToMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToHHMM(total) {
+  const h = Math.floor(total / 60) % 24;
+  const m = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// São Paulo has had no DST since 2019 — the offset is always -03:00, so wall
+// time/date can be read straight off the UTC fields of (instant - 3h). Same
+// trick the Edge Functions use, kept consistent here for the conflict check
+// and for prefilling the edit form from an event's ISO start/end.
+function isoToSPParts(iso) {
+  const d = new Date(iso);
+  const shifted = new Date(d.getTime() - 3 * 60 * 60 * 1000);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    minutes: shifted.getUTCHours() * 60 + shifted.getUTCMinutes()
+  };
+}
+
+function isoToSPDateBR(iso) {
+  const { year, month, day } = isoToSPParts(iso);
+  return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+}
+
+function isoToSPMinutes(iso) {
+  return isoToSPParts(iso).minutes;
+}
+
+function closestDurationOption(minutes) {
+  return DURATION_OPTIONS.reduce((best, opt) =>
+    Math.abs(opt.value - minutes) < Math.abs(best - minutes) ? opt.value : best
+  , DURATION_OPTIONS[0].value);
+}
+
 export default function AgendaView({ clients = [], accountEmail = '', profile, onUpdateClient }) {
   const [dateBR, setDateBR] = useState(getTodayBR());
   const [status, setStatus] = useState({ loading: true, connected: false, email: null });
@@ -49,16 +90,25 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
 
   const [isNewMeetingOpen, setIsNewMeetingOpen] = useState(false);
   const [meetingStep, setMeetingStep] = useState('form');
+  const [editingEventId, setEditingEventId] = useState(null);
   const [meetingClientId, setMeetingClientId] = useState('');
   const [meetingTitle, setMeetingTitle] = useState('');
   const [meetingDateBR, setMeetingDateBR] = useState(dateBR);
   const [meetingTime, setMeetingTime] = useState('09:00');
   const [meetingDuration, setMeetingDuration] = useState(30);
-  const [extraGuestEmail, setExtraGuestEmail] = useState('');
+  const [guestEmails, setGuestEmails] = useState([]);
+  const [guestInput, setGuestInput] = useState('');
+  const [timeConflictError, setTimeConflictError] = useState('');
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createReauthRequired, setCreateReauthRequired] = useState(false);
   const [createdEvent, setCreatedEvent] = useState(null);
+
+  // Other timed events on the day being scheduled — feeds the conflict
+  // check below. Excludes the event currently being edited (so an
+  // unmoved meeting doesn't block its own slot) and all-day events
+  // (holidays/reminders shouldn't eat every slot in the day).
+  const [meetingDayEvents, setMeetingDayEvents] = useState([]);
 
   const checkStatus = useCallback(async () => {
     const { data, error } = await supabase.functions.invoke('google-calendar-status');
@@ -106,6 +156,45 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
     if (status.connected) loadEvents();
   }, [status.connected, dateBR, loadEvents]);
 
+  const loadMeetingDayEvents = useCallback(async (brDate, excludeId) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const isoDate = toISODate(brDate);
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-events?date=${isoDate}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      const data = await res.json();
+      if (!res.ok || data.error || data.reauthRequired) {
+        setMeetingDayEvents([]);
+        return;
+      }
+      setMeetingDayEvents((data.events || []).filter(ev => !ev.allDay && ev.id !== excludeId));
+    } catch {
+      setMeetingDayEvents([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isNewMeetingOpen) return;
+    loadMeetingDayEvents(meetingDateBR, editingEventId);
+  }, [isNewMeetingOpen, meetingDateBR, editingEventId, loadMeetingDayEvents]);
+
+  // Slots that would overlap another meeting (at the currently chosen
+  // duration) are dropped from the list entirely, rather than shown
+  // disabled — once the picked start time clears the conflicting event's
+  // end, it reappears on its own.
+  const availableTimeOptions = useMemo(() => {
+    return TIME_OPTIONS.filter(opt => {
+      const slotStart = timeToMinutes(opt.value);
+      const slotEnd = slotStart + meetingDuration;
+      return !meetingDayEvents.some(ev => {
+        const evStart = isoToSPMinutes(ev.start);
+        const evEnd = isoToSPMinutes(ev.end);
+        return slotStart < evEnd && evStart < slotEnd;
+      });
+    });
+  }, [meetingDayEvents, meetingDuration]);
+
   const handleConnect = async () => {
     setConnecting(true);
     const { data, error } = await supabase.functions.invoke('google-oauth-start');
@@ -132,60 +221,108 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
 
   const selectedMeetingClient = clients.find(c => c.id === meetingClientId) || null;
 
-  const openNewMeetingModal = () => {
+  const resetMeetingModalState = () => {
     setMeetingClientId('');
     setMeetingTitle('');
-    setMeetingDateBR(dateBR);
     setMeetingTime('09:00');
     setMeetingDuration(30);
-    setExtraGuestEmail('');
+    setGuestInput('');
+    setTimeConflictError('');
     setCreateError('');
     setCreateReauthRequired(false);
     setCreatedEvent(null);
     setMeetingStep('form');
+    setMeetingDayEvents([]);
+  };
+
+  const openNewMeetingModal = () => {
+    setEditingEventId(null);
+    resetMeetingModalState();
+    setMeetingDateBR(dateBR);
+    setGuestEmails(accountEmail ? [accountEmail] : []);
+    setIsNewMeetingOpen(true);
+  };
+
+  const openEditMeetingModal = (ev) => {
+    const startMin = isoToSPMinutes(ev.start);
+    const endMin = isoToSPMinutes(ev.end);
+    const attendees = ev.attendees || [];
+    const matchedClient = clients.find(c => c.email && attendees.includes(c.email)) || null;
+
+    setEditingEventId(ev.id);
+    resetMeetingModalState();
+    setMeetingClientId(matchedClient ? matchedClient.id : '');
+    setMeetingTitle(ev.title || '');
+    setMeetingDateBR(isoToSPDateBR(ev.start));
+    setMeetingTime(minutesToHHMM(startMin));
+    setMeetingDuration(closestDurationOption(Math.max(15, endMin - startMin)));
+    setGuestEmails(attendees);
     setIsNewMeetingOpen(true);
   };
 
   const handleMeetingClientChange = (clientId) => {
     setMeetingClientId(clientId);
     const client = clients.find(c => c.id === clientId);
-    if (client && !meetingTitle.trim()) setMeetingTitle(`Reunião com ${client.name}`);
+    if (client) {
+      if (!editingEventId && !meetingTitle.trim()) setMeetingTitle(`Reunião com ${client.name}`);
+      if (client.email) {
+        setGuestEmails(prev => prev.includes(client.email) ? prev : [...prev, client.email]);
+      }
+    }
   };
 
-  const meetingGuests = [
-    { label: 'Você', email: accountEmail },
-    ...(selectedMeetingClient ? [{ label: selectedMeetingClient.name, email: selectedMeetingClient.email || '' }] : []),
-    ...(extraGuestEmail.trim() ? [{ label: 'Convidado extra', email: extraGuestEmail.trim() }] : [])
-  ];
+  const addGuestEmail = () => {
+    const email = guestInput.trim();
+    if (!email || guestEmails.includes(email)) {
+      setGuestInput('');
+      return;
+    }
+    setGuestEmails(prev => [...prev, email]);
+    setGuestInput('');
+  };
+
+  const removeGuestEmail = (email) => {
+    setGuestEmails(prev => prev.filter(e => e !== email));
+  };
 
   const handleSubmitMeetingForm = (e) => {
     e.preventDefault();
     if (!meetingTitle.trim()) return;
+    const timeOk = availableTimeOptions.some(o => o.value === meetingTime);
+    if (!timeOk) {
+      setTimeConflictError('Esse horário conflita com outra reunião nesse dia — escolha outro.');
+      return;
+    }
+    setTimeConflictError('');
     setCreateError('');
     setCreateReauthRequired(false);
     setMeetingStep('preview');
   };
 
-  const handleCreateMeeting = async () => {
+  const handleSubmitMeeting = async () => {
     setIsCreatingMeeting(true);
     setCreateError('');
     setCreateReauthRequired(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-create-event`, {
+      const endpoint = editingEventId ? 'google-calendar-update-event' : 'google-calendar-create-event';
+      const payload = {
+        title: meetingTitle.trim(),
+        date: toISODate(meetingDateBR),
+        time: meetingTime,
+        durationMinutes: meetingDuration,
+        guests: guestEmails
+      };
+      if (editingEventId) payload.eventId = editingEventId;
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/${endpoint}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: meetingTitle.trim(),
-          date: toISODate(meetingDateBR),
-          time: meetingTime,
-          durationMinutes: meetingDuration,
-          guests: meetingGuests.map(g => g.email).filter(Boolean)
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        setCreateError(data.error || 'Erro ao criar reunião.');
+        setCreateError(data.error || 'Erro ao salvar reunião.');
         setCreateReauthRequired(!!data.reauthRequired);
         return;
       }
@@ -196,7 +333,9 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
             {
               avatar: profile.avatarInitials,
               name: profile.name,
-              action: `Agendou reunião no Google Agenda: ${meetingTitle.trim()}`,
+              action: editingEventId
+                ? `Editou reunião no Google Agenda: ${meetingTitle.trim()}`
+                : `Agendou reunião no Google Agenda: ${meetingTitle.trim()}`,
               date: `${getTodayBR()} às ${getNowTimeBR()}`,
               isObservation: false
             },
@@ -207,7 +346,7 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
       if (meetingDateBR === dateBR) loadEvents();
       setMeetingStep('success');
     } catch (e) {
-      setCreateError('Erro ao criar reunião. Tente novamente.');
+      setCreateError('Erro ao salvar reunião. Tente novamente.');
     } finally {
       setIsCreatingMeeting(false);
     }
@@ -288,6 +427,11 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {!ev.allDay && (
+                  <button className="btn-icon" onClick={() => openEditMeetingModal(ev)} title="Editar reunião">
+                    <Pencil size={14} />
+                  </button>
+                )}
                 {ev.htmlLink && (
                   <a href={ev.htmlLink} target="_blank" rel="noreferrer" className="btn-icon" title="Abrir no Google Agenda">
                     <ExternalLink size={14} />
@@ -305,13 +449,15 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
         </div>
       )}
 
-      {/* New meeting modal — creates a real event on the user's primary
-          Google Calendar (Meet link + email invites via sendUpdates=all). */}
+      {/* New/edit meeting modal — creates or updates a real event on the
+          user's primary Google Calendar (Meet link + email invites via
+          sendUpdates=all), with same-day slots already taken filtered
+          out of the Horário dropdown. */}
       {isNewMeetingOpen && (
         <div className="modal-overlay" onClick={() => setIsNewMeetingOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Nova Reunião</h3>
+              <h3 className="modal-title">{editingEventId ? 'Editar Reunião' : 'Nova Reunião'}</h3>
               <button className="btn-icon" onClick={() => setIsNewMeetingOpen(false)}><X size={16} /></button>
             </div>
 
@@ -327,7 +473,7 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
                     />
                     {selectedMeetingClient && !selectedMeetingClient.email && (
                       <span style={{ fontSize: '11px', color: 'var(--badge-yellow)', marginTop: '6px', display: 'block' }}>
-                        Esse cliente não tem e-mail cadastrado — o convite não incluirá o cliente.
+                        Esse cliente não tem e-mail cadastrado — adicione manualmente abaixo se quiser incluí-lo.
                       </span>
                     )}
                   </div>
@@ -351,9 +497,17 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
                     </div>
                     <div className="form-group" style={{ flex: 1 }}>
                       <label className="form-label">Horário</label>
-                      <CustomSelect value={meetingTime} onChange={setMeetingTime} options={TIME_OPTIONS} />
+                      <CustomSelect value={meetingTime} onChange={setMeetingTime} options={availableTimeOptions} />
                     </div>
                   </div>
+                  {availableTimeOptions.length === 0 && (
+                    <span style={{ fontSize: '11px', color: 'var(--badge-yellow)', marginTop: '-8px' }}>
+                      Nenhum horário livre nesse dia com essa duração.
+                    </span>
+                  )}
+                  {timeConflictError && (
+                    <span style={{ fontSize: '11px', color: 'var(--badge-red)', marginTop: '-8px' }}>{timeConflictError}</span>
+                  )}
 
                   <div className="form-group">
                     <label className="form-label">Duração</label>
@@ -381,14 +535,29 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Convidado extra (opcional)</label>
-                    <input
-                      type="email"
-                      className="form-input"
-                      value={extraGuestEmail}
-                      onChange={e => setExtraGuestEmail(e.target.value)}
-                      placeholder="email@exemplo.com"
-                    />
+                    <label className="form-label">Convidados</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="email"
+                        className="form-input"
+                        style={{ flex: 1 }}
+                        value={guestInput}
+                        onChange={e => setGuestInput(e.target.value)}
+                        placeholder="email@exemplo.com"
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addGuestEmail(); } }}
+                      />
+                      <button type="button" className="btn-secondary" onClick={addGuestEmail}><Plus size={14} /></button>
+                    </div>
+                    {guestEmails.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
+                        {guestEmails.map(email => (
+                          <span key={email} className="badge" style={{ backgroundColor: '#1E1E1E', border: '1px solid #333', color: '#ddd', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            {email}
+                            <X size={11} style={{ cursor: 'pointer' }} onClick={() => removeGuestEmail(email)} />
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="modal-footer">
@@ -412,11 +581,7 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: '10px', fontSize: '13px', color: 'var(--text-secondary)' }}>
                       <Users size={13} style={{ marginTop: '2px', flexShrink: 0 }} />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {meetingGuests.map((g, i) => (
-                          <span key={i}>
-                            {g.label}: {g.email || <span style={{ color: 'var(--badge-yellow)' }}>sem e-mail</span>}
-                          </span>
-                        ))}
+                        {guestEmails.length > 0 ? guestEmails.map((email, i) => <span key={i}>{email}</span>) : <span>Nenhum convidado</span>}
                       </div>
                     </div>
                   </div>
@@ -437,8 +602,8 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn-secondary" onClick={() => setMeetingStep('form')} disabled={isCreatingMeeting}>Voltar</button>
-                  <button type="button" className="btn-primary" onClick={handleCreateMeeting} disabled={isCreatingMeeting}>
-                    {isCreatingMeeting ? 'Criando...' : 'Criar Reunião'}
+                  <button type="button" className="btn-primary" onClick={handleSubmitMeeting} disabled={isCreatingMeeting}>
+                    {isCreatingMeeting ? (editingEventId ? 'Salvando...' : 'Criando...') : (editingEventId ? 'Salvar Alterações' : 'Criar Reunião')}
                   </button>
                 </div>
               </>
@@ -450,9 +615,11 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
                   <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Calendar size={22} style={{ color: 'var(--badge-green)' }} />
                   </div>
-                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff', margin: 0 }}>Reunião criada!</h3>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff', margin: 0 }}>
+                    {editingEventId ? 'Reunião atualizada!' : 'Reunião criada!'}
+                  </h3>
                   <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                    Convite enviado por e-mail para os participantes.
+                    {editingEventId ? 'Alterações enviadas por e-mail aos participantes.' : 'Convite enviado por e-mail para os participantes.'}
                   </p>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
                     {createdEvent.htmlLink && (

@@ -127,6 +127,7 @@ Deno.serve(async (req) => {
         location: ev.location || null,
         meetLink,
         htmlLink: ev.htmlLink,
+        attendees: (ev.attendees || []).map((a: any) => a.email).filter(Boolean),
       };
     });
 

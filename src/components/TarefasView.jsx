@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   CheckSquare, Clock, ExternalLink, Plus, X, User, AlertTriangle,
-  MessageSquare, Check, ChevronLeft, ChevronRight, ChevronDown, Undo2
+  MessageSquare, Check, ChevronLeft, ChevronRight, ChevronDown, Undo2,
+  Pencil, Trash2
 } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 import { getTodayBR, parseBRDate, getClientPhase, addDaysToBRDate } from '../utils';
@@ -52,13 +53,19 @@ export default function TarefasView({
   onSnoozeClientNextContact,
   onRemoveClientReminder,
   onSnoozeClientReminder,
+  onEditClientReminder,
   onCompleteClientTask,
   onSnoozeClientTask,
   onUncompleteClientTask,
+  onEditClientTask,
+  onDeleteClientTask,
   onResolveTicket,
+  onRemoveTicket,
   onAddStandaloneTask,
   onToggleStandaloneTask,
-  onSnoozeStandaloneTask
+  onSnoozeStandaloneTask,
+  onEditStandaloneTask,
+  onDeleteStandaloneTask
 }) {
   const [activeFilter, setActiveFilter] = useState('Todas');
   const [selectedDateBR, setSelectedDateBR] = useState(() => getTodayBR());
@@ -69,6 +76,9 @@ export default function TarefasView({
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [isCompletedOpen, setIsCompletedOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
 
   const todayStr = getTodayBR();
   const todayDateObj = parseBRDate(todayStr);
@@ -292,6 +302,37 @@ export default function TarefasView({
     else if (item.kind === 'task') onToggleStandaloneTask(item.taskId);
   };
 
+  // Título/prazo têm o mesmo formato de edição nos três tipos que são
+  // "tarefas" de verdade (avulsa, de cliente e lembrete). Próxima ação já
+  // tem seu próprio ciclo de vida (concluir avança para a próxima) e chamado
+  // de suporte se edita na Central de Suporte — nenhum dos dois entra aqui.
+  const isEditable = (item) => ['task', 'clientTask', 'reminder'].includes(item.kind);
+  const isDeletable = (item) => ['task', 'clientTask', 'reminder', 'ticket'].includes(item.kind);
+
+  const openEditItemModal = (item) => {
+    setEditingItem(item);
+    setEditTitle(item.title);
+    setEditDueDate(item.dueDate || '');
+  };
+
+  const handleSaveEditItem = (e) => {
+    e.preventDefault();
+    if (!editTitle.trim() || !editingItem) return;
+    const title = editTitle.trim();
+    if (editingItem.kind === 'task') onEditStandaloneTask(editingItem.taskId, { title, dueDate: editDueDate });
+    else if (editingItem.kind === 'clientTask') onEditClientTask(editingItem.clientId, editingItem.clientTaskId, { text: title, deadline: editDueDate });
+    else if (editingItem.kind === 'reminder') onEditClientReminder(editingItem.clientId, editingItem.reminderId, { title, deadline: editDueDate });
+    setEditingItem(null);
+  };
+
+  const handleDeleteItem = (item) => {
+    if (!window.confirm('Excluir esta tarefa? Essa ação não pode ser desfeita.')) return;
+    if (item.kind === 'task') onDeleteStandaloneTask(item.taskId);
+    else if (item.kind === 'clientTask') onDeleteClientTask(item.clientId, item.clientTaskId);
+    else if (item.kind === 'reminder') onRemoveClientReminder(item.clientId, item.reminderId);
+    else if (item.kind === 'ticket') onRemoveTicket(item.ticketId);
+  };
+
   const handleConfirmResolveTicket = (item) => {
     if (item.dueDate === todayStr) setCompletedTodayCount(c => c + 1);
     onResolveTicket(item.ticketId, resolutionNoteText.trim());
@@ -390,6 +431,16 @@ export default function TarefasView({
             {item.kind === 'ticket' && (
               <button className="btn-icon" style={{ width: '28px', height: '28px' }} title="Abrir chamado completo" onClick={() => onNavigate('suporte')}>
                 <ExternalLink size={13} />
+              </button>
+            )}
+            {isEditable(item) && (
+              <button className="btn-icon" style={{ width: '28px', height: '28px' }} title="Editar" onClick={() => openEditItemModal(item)}>
+                <Pencil size={13} />
+              </button>
+            )}
+            {isDeletable(item) && (
+              <button className="btn-danger-icon" style={{ width: '28px', height: '28px' }} title="Excluir" onClick={() => handleDeleteItem(item)}>
+                <Trash2 size={13} />
               </button>
             )}
           </div>
@@ -613,6 +664,44 @@ export default function TarefasView({
                 <button type="submit" className="btn-primary">
                   <CheckSquare size={14} />
                   <span>Adicionar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit modal — shared by standalone/client tasks and reminders */}
+      {editingItem && (
+        <div className="modal-overlay" onClick={() => setEditingItem(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Editar Tarefa</h3>
+              <button className="btn-icon" onClick={() => setEditingItem(null)}><X size={16} /></button>
+            </div>
+            <form onSubmit={handleSaveEditItem}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Título *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Prazo</label>
+                  <CustomDatePicker value={editDueDate} onChange={setEditDueDate} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setEditingItem(null)}>Cancelar</button>
+                <button type="submit" className="btn-primary">
+                  <CheckSquare size={14} />
+                  <span>Salvar</span>
                 </button>
               </div>
             </form>

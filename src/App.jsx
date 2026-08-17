@@ -594,6 +594,31 @@ export default function App() {
     }));
   };
 
+  const handleEditClientTask = (clientId, taskId, fields) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        tasks: (c.tasks || []).map(t => t.id === taskId ? { ...t, ...fields } : t)
+      };
+    }));
+  };
+
+  const handleDeleteClientTask = (clientId, taskId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return { ...c, tasks: (c.tasks || []).filter(t => t.id !== taskId) };
+    }));
+  };
+
+  const handleEditStandaloneTask = (taskId, fields) => {
+    setStandaloneTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...fields } : t));
+  };
+
+  const handleDeleteStandaloneTask = (taskId) => {
+    setStandaloneTasks(prev => prev.filter(t => t.id !== taskId));
+  };
+
   // Gather overdue or today's notifications
   const alertNotifications = [];
   const todayStrAlerts = getTodayBR();
@@ -741,13 +766,19 @@ export default function App() {
           onSnoozeClientNextContact={handleSnoozeClientNextContact}
           onRemoveClientReminder={handleRemoveClientReminder}
           onSnoozeClientReminder={handleSnoozeClientReminder}
+          onEditClientReminder={handleEditClientReminder}
           onCompleteClientTask={handleCompleteClientTask}
           onUncompleteClientTask={handleUncompleteClientTask}
           onSnoozeClientTask={handleSnoozeClientTask}
+          onEditClientTask={handleEditClientTask}
+          onDeleteClientTask={handleDeleteClientTask}
           onResolveTicket={handleResolveTicket}
+          onRemoveTicket={handleRemoveTicket}
           onAddStandaloneTask={handleAddStandaloneTask}
           onToggleStandaloneTask={handleToggleStandaloneTask}
           onSnoozeStandaloneTask={handleSnoozeStandaloneTask}
+          onEditStandaloneTask={handleEditStandaloneTask}
+          onDeleteStandaloneTask={handleDeleteStandaloneTask}
         />
       );
     }

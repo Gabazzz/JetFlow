@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, Video, MapPin, ExternalLink, RefreshCw, ChevronLeft, ChevronRight, LogOut, AlertCircle, Plus, X, Users, Clock as ClockIcon, Pencil } from 'lucide-react';
+import { Calendar, Video, MapPin, ExternalLink, RefreshCw, ChevronLeft, ChevronRight, LogOut, AlertCircle, Plus, X, Users, Clock as ClockIcon, Pencil, Trash2 } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
@@ -103,6 +103,7 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
   const [createError, setCreateError] = useState('');
   const [createReauthRequired, setCreateReauthRequired] = useState(false);
   const [createdEvent, setCreatedEvent] = useState(null);
+  const [deletingEventId, setDeletingEventId] = useState(null);
 
   // Other timed events on the day being scheduled — feeds the conflict
   // check below. Excludes the event currently being edited (so an
@@ -352,6 +353,29 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
     }
   };
 
+  const handleDeleteEvent = async (ev) => {
+    if (!window.confirm(`Excluir "${ev.title}"? Um cancelamento será enviado aos participantes.`)) return;
+    setDeletingEventId(ev.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-delete-event`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: ev.id })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        alert(data.error || 'Erro ao excluir reunião.');
+        return;
+      }
+      loadEvents();
+    } catch (e) {
+      alert('Erro ao excluir reunião. Tente novamente.');
+    } finally {
+      setDeletingEventId(null);
+    }
+  };
+
   if (status.loading) {
     return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>Carregando...</div>;
   }
@@ -432,6 +456,14 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
                     <Pencil size={14} />
                   </button>
                 )}
+                <button
+                  className="btn-danger-icon"
+                  onClick={() => handleDeleteEvent(ev)}
+                  disabled={deletingEventId === ev.id}
+                  title="Excluir reunião"
+                >
+                  <Trash2 size={14} />
+                </button>
                 {ev.htmlLink && (
                   <a href={ev.htmlLink} target="_blank" rel="noreferrer" className="btn-icon" title="Abrir no Google Agenda">
                     <ExternalLink size={14} />

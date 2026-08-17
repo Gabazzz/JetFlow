@@ -104,22 +104,38 @@ const initialFormState = () => ({
   gravacoes: ['']
 });
 
-function computeRealizadoLines(diff) {
-  const lines = [];
+// Same grouping as the pill UI (per module, plus "Etapas Adicionais") —
+// keeps the generated text scannable by topic instead of one flat list
+// mixing items from every module together.
+function computeGroupedLines(diff, done) {
+  const groups = [];
   diff.moduleGroups.forEach(m => {
-    m.done.forEach(({ item }) => lines.push(getItemDoneText(item)));
+    const entries = done ? m.done : m.pending;
+    if (entries.length === 0) return;
+    groups.push({
+      groupName: m.moduleName,
+      lines: entries.map(({ item }) => done ? getItemDoneText(item) : getItemPendingText(item))
+    });
   });
-  diff.doneSteps.forEach(step => lines.push(getItemDoneText(step)));
-  return lines;
+  const steps = done ? diff.doneSteps : diff.pendingSteps;
+  if (steps.length > 0) {
+    groups.push({
+      groupName: 'Etapas Adicionais',
+      lines: steps.map(step => done ? getItemDoneText(step) : getItemPendingText(step))
+    });
+  }
+  return groups;
 }
 
-function computePendenciaLines(diff) {
-  const lines = [];
-  diff.moduleGroups.forEach(m => {
-    m.pending.forEach(({ item }) => lines.push(getItemPendingText(item)));
+function pushGroupedSection(lines, title, groups) {
+  if (groups.length === 0) return;
+  lines.push('');
+  lines.push(title);
+  groups.forEach((g, i) => {
+    if (i > 0) lines.push('');
+    lines.push(`${g.groupName}:`);
+    g.lines.forEach(l => lines.push(`• ${l}`));
   });
-  diff.pendingSteps.forEach(step => lines.push(getItemPendingText(step)));
-  return lines;
 }
 
 function buildNotaText(form, diff, responsavelNome) {
@@ -138,19 +154,8 @@ function buildNotaText(form, diff, responsavelNome) {
   const statusMeta = STATUS_OPTIONS.find(s => s.value === form.status) || STATUS_OPTIONS[0];
   lines.push(`${statusMeta.emoji} STATUS: ${statusMeta.value}`);
 
-  const realizadoLines = computeRealizadoLines(diff);
-  if (realizadoLines.length > 0) {
-    lines.push('');
-    lines.push('🛠️ REALIZADO:');
-    realizadoLines.forEach(p => lines.push(`• ${p}`));
-  }
-
-  const pendenciaLines = computePendenciaLines(diff);
-  if (pendenciaLines.length > 0) {
-    lines.push('');
-    lines.push('🔍 PENDÊNCIAS:');
-    pendenciaLines.forEach(p => lines.push(`• ${p}`));
-  }
+  pushGroupedSection(lines, '🛠️ REALIZADO:', computeGroupedLines(diff, true));
+  pushGroupedSection(lines, '🔍 PENDÊNCIAS:', computeGroupedLines(diff, false));
 
   if (form.upsellProdutos.length > 0) {
     lines.push('');

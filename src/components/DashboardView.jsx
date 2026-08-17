@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, X, Plus, Phone, Mail, List, Zap, Sparkles,
   ChevronLeft, ChevronRight, Heart, Video, ExternalLink
 } from 'lucide-react';
-import { parseBRDate, getDateStatus, toBRDate, getClientPhase, getTodayBR, toISODate } from '../utils';
+import { parseBRDate, getDateStatus, toBRDate, getClientPhase, getTodayBR, toISODate, getContactAlert } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
@@ -19,6 +19,7 @@ export default function DashboardView({
   clients,
   tickets,
   profile,
+  stages,
   onAddReminder,
   onUpdateReminder,
   onRemoveReminder,
@@ -129,8 +130,18 @@ export default function DashboardView({
     return 1;
   };
 
+  // A client who's silently gone quiet (crossed the Risco no-contact
+  // threshold) is treated as urgent as a manually-flagged Crítico client for
+  // this ranking — that's the whole point of the automatic signal, so it
+  // isn't buried under "Estável" even though the manual field says so.
+  const getAttentionScore = (client) => {
+    const baseScore = getCriticalityScore(client.criticality);
+    const alert = getContactAlert(client, stages, profile, todayStr);
+    return alert?.level === 'risco' ? Math.max(baseScore, 3) : baseScore;
+  };
+
   const slaClients = [...clients]
-    .sort((a, b) => getCriticalityScore(b.criticality) - getCriticalityScore(a.criticality))
+    .sort((a, b) => getAttentionScore(b) - getAttentionScore(a))
     .slice(0, 3);
 
   // Merge Custom Reminders and SLA Automatic Cycles
@@ -565,8 +576,11 @@ export default function DashboardView({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {slaClients.map(client => {
                 const initials = client.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-                let badgeClass = client.criticality === 'Crítico' ? 'badge-critico' : 'badge-atencao';
-                
+                let badgeClass = 'badge-estavel';
+                if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
+                else if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
+                const contactAlert = getContactAlert(client, stages, profile, todayStr);
+
                 // Gap calculations
                 const lastContact = client.lastContacts?.[0];
                 let daysText = 'HÁ 3 DIAS SEM CONTATO';
@@ -598,8 +612,8 @@ export default function DashboardView({
                     </div>
 
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span 
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span
                           style={{ fontSize: '13px', fontWeight: '700', color: '#fff', cursor: 'pointer' }}
                           onClick={() => onNavigate(`clientes/${client.id}`)}
                         >
@@ -608,6 +622,15 @@ export default function DashboardView({
                         <span className={`badge ${badgeClass}`} style={{ fontSize: '8px', padding: '1px 4px' }}>
                           {client.criticality}
                         </span>
+                        {contactAlert && (
+                          <span
+                            className={`contact-alert-badge ${contactAlert.level}`}
+                            style={{ padding: '1px 6px', fontSize: '9px' }}
+                            title="Sinal automático — não substitui a criticidade manual."
+                          >
+                            ⏰ Sem contato há {contactAlert.dias} dias
+                          </span>
+                        )}
                       </div>
                       
                       {/* Red/Yellow warning text */}

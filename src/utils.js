@@ -155,6 +155,44 @@ export function getDemandType(phase) {
   return phase === 'Onboarding' ? 'Onboarding' : 'CS';
 }
 
+// Whether a client has finished onboarding — i.e. sits on the last
+// configured Kanban stage (stages is the account's own ordered list, since
+// stage names are fully customizable in Configurações > Kanban). Used to
+// scope CS-only signals, like the no-contact alert below, away from
+// clients still mid-implantação.
+export function isClientPostOnboarding(client, stages = []) {
+  if (!stages || stages.length === 0) return false;
+  return client.stage === stages[stages.length - 1];
+}
+
+// Days since the client's most recent registered contact — lastContacts is
+// newest-first (see handleRegisterContact in App.jsx), so index 0 is the
+// one that matters; lastUpdated.date is the fallback for clients that
+// don't have a lastContacts entry yet. Returns null when there's no date
+// to compare at all.
+export function getDiasSemContato(client, systemDateStr = getTodayBR()) {
+  const contacts = client.lastContacts || [];
+  const lastDateStr = contacts.length > 0 ? contacts[0].date : client.lastUpdated?.date;
+  if (!lastDateStr) return null;
+  const diffMs = parseBRDate(systemDateStr).getTime() - parseBRDate(lastDateStr).getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
+// Automatic "sem contato" risk signal for post-onboarding (CS) clients —
+// purely additive to the manual criticality field, never overwrites it.
+// Returns null whenever the signal shouldn't show at all (client still
+// onboarding, no contact date to compare, or under the Atenção threshold),
+// so every call site can render nothing by default without extra checks.
+export function getContactAlert(client, stages, profile, systemDateStr = getTodayBR()) {
+  if (!isClientPostOnboarding(client, stages)) return null;
+  const dias = getDiasSemContato(client, systemDateStr);
+  if (dias === null) return null;
+  const diasAtencao = profile?.alertDiasAtencao ?? 15;
+  const diasRisco = profile?.alertDiasRisco ?? 30;
+  if (dias < diasAtencao) return null;
+  return { dias, level: dias >= diasRisco ? 'risco' : 'atencao' };
+}
+
 // ============================================================
 // Implantação: etapas adicionais + diff de checklist por reunião
 //

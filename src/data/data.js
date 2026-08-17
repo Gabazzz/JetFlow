@@ -11,4 +11,6 @@ export const initialProfile = {
   name: 'Gabriel Almeida',
   role: 'Especialista de Implantação',
   avatarInitials: 'GA',
+  alertDiasAtencao: 15,
+  alertDiasRisco: 30,
 };

@@ -5,7 +5,7 @@ import {
   Pencil, Trash2
 } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
-import { getTodayBR, parseBRDate, getClientPhase, addDaysToBRDate } from '../utils';
+import { getTodayBR, parseBRDate, getClientPhase, addDaysToBRDate, getContactAlert } from '../utils';
 
 // Onboarding/CS/Suporte reuse the shared .type-badge pill + tokens; Pessoal
 // isn't one of the three official "tipo de demanda" categories, so it keeps
@@ -48,6 +48,8 @@ export default function TarefasView({
   clients,
   tickets,
   standaloneTasks,
+  stages,
+  profile,
   onNavigate,
   onCompleteClientNextAction,
   onSnoozeClientNextContact,
@@ -143,6 +145,28 @@ export default function TarefasView({
           priorityRank: criticalityRank(client.criticality)
         });
       });
+
+      // Automatic "sem contato" check-in — only for clients that actually
+      // crossed the Risco threshold (getContactAlert already scopes this to
+      // post-onboarding clients). No stored due date: it's derived as "the
+      // day this crossed Risco", so it lands in Atrasadas/Hoje on its own
+      // and disappears the moment a new contact resets the gap — no
+      // separate "concluir" action needed.
+      const contactAlert = getContactAlert(client, stages, profile, todayStr);
+      if (contactAlert?.level === 'risco') {
+        const diasRisco = profile?.alertDiasRisco ?? 30;
+        const crossedDateBR = addDaysToBRDate(todayStr, -(contactAlert.dias - diasRisco));
+        items.push({
+          id: `contactalert_${client.id}`,
+          kind: 'contactAlert',
+          title: `Cliente sem contato há ${contactAlert.dias} dias — fazer um check-in`,
+          clientId: client.id,
+          clientName: client.name,
+          origin: 'CS',
+          dueDate: crossedDateBR,
+          priorityRank: 4
+        });
+      }
     });
 
     tickets.forEach(t => {
@@ -177,7 +201,7 @@ export default function TarefasView({
     });
 
     return items;
-  }, [clients, tickets, standaloneTasks, todayStr]);
+  }, [clients, tickets, standaloneTasks, stages, profile, todayStr]);
 
   // Items already finished, kept around just for the collapsed "Concluídas"
   // section on the day they were completed. Next-action/reminder/ticket
@@ -356,7 +380,7 @@ export default function TarefasView({
 
   const renderItemCard = (item, { isOverdue = false } = {}) => {
     const isResolvingThis = item.kind === 'ticket' && resolvingTicketId === item.ticketId;
-    const canSnooze = item.kind !== 'ticket' && !!item.dueDate;
+    const canSnooze = item.kind !== 'ticket' && item.kind !== 'contactAlert' && !!item.dueDate;
 
     return (
       <div
@@ -373,20 +397,26 @@ export default function TarefasView({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-          <input
-            type="checkbox"
-            className="premium-check"
-            checked={false}
-            style={{ marginTop: '2px', flexShrink: 0 }}
-            onChange={() => {
-              if (item.kind === 'ticket') {
-                setResolvingTicketId(isResolvingThis ? null : item.ticketId);
-                setResolutionNoteText('');
-              } else {
-                handleComplete(item);
-              }
-            }}
-          />
+          {item.kind === 'contactAlert' ? (
+            <div style={{ marginTop: '2px', flexShrink: 0, width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Resolve sozinho ao registrar um novo contato com o cliente">
+              <Clock size={14} style={{ color: isOverdue ? '#EF4444' : 'var(--badge-yellow)' }} />
+            </div>
+          ) : (
+            <input
+              type="checkbox"
+              className="premium-check"
+              checked={false}
+              style={{ marginTop: '2px', flexShrink: 0 }}
+              onChange={() => {
+                if (item.kind === 'ticket') {
+                  setResolvingTicketId(isResolvingThis ? null : item.ticketId);
+                  setResolutionNoteText('');
+                } else {
+                  handleComplete(item);
+                }
+              }}
+            />
+          )}
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

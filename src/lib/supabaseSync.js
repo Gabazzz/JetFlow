@@ -160,7 +160,9 @@ export function profileFromRow(row) {
     name: row.name,
     role: row.role,
     avatarInitials: row.avatar_initials,
-    avatarUrl: row.avatar_url || undefined
+    avatarUrl: row.avatar_url || undefined,
+    alertDiasAtencao: row.alert_dias_atencao ?? 15,
+    alertDiasRisco: row.alert_dias_risco ?? 30
   };
 }
 
@@ -229,6 +231,8 @@ export async function syncProfile(profile, userId) {
     role: profile.role || '',
     avatar_initials: profile.avatarInitials || '',
     avatar_url: profile.avatarUrl || null,
+    alert_dias_atencao: profile.alertDiasAtencao ?? 15,
+    alert_dias_risco: profile.alertDiasRisco ?? 30,
     updated_at: new Date().toISOString()
   }).eq('user_id', userId);
 }

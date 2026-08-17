@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield, X, MessageSquarePlus, Target as TargetIcon, ShieldAlert, MoreHorizontal, Download, Upload } from 'lucide-react';
 import KanbanView from './KanbanView';
 import ImportExportClientsModal from './ImportExportClientsModal';
-import { getClientPhase, PHASE_META, getDemandType, getTodayBR } from '../utils';
+import { getClientPhase, PHASE_META, getDemandType, getTodayBR, getContactAlert } from '../utils';
 import { exportClientsToXlsx } from '../lib/clientImportExport';
 
 export default function ClientsListView({
@@ -202,17 +202,29 @@ export default function ClientsListView({
                   const phase = getClientPhase(client, clientTickets, todayStr);
                   const phaseMeta = PHASE_META[phase];
                   const demandType = getDemandType(phase);
+                  const contactAlert = getContactAlert(client, stages, profile, todayStr);
 
                   return (
                     <tr key={client.id} className="client-row-hoverable" style={{ position: 'relative' }}>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span
-                            style={{ fontWeight: '600', color: 'var(--green-primary)', cursor: 'pointer' }}
-                            onClick={() => onNavigate(`clientes/${client.id}`)}
-                          >
-                            {client.name}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span
+                              style={{ fontWeight: '600', color: 'var(--green-primary)', cursor: 'pointer' }}
+                              onClick={() => onNavigate(`clientes/${client.id}`)}
+                            >
+                              {client.name}
+                            </span>
+                            {contactAlert && (
+                              <span
+                                className={`contact-alert-badge ${contactAlert.level}`}
+                                style={{ padding: '1px 6px', fontSize: '10px' }}
+                                title={`Sem contato há ${contactAlert.dias} dias — sinal automático, não substitui a criticidade manual.`}
+                              >
+                                ⏰ {contactAlert.dias}d
+                              </span>
+                            )}
+                          </div>
                           <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{client.cnpj || 'Sem CNPJ'}</span>
                         </div>
                       </td>

@@ -349,6 +349,28 @@ button, input, select, textarea {
   color: var(--type-suporte);
 }
 
+/* Sinal automático de "sem contato" (independente da criticidade manual) */
+.contact-alert-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.contact-alert-badge.atencao {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: var(--badge-yellow);
+}
+
+.contact-alert-badge.risco {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: var(--badge-red);
+}
+
 .btn-success-pulse {
   animation: successPulse 400ms ease-out;
 }

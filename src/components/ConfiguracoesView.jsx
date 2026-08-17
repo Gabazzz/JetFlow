@@ -19,6 +19,11 @@ export default function ConfiguracoesView({
   const [profileAvatar, setProfileAvatar] = useState(profile.avatarUrl || '');
   const [profileSaved, setProfileSaved] = useState(false);
 
+  // Alerta de sem contato (sinal automático, independente da criticidade manual)
+  const [alertDiasAtencao, setAlertDiasAtencao] = useState(profile.alertDiasAtencao ?? 15);
+  const [alertDiasRisco, setAlertDiasRisco] = useState(profile.alertDiasRisco ?? 30);
+  const [alertSaved, setAlertSaved] = useState(false);
+
   // Password change (real, via Supabase Auth — separate from the profile save above)
   const [newPassword, setNewPassword] = useState('');
   const [passwordStatus, setPasswordStatus] = useState(''); // '' | 'saving' | 'saved' | error message
@@ -62,6 +67,16 @@ export default function ConfiguracoesView({
     });
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
+  };
+
+  const handleSaveAlertThresholds = () => {
+    const atencao = Math.max(1, parseInt(alertDiasAtencao, 10) || 15);
+    const risco = Math.max(atencao + 1, parseInt(alertDiasRisco, 10) || 30);
+    setAlertDiasAtencao(atencao);
+    setAlertDiasRisco(risco);
+    onUpdateProfile({ alertDiasAtencao: atencao, alertDiasRisco: risco });
+    setAlertSaved(true);
+    setTimeout(() => setAlertSaved(false), 2000);
   };
 
   // Inline add handlers with Enter/Esc support
@@ -300,6 +315,39 @@ export default function ConfiguracoesView({
                 <LogOut size={13} />
                 <span>Sair da conta</span>
               </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'perfil' && (
+          <div style={{ paddingTop: '24px', marginTop: '24px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <h3 className="section-title" style={{ fontSize: '14px' }}>Alerta de Sem Contato</h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Sinal automático para clientes já em fase de CS (pós-onboarding) que ficam tempo demais sem um contato registrado. Não substitui a criticidade manual — aparece ao lado dela.
+              </p>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label">Dias sem contato para Atenção</label>
+                <input
+                  type="number" min="1" className="form-input"
+                  value={alertDiasAtencao}
+                  onChange={e => setAlertDiasAtencao(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Dias sem contato para Risco</label>
+                <input
+                  type="number" min="1" className="form-input"
+                  value={alertDiasRisco}
+                  onChange={e => setAlertDiasRisco(e.target.value)}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
+              {alertSaved && <span style={{ fontSize: '12px', color: 'var(--badge-green)', fontWeight: '600' }}>Salvo!</span>}
+              <button type="button" className="btn-primary" onClick={handleSaveAlertThresholds}>Salvar</button>
             </div>
           </div>
         )}

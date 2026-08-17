@@ -190,8 +190,8 @@ export default function App() {
   };
 
   // State Mutators — Profile
-  const handleUpdateProfile = (updatedProfile) => {
-    setProfile(updatedProfile);
+  const handleUpdateProfile = (updatedFields) => {
+    setProfile(prev => ({ ...prev, ...updatedFields }));
   };
 
   // State Mutators — Plans
@@ -665,6 +665,7 @@ export default function App() {
           clients={clients}
           tickets={tickets}
           profile={profile}
+          stages={stages}
           onAddReminder={handleAddClientReminder}
           onUpdateReminder={handleEditClientReminder}
           onRemoveReminder={handleRemoveClientReminder}
@@ -719,11 +720,12 @@ export default function App() {
       const client = clients.find(c => c.id === clientId);
       if (client) {
         return (
-          <ClientDetailView 
+          <ClientDetailView
             client={client}
             plans={plans}
             modules={modules}
             stages={stages}
+            profile={profile}
             availableOffers={offers}
             onUpdateClient={handleUpdateClient}
             onRegisterContact={handleRegisterContact}
@@ -761,6 +763,8 @@ export default function App() {
           clients={clients}
           tickets={tickets}
           standaloneTasks={standaloneTasks}
+          stages={stages}
+          profile={profile}
           onNavigate={handleNavigate}
           onCompleteClientNextAction={handleCompleteClientNextAction}
           onSnoozeClientNextContact={handleSnoozeClientNextContact}

@@ -6,16 +6,17 @@ import {
   AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw,
   Hash, Wifi, Users as UsersIcon
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, createDefaultAdditionalSteps, getTodayBR } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, createDefaultAdditionalSteps, getTodayBR, getContactAlert } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 
 export default function ClientDetailView({ 
-  client, 
-  plans, 
-  modules, 
+  client,
+  plans,
+  modules,
   stages,
-  availableOffers, 
+  profile,
+  availableOffers,
   onUpdateClient, 
   onRegisterContact,
   onAddReminder,
@@ -292,6 +293,7 @@ export default function ClientDetailView({
   const demandType = getDemandType(phase);
   const healthScore = calculateHealthScore(client, clientTickets, todayStr);
   const healthTier = getHealthTier(healthScore);
+  const contactAlert = getContactAlert(client, stages, profile, todayStr);
 
   // Get initials for Colaborador Atribuído avatar
   const getColabInitials = (name) => {
@@ -1073,11 +1075,18 @@ export default function ClientDetailView({
 
               {!isEditingSla ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className={`badge ${criticalityMeta.badgeClass}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <criticalityMeta.Icon size={12} />
-                      {client.criticality}
-                    </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className={`badge ${criticalityMeta.badgeClass}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <criticalityMeta.Icon size={12} />
+                        {client.criticality}
+                      </span>
+                      {contactAlert && (
+                        <span className={`contact-alert-badge ${contactAlert.level}`} title="Sinal automático — não substitui a criticidade manual">
+                          ⏰ Sem contato há {contactAlert.dias} dias
+                        </span>
+                      )}
+                    </div>
                     <span style={{ fontSize: '11px', color: '#666' }}>
                       {client.criticality === 'Crítico' ? 'Contato diário' : client.criticality === 'Atenção' ? 'Dia sim, dia não' : 'A cada 3 dias'}
                     </span>

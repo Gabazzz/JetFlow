@@ -1,4 +1,4 @@
-import { getTodayBR, getNowTimeBR, calculateNextContactDate, createDefaultAdditionalSteps } from '../utils';
+import { getTodayBR, getNowTimeBR, calculateNextContactDate } from '../utils';
 
 // ExceljS is loaded lazily (dynamic import) so the ~250KB (gzipped) parser
 // only ever hits the bundle for users who actually open Exportar/Importar,
@@ -181,8 +181,6 @@ function buildNewClientFromFields(fields, profileName) {
     nextContactDate: calculateNextContactDate(criticality, entryDate),
     checklists: {},
     checklistBaseline: {},
-    additionalSteps: createDefaultAdditionalSteps(),
-    additionalStepsBaseline: createDefaultAdditionalSteps(),
     reminders: [],
     lastUpdated: { date: getTodayBR(), time: getNowTimeBR(), user: profileName || '' },
     lastContacts: [{ date: entryDate, obs: 'Cliente importado via planilha.' }],

@@ -15,7 +15,6 @@ import { initialProfile } from './data/data';
 import {
   calculateNextContactDate,
   getDateStatus,
-  createDefaultAdditionalSteps,
   getTodayBR,
   getNowTimeBR,
   addDaysToBRDate
@@ -81,11 +80,7 @@ export default function App() {
       setModules(data.modules);
       setOffers(data.offers);
       setStages(data.stages);
-      setClients(data.clients.map(c => ({
-        ...c,
-        additionalSteps: c.additionalSteps.length ? c.additionalSteps : createDefaultAdditionalSteps(),
-        additionalStepsBaseline: c.additionalStepsBaseline.length ? c.additionalStepsBaseline : createDefaultAdditionalSteps()
-      })));
+      setClients(data.clients);
       setTickets(data.tickets);
       setStandaloneTasks(data.tasks);
       lastPlanIds.current = new Set(data.plans.map(p => p.id));
@@ -440,13 +435,6 @@ export default function App() {
     }));
   };
 
-  // Etapas adicionais (Verificação de BM, Conexão com GupShup) — independentes
-  // dos módulos contratados, mas participam do mesmo diff de "o que foi feito
-  // nesta reunião" usado pela Nota de Reunião.
-  const handleUpdateAdditionalSteps = (clientId, updatedSteps) => {
-    setClients(prev => prev.map(c => c.id === clientId ? { ...c, additionalSteps: updatedSteps } : c));
-  };
-
   // Custom client reminder handlers
   const handleAddClientReminder = (clientId, title, description, deadline, criticality) => {
     setClients(prev => prev.map(c => {
@@ -733,7 +721,6 @@ export default function App() {
             onEditReminder={handleEditClientReminder}
             onRemoveReminder={handleRemoveClientReminder}
             onUpdateChecklist={handleUpdateClientChecklist}
-            onUpdateAdditionalSteps={handleUpdateAdditionalSteps}
             onCompleteTask={handleCompleteClientTask}
             tickets={tickets.filter(t => t.clientId === client.id)}
             onAddTicket={handleAddTicket}
@@ -877,7 +864,6 @@ export default function App() {
         onAddTicket={handleAddTicket}
         onUpdateClient={handleUpdateClient}
         onUpdateChecklist={handleUpdateClientChecklist}
-        onUpdateAdditionalSteps={handleUpdateAdditionalSteps}
       />
       <main className="main-container">
         <div className="view-header">
@@ -993,8 +979,6 @@ export default function App() {
                 nextContactDate: nextContact,
                 checklists: clientChecklists,
                 checklistBaseline: JSON.parse(JSON.stringify(clientChecklists)),
-                additionalSteps: createDefaultAdditionalSteps(),
-                additionalStepsBaseline: createDefaultAdditionalSteps(),
                 reminders: [],
                 lastUpdated: {
                   date: getTodayBR(),

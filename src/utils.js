@@ -194,22 +194,16 @@ export function getContactAlert(client, stages, profile, systemDateStr = getToda
 }
 
 // ============================================================
-// Implantação: etapas adicionais + diff de checklist por reunião
+// Implantação: diff de checklist por reunião
 //
 // Módulos Contratados / checklists são a fonte única do estado da
-// implantação (ver ClientDetailView). A Nota de Reunião não mantém
-// sua própria lista de "o que foi feito" — ela lê esse mesmo estado
-// e o compara com um "checklistBaseline" (o retrato salvo da última
-// vez que uma nota foi gerada) para descobrir o que mudou de pendente
-// para concluído especificamente nesta reunião.
+// implantação (ver ClientDetailView) — toda etapa pertence a um módulo
+// marcado para o cliente, sem lista genérica solta. A Nota de Reunião
+// não mantém sua própria lista de "o que foi feito" — ela lê esse mesmo
+// estado e o compara com um "checklistBaseline" (o retrato salvo da
+// última vez que uma nota foi gerada) para descobrir o que mudou de
+// pendente para concluído especificamente nesta reunião.
 // ============================================================
-
-export function createDefaultAdditionalSteps() {
-  return [
-    { id: 'bm', label: 'Verificação de BM', checked: false, doneText: 'Verificação de BM realizada.', pendingText: 'Verificar BM.' },
-    { id: 'gupshup', label: 'Conexão com GupShup', checked: false, doneText: 'GupShup conectado e validado.', pendingText: 'Conectar GupShup.' }
-  ];
-}
 
 export function getItemDoneText(item) {
   return item.doneText || `${item.label} realizado.`;
@@ -246,17 +240,5 @@ export function getChecklistDiff(client) {
     return { moduleName: modName, done, pending };
   }).filter(m => m.done.length > 0 || m.pending.length > 0);
 
-  const steps = client.additionalSteps || [];
-  const stepsBaseMap = new Map((client.additionalStepsBaseline || []).map(b => [b.id, b.checked]));
-  const doneSteps = [];
-  const pendingSteps = [];
-  steps.forEach(step => {
-    if (step.checked) {
-      if (!stepsBaseMap.get(step.id)) doneSteps.push(step);
-    } else {
-      pendingSteps.push(step);
-    }
-  });
-
-  return { moduleGroups, doneSteps, pendingSteps };
+  return { moduleGroups };
 }

@@ -9,7 +9,7 @@ import CustomSelect from './CustomSelect';
 import NotaReuniaoModal from './NotaReuniaoModal';
 import jetflowLogo from '../assets/jetflow-logo.webp';
 
-export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket, onUpdateClient, onUpdateChecklist, onUpdateAdditionalSteps }) {
+export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket, onUpdateClient, onUpdateChecklist }) {
   // Client context — reused as-is when the quick action is opened from within a client's page
   const contextClientId = currentRoute && currentRoute.startsWith('clientes/') ? currentRoute.split('/')[1] : null;
   const contextClient = contextClientId ? (clients || []).find(c => c.id === contextClientId) || null : null;
@@ -402,7 +402,6 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
           availableOffers={offers || []}
           onUpdateClient={onUpdateClient}
           onUpdateChecklist={onUpdateChecklist}
-          onUpdateAdditionalSteps={onUpdateAdditionalSteps}
           onClose={() => setIsNotaReuniaoOpen(false)}
         />
       )}

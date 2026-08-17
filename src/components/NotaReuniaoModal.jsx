@@ -26,7 +26,7 @@ const UPSELL_STATUS_PHRASE = {
   'Sem interesse': (produtos) => `Sem interesse em ${produtos}.`
 };
 
-const EMPTY_DIFF = { moduleGroups: [], doneSteps: [], pendingSteps: [] };
+const EMPTY_DIFF = { moduleGroups: [] };
 
 function SectionHeader({ number, title }) {
   return (
@@ -68,8 +68,8 @@ function ModulePillGrid({ groups, onToggle, emptyText }) {
   );
 }
 
-function buildPillGroups(moduleGroups, steps, done) {
-  const groups = moduleGroups
+function buildPillGroups(moduleGroups, done) {
+  return moduleGroups
     .filter(m => (done ? m.done.length > 0 : m.pending.length > 0))
     .map(m => ({
       groupName: m.moduleName,
@@ -81,13 +81,6 @@ function buildPillGroups(moduleGroups, steps, done) {
         idx
       }))
     }));
-  if (steps.length > 0) {
-    groups.push({
-      groupName: 'Etapas Adicionais',
-      items: steps.map(step => ({ key: `step__${step.id}`, label: step.label, checked: done, stepId: step.id }))
-    });
-  }
-  return groups;
 }
 
 const initialFormState = () => ({
@@ -117,13 +110,6 @@ function computeGroupedLines(diff, done) {
       lines: entries.map(({ item }) => done ? getItemDoneText(item) : getItemPendingText(item))
     });
   });
-  const steps = done ? diff.doneSteps : diff.pendingSteps;
-  if (steps.length > 0) {
-    groups.push({
-      groupName: 'Etapas Adicionais',
-      lines: steps.map(step => done ? getItemDoneText(step) : getItemPendingText(step))
-    });
-  }
   return groups;
 }
 
@@ -181,7 +167,7 @@ function buildNotaText(form, diff, responsavelNome) {
   return lines.join('\n');
 }
 
-export default function NotaReuniaoModal({ clients, contextClient, profile, availableOffers, onUpdateClient, onUpdateChecklist, onUpdateAdditionalSteps, onClose }) {
+export default function NotaReuniaoModal({ clients, contextClient, profile, availableOffers, onUpdateClient, onUpdateChecklist, onClose }) {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [form, setForm] = useState(initialFormState());
   const [participantInput, setParticipantInput] = useState('');
@@ -221,17 +207,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
     onUpdateChecklist(client.id, moduleName, updated);
   };
 
-  const handleToggleStep = (stepId) => {
-    if (!client) return;
-    const steps = client.additionalSteps || [];
-    const updated = steps.map(s => s.id === stepId ? { ...s, checked: !s.checked } : s);
-    onUpdateAdditionalSteps(client.id, updated);
-  };
-
-  const handleTogglePillItem = (it) => {
-    if (it.stepId) handleToggleStep(it.stepId);
-    else handleToggleModuleItem(it.moduleName, it.idx);
-  };
+  const handleTogglePillItem = (it) => handleToggleModuleItem(it.moduleName, it.idx);
 
   const toggleUpsellProduto = (produto) => {
     setForm(prev => ({
@@ -320,15 +296,14 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
     if (generatedOnceRef.current && client) {
       onUpdateClient(client.id, {
         checklistBaseline: JSON.parse(JSON.stringify(client.checklists || {})),
-        additionalStepsBaseline: JSON.parse(JSON.stringify(client.additionalSteps || [])),
         meetingNotesCount: (client.meetingNotesCount || 0) + 1
       });
     }
     onClose();
   };
 
-  const doneGroups = buildPillGroups(diff.moduleGroups, diff.doneSteps, true);
-  const pendingGroups = buildPillGroups(diff.moduleGroups, diff.pendingSteps, false);
+  const doneGroups = buildPillGroups(diff.moduleGroups, true);
+  const pendingGroups = buildPillGroups(diff.moduleGroups, false);
   const offerNames = (availableOffers || []).map(o => o.name);
 
   return (

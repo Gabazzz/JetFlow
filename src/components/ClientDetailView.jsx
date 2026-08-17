@@ -6,7 +6,7 @@ import {
   AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw,
   Hash, Wifi, Users as UsersIcon
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, createDefaultAdditionalSteps, getTodayBR, getContactAlert } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, getTodayBR, getContactAlert } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 
@@ -23,7 +23,6 @@ export default function ClientDetailView({
   onEditReminder,
   onRemoveReminder,
   onUpdateChecklist,
-  onUpdateAdditionalSteps,
   onCompleteTask,
   tickets,
   onAddTicket,
@@ -876,29 +875,6 @@ export default function ClientDetailView({
               })}
             </div>
             )}
-          </div>
-
-          {/* Section: Etapas Adicionais (Verificação de BM, Conexão com GupShup) */}
-          <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
-            <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>
-              ETAPAS ADICIONAIS
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {(client.additionalSteps || createDefaultAdditionalSteps()).map(step => (
-                <label key={step.id} className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                  <input
-                    type="checkbox"
-                    className="premium-check"
-                    checked={step.checked}
-                    onChange={() => {
-                      const updated = (client.additionalSteps || createDefaultAdditionalSteps()).map(s => s.id === step.id ? { ...s, checked: !s.checked } : s);
-                      onUpdateAdditionalSteps(client.id, updated);
-                    }}
-                  />
-                  <span style={{ color: step.checked ? '#555' : '#ccc', textDecoration: step.checked ? 'line-through' : 'none' }}>{step.label}</span>
-                </label>
-              ))}
-            </div>
           </div>
 
           {/* Section: Tarefas */}

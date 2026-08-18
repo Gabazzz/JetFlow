@@ -28,7 +28,13 @@ export default function Auth() {
         options: { data: { name: name.trim() } }
       });
       if (signUpError) {
-        setError(signUpError.message);
+        // O bloqueio de domínio vem do banco (gatilho em auth.users), então
+        // chega aqui como erro cru do Postgres — vale traduzir.
+        setError(
+          /jetsalesbrasil|Database error saving new user/i.test(signUpError.message)
+            ? 'Cadastro restrito à equipe: use seu e-mail @jetsalesbrasil.com.br.'
+            : signUpError.message
+        );
       } else if (!data.session) {
         setSignupMessage('Conta criada! Verifique seu e-mail para confirmar antes de entrar.');
       }
@@ -47,7 +53,7 @@ export default function Auth() {
           {mode === 'login' ? 'Entrar no JetFlow' : 'Criar sua conta'}
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-          {mode === 'login' ? 'Seus clientes e dados são só seus.' : 'Cada conta tem sua própria carteira de clientes, privada.'}
+          {mode === 'login' ? 'Seus clientes e dados são só seus.' : 'Restrito à equipe Jetsales — use seu e-mail @jetsalesbrasil.com.br.'}
         </p>
 
         <form onSubmit={handleSubmit}>

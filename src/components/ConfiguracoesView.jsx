@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { User, Layers, Tag, Box, Plus, Trash2, Edit2, Check, X, Camera, GripVertical, Kanban, LogOut, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import TwoFactorSetup from './TwoFactorSetup';
 
 export default function ConfiguracoesView({
   profile, onUpdateProfile,
@@ -332,6 +333,8 @@ export default function ConfiguracoesView({
             </div>
           </div>
         )}
+
+        {activeTab === 'perfil' && <TwoFactorSetup viewOnly={viewOnly} />}
 
         {activeTab === 'perfil' && (
           <div style={{ paddingTop: '24px', marginTop: '24px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>

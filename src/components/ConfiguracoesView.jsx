@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 export default function ConfiguracoesView({
   profile, onUpdateProfile,
   accountEmail, onSignOut,
+  viewOnly,
   plans, onAddPlan, onEditPlan, onRemovePlan,
   modules, onAddModule, onEditModule, onRemoveModule, onUpdateModuleChecklist,
   offers, onAddOffer, onEditOffer, onRemoveOffer,
@@ -174,7 +175,7 @@ export default function ConfiguracoesView({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 className="section-title">{title}</h3>
         {!isAdding && (
-          <button className="btn-primary" style={{ padding: '8px 14px', fontSize: '13px' }} onClick={() => setIsAdding(true)}>
+          <button className="btn-primary vo-hide" style={{ padding: '8px 14px', fontSize: '13px' }} onClick={() => setIsAdding(true)}>
             <Plus size={14} /><span>Adicionar</span>
           </button>
         )}
@@ -188,7 +189,7 @@ export default function ConfiguracoesView({
               {!isEditingThis ? (
                 <>
                   <span style={{ fontWeight: '500' }}>{getName(item)}</span>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div className="vo-hide" style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn-icon" onClick={() => { onStartEdit(item); }} title="Editar"><Edit2 size={14} /></button>
                     <button className="btn-danger-icon" onClick={() => onRemove(getKey(item))} title="Remover"><Trash2 size={14} /></button>
                   </div>
@@ -249,7 +250,7 @@ export default function ConfiguracoesView({
           <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <h3 className="section-title">Meu Perfil de Especialista</h3>
             <div className="profile-setup">
-              <div className="profile-avatar-upload" onClick={() => fileInputRef.current.click()} title="Clique para trocar foto">
+              <div className="profile-avatar-upload vo-disable" onClick={() => fileInputRef.current.click()} title="Clique para trocar foto">
                 {profileAvatar ? (
                   <img src={profileAvatar} alt="Profile" />
                 ) : (
@@ -271,7 +272,7 @@ export default function ConfiguracoesView({
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+            <div className="vo-hide" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
               {profileSaved && <span style={{ fontSize: '12px', color: 'var(--badge-green)', fontWeight: '600' }}>Salvo!</span>}
               <button type="submit" className="btn-primary">Salvar Perfil</button>
             </div>
@@ -358,7 +359,7 @@ export default function ConfiguracoesView({
                 />
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
+            <div className="vo-hide" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
               {alertSaved && <span style={{ fontSize: '12px', color: 'var(--badge-green)', fontWeight: '600' }}>Salvo!</span>}
               <button type="button" className="btn-primary" onClick={handleSaveAlertThresholds}>Salvar</button>
             </div>
@@ -371,7 +372,7 @@ export default function ConfiguracoesView({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 className="section-title">Etapas do Kanban</h3>
               {!addingStage && (
-                <button className="btn-primary" style={{ padding: '8px 14px', fontSize: '13px' }} onClick={() => setAddingStage(true)}>
+                <button className="btn-primary vo-hide" style={{ padding: '8px 14px', fontSize: '13px' }} onClick={() => setAddingStage(true)}>
                   <Plus size={14} /><span>Nova Etapa</span>
                 </button>
               )}
@@ -388,7 +389,7 @@ export default function ConfiguracoesView({
                   <div
                     key={stage}
                     className={`settings-kanban-stage-row ${isEditingThis ? 'edit-mode-active' : ''}`}
-                    draggable
+                    draggable={!viewOnly}
                     onDragStart={e => handleStageDragStart(e, stage)}
                     onDragOver={e => handleStageDragOver(e, stage)}
                     onDrop={e => handleStageDrop(e, stage)}
@@ -399,8 +400,8 @@ export default function ConfiguracoesView({
                     {!isEditingThis ? (
                       <>
                         <span style={{ flex: 1, fontWeight: '500' }}>{stage}</span>
-                        <button className="btn-icon" onClick={() => { setEditingStage(stage); setEditStageName(stage); }} title="Editar"><Edit2 size={14} /></button>
-                        <button className="btn-danger-icon" onClick={() => { if (window.confirm(`Remover a etapa "${stage}"?`)) onRemoveStage(stage); }} title="Remover"><Trash2 size={14} /></button>
+                        <button className="btn-icon vo-hide" onClick={() => { setEditingStage(stage); setEditStageName(stage); }} title="Editar"><Edit2 size={14} /></button>
+                        <button className="btn-danger-icon vo-hide" onClick={() => { if (window.confirm(`Remover a etapa "${stage}"?`)) onRemoveStage(stage); }} title="Remover"><Trash2 size={14} /></button>
                       </>
                     ) : (
                       <>
@@ -459,7 +460,7 @@ export default function ConfiguracoesView({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 className="section-title">Gerenciar Módulos</h3>
               {!addingModule && (
-                <button className="btn-primary" style={{ padding: '8px 14px', fontSize: '13px' }} onClick={() => setAddingModule(true)}>
+                <button className="btn-primary vo-hide" style={{ padding: '8px 14px', fontSize: '13px' }} onClick={() => setAddingModule(true)}>
                   <Plus size={14} /><span>Adicionar</span>
                 </button>
               )}
@@ -497,7 +498,7 @@ export default function ConfiguracoesView({
                           <span style={{ fontWeight: '500' }}>{mod.name}</span>
                           <span style={{ fontSize: '11px', color: '#666' }}>({checklist.length} etapa{checklist.length !== 1 ? 's' : ''})</span>
                         </button>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className="vo-hide" style={{ display: 'flex', gap: '8px' }}>
                           <button className="btn-icon" onClick={() => { setEditingModuleId(mod.id); setEditModuleName(mod.name); }} title="Renomear"><Edit2 size={14} /></button>
                           <button className="btn-danger-icon" onClick={() => onRemoveModule(mod.id)} title="Remover"><Trash2 size={14} /></button>
                         </div>
@@ -521,7 +522,7 @@ export default function ConfiguracoesView({
                           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Nenhuma etapa configurada ainda.</span>
                         )}
                         {checklist.map((step, idx) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div key={idx} className="vo-disable" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <input
                               type="text" className="form-input" style={{ flex: 1, fontSize: '13px' }}
                               value={step.label}
@@ -550,7 +551,7 @@ export default function ConfiguracoesView({
                             </button>
                           </div>
                         ))}
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className="vo-hide" style={{ display: 'flex', gap: '8px' }}>
                           <input
                             type="text" className="form-input" style={{ flex: 1 }}
                             placeholder="Nova etapa..."

@@ -16,7 +16,7 @@ const COLUMN_ACCENT = {
   'Sem interesse': '#666'
 };
 
-export default function OportunidadesView({ clients, onNavigate, onUpdateClient }) {
+export default function OportunidadesView({ clients, viewOnly, onNavigate, onUpdateClient }) {
   const allOpportunities = useMemo(() => {
     const list = [];
     (clients || []).forEach(client => {
@@ -95,7 +95,7 @@ export default function OportunidadesView({ clients, onNavigate, onUpdateClient 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                           <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff', lineHeight: '1.4' }}>{offer.name}</span>
                           <button
-                            className="btn-danger-icon"
+                            className="btn-danger-icon vo-hide"
                             style={{ width: '22px', height: '22px', flexShrink: 0 }}
                             title="Remover oportunidade"
                             onClick={() => {
@@ -114,11 +114,13 @@ export default function OportunidadesView({ clients, onNavigate, onUpdateClient 
                           {offer.clientName}
                         </span>
 
-                        <CustomSelect
-                          value={offer.status}
-                          onChange={v => handleStatusChange(offer.clientId, offer.id, v)}
-                          options={OPPORTUNITY_STATUS_OPTIONS}
-                        />
+                        <div className="vo-disable">
+                          <CustomSelect
+                            value={offer.status}
+                            onChange={v => handleStatusChange(offer.clientId, offer.id, v)}
+                            options={OPPORTUNITY_STATUS_OPTIONS}
+                          />
+                        </div>
                       </div>
                     ))
                   )}

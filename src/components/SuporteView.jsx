@@ -21,7 +21,7 @@ const COLUMNS = [
   { status: 'Resolvido', label: 'Resolvido', accent: '#10B981', nextLabel: 'Reabrir', nextStatus: 'Aberto' }
 ];
 
-export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTicketStatus, onUpdateTicketLink, onRemoveTicket, onNavigate }) {
+export default function SuporteView({ clients, tickets, viewOnly, onAddTicket, onUpdateTicketStatus, onUpdateTicketLink, onRemoveTicket, onNavigate }) {
   const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
   const [tClientId, setTClientId] = useState('');
   const [tSubject, setTSubject] = useState('');
@@ -59,7 +59,7 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{tickets.length} chamado{tickets.length !== 1 ? 's' : ''} no total</span>
           </div>
         </div>
-        <button className="btn-primary" onClick={() => setIsNewTicketOpen(true)}>
+        <button className="btn-primary vo-hide" onClick={() => setIsNewTicketOpen(true)}>
           <Plus size={16} />
           <span>Novo Chamado</span>
         </button>
@@ -97,7 +97,7 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                             <span className={`badge ${PRIORITY_BADGE[ticket.priority] || 'badge-estavel'}`} style={{ fontSize: '9px' }}>{ticket.priority}</span>
                             <button
-                              className="btn-danger-icon"
+                              className="btn-danger-icon vo-hide"
                               style={{ width: '22px', height: '22px' }}
                               title="Excluir chamado"
                               onClick={() => {
@@ -149,11 +149,11 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
                               <Link size={12} />
                               <span>Abrir no Discord</span>
                             </a>
-                            <button className="btn-icon" style={{ width: '30px', height: '30px' }} onClick={() => { setEditingLinkId(ticket.id); setEditingLinkValue(ticket.discordUrl || ''); }} title="Editar link"><Edit2 size={12} /></button>
+                            <button className="btn-icon vo-hide" style={{ width: '30px', height: '30px' }} onClick={() => { setEditingLinkId(ticket.id); setEditingLinkValue(ticket.discordUrl || ''); }} title="Editar link"><Edit2 size={12} /></button>
                           </div>
                         ) : (
                           <button
-                            className="btn-secondary"
+                            className="btn-secondary vo-hide"
                             style={{ fontSize: '11px', padding: '6px', justifyContent: 'center', gap: '6px', color: '#666' }}
                             onClick={() => { setEditingLinkId(ticket.id); setEditingLinkValue(''); }}
                           >
@@ -163,7 +163,7 @@ export default function SuporteView({ clients, tickets, onAddTicket, onUpdateTic
                         )}
 
                         <button
-                          className="btn-secondary"
+                          className="btn-secondary vo-hide"
                           style={{ justifyContent: 'center', fontSize: '11px', padding: '6px', gap: '6px' }}
                           onClick={() => onUpdateTicketStatus(ticket.id, col.nextStatus)}
                         >

@@ -5,7 +5,7 @@ import CustomSelect from './CustomSelect';
 
 const CRITICALITY_ORDER = { 'Crítico': 3, 'Atenção': 2, 'Estável': 1 };
 
-export default function KanbanView({ clients, stages, onUpdateClientStage, onUpdateClientNextAction, onEditStage, onRemoveStage, onRemoveClient, onNavigate }) {
+export default function KanbanView({ clients, stages, viewOnly, onUpdateClientStage, onUpdateClientNextAction, onEditStage, onRemoveStage, onRemoveClient, onNavigate }) {
   const [draggedClientId, setDraggedClientId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -214,7 +214,7 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
         {/* Filters and Order buttons */}
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
-            className="btn-primary"
+            className="btn-primary vo-hide"
             style={{ padding: '8px 16px', fontSize: '13px' }}
             onClick={() => { setAssignClientId(''); setAssignStage(allStages[0] || ''); setIsAssignModalOpen(true); }}
           >
@@ -343,7 +343,7 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                       </button>
                       {openColumnMenu === stage && (
                         <div className="quick-action-menu" style={{ left: 'auto', right: 0, width: '190px' }}>
-                          <button className="quick-action-item" onClick={() => { setRenamingStage(stage); setRenameValue(stage); setOpenColumnMenu(null); }}>
+                          <button className="quick-action-item vo-hide" onClick={() => { setRenamingStage(stage); setRenameValue(stage); setOpenColumnMenu(null); }}>
                             <Edit2 size={14} />
                             <span className="quick-action-item-title" style={{ fontWeight: '500' }}>Renomear etapa</span>
                           </button>
@@ -352,7 +352,7 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                             <span className="quick-action-item-title" style={{ fontWeight: '500' }}>{collapsedStages.includes(stage) ? 'Expandir coluna' : 'Colapsar coluna'}</span>
                           </button>
                           <button
-                            className="quick-action-item"
+                            className="quick-action-item vo-hide"
                             style={{ color: 'var(--badge-red)' }}
                             onClick={() => {
                               setOpenColumnMenu(null);
@@ -437,7 +437,7 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                           gap: '10px',
                           cursor: 'grab'
                         }}
-                        draggable
+                        draggable={!viewOnly}
                         onDragStart={(e) => handleDragStart(e, client.id)}
                         onDragEnd={handleDragEnd}
                       >
@@ -465,7 +465,7 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                             </span>
                             {onRemoveClient && (
                               <button
-                                className="btn-danger-icon"
+                                className="btn-danger-icon vo-hide"
                                 style={{ width: '20px', height: '20px' }}
                                 title="Excluir cliente"
                                 onClick={(e) => {
@@ -517,7 +517,7 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                               />
                             ) : (
                               <span
-                                className="kanban-card-action-green"
+                                className="kanban-card-action-green vo-disable"
                                 style={{ fontSize: '12px', color: 'var(--green-primary)', fontWeight: '700', cursor: 'pointer' }}
                                 onClick={() => handleStartEditAction(client.id, client.nextAction)}
                               >

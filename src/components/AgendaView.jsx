@@ -80,7 +80,7 @@ function closestDurationOption(minutes) {
   , DURATION_OPTIONS[0].value);
 }
 
-export default function AgendaView({ clients = [], accountEmail = '', profile, onUpdateClient, onAddClientActivity }) {
+export default function AgendaView({ clients = [], accountEmail = '', profile, viewOnly, onUpdateClient, onAddClientActivity }) {
   const [dateBR, setDateBR] = useState(getTodayBR());
   const [status, setStatus] = useState({ loading: true, connected: false, email: null });
   const [connecting, setConnecting] = useState(false);
@@ -402,7 +402,7 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
           <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => setDateBR(getTodayBR())}>Hoje</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button className="btn-primary" onClick={openNewMeetingModal}>
+          <button className="btn-primary vo-hide" onClick={openNewMeetingModal}>
             <Plus size={16} />
             <span>Nova Reunião</span>
           </button>
@@ -410,7 +410,7 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
             Conectado {status.email ? `como ${status.email}` : ''}
           </span>
           <button className="btn-icon" onClick={loadEvents} title="Atualizar"><RefreshCw size={14} /></button>
-          <button className="btn-icon" onClick={handleDisconnect} title="Desconectar"><LogOut size={14} /></button>
+          <button className="btn-icon vo-hide" onClick={handleDisconnect} title="Desconectar"><LogOut size={14} /></button>
         </div>
       </div>
 
@@ -444,12 +444,12 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {!ev.allDay && (
-                  <button className="btn-icon" onClick={() => openEditMeetingModal(ev)} title="Editar reunião">
+                  <button className="btn-icon vo-hide" onClick={() => openEditMeetingModal(ev)} title="Editar reunião">
                     <Pencil size={14} />
                   </button>
                 )}
                 <button
-                  className="btn-danger-icon"
+                  className="btn-danger-icon vo-hide"
                   onClick={() => handleDeleteEvent(ev)}
                   disabled={deletingEventId === ev.id}
                   title="Excluir reunião"

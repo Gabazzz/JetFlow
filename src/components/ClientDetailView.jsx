@@ -16,8 +16,9 @@ export default function ClientDetailView({
   modules,
   stages,
   profile,
+  viewOnly,
   availableOffers,
-  onUpdateClient, 
+  onUpdateClient,
   onRegisterContact,
   onAddReminder,
   onEditReminder,
@@ -378,9 +379,9 @@ export default function ClientDetailView({
         </div>
 
         {/* Buttons on the right */}
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            className="btn-secondary" 
+        <div className="vo-hide" style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="btn-secondary"
             style={{ 
               backgroundColor: 'transparent', 
               border: '1px solid var(--border-color)', 
@@ -461,7 +462,7 @@ export default function ClientDetailView({
               </div>
             </div>
             <button
-              className="btn-primary"
+              className="btn-primary vo-hide"
               style={{ backgroundColor: 'var(--green-primary)', color: '#000', fontWeight: '700', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', gap: '6px' }}
               onClick={() => {
                 setNextActionText('');
@@ -607,8 +608,8 @@ export default function ClientDetailView({
               <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>
                 LINKS RÁPIDOS
               </h3>
-              <button 
-                className="btn-secondary" 
+              <button
+                className="btn-secondary vo-hide"
                 style={{ padding: '4px 8px', fontSize: '11px', border: '1px solid #333' }}
                 onClick={() => {
                   setLinkDealId(client.quickLinks?.dealId || '');
@@ -702,7 +703,7 @@ export default function ClientDetailView({
                     <TrendingUp size={14} style={{ color: 'var(--green-primary)', flexShrink: 0 }} />
                     <span style={{ color: '#fff', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{offer.name}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  <div className="vo-disable" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                     <CustomSelect
                       value={offer.status}
                       onChange={v => handleOfferStatusChange(offer.id, v)}
@@ -718,7 +719,7 @@ export default function ClientDetailView({
               )}
             </div>
 
-            <div className="settings-inline-add-row">
+            <div className="settings-inline-add-row vo-hide">
               <CustomSelect
                 value={selectedNewOffer}
                 onChange={setSelectedNewOffer}
@@ -745,7 +746,7 @@ export default function ClientDetailView({
                 LEMBRETES
               </h3>
               <button
-                className="btn-secondary"
+                className="btn-secondary vo-hide"
                 style={{ padding: '4px 8px', fontSize: '11px', border: '1px solid #333' }}
                 onClick={() => { setRemTitle(''); setRemDesc(''); setRemDeadline(''); setRemCriticality('Normal'); setIsAddReminderOpen(true); }}
               >
@@ -769,7 +770,7 @@ export default function ClientDetailView({
                         {rem.deadline}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    <div className="vo-hide" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                       <button type="button" className="btn-icon" style={{ width: '24px', height: '24px' }} title="Editar" onClick={() => handleOpenEditReminder(rem)}><Edit2 size={11} /></button>
                       <button
                         type="button"
@@ -864,7 +865,7 @@ export default function ClientDetailView({
                 MÓDULOS CONTRATADOS
               </h3>
               {!isEditingPlan && (
-                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { setPlan(client.plan); setActiveModules(client.activeModules || []); setIsEditingPlan(true); }}>
+                <button className="btn-secondary vo-hide" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { setPlan(client.plan); setActiveModules(client.activeModules || []); setIsEditingPlan(true); }}>
                   <Edit2 size={11} />
                   <span>Editar</span>
                 </button>
@@ -923,7 +924,7 @@ export default function ClientDetailView({
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <input
                           type="checkbox"
-                          className="premium-check"
+                          className="premium-check vo-disable"
                           checked={allDone}
                           onChange={(e) => {
                             e.stopPropagation();
@@ -937,9 +938,9 @@ export default function ClientDetailView({
                         {checklist.length > 0 && (
                           <span style={{ fontSize: '11px', color: '#666' }}>{done}/{total} tarefas</span>
                         )}
-                        <button 
+                        <button
                           type="button"
-                          className="btn-secondary"
+                          className="btn-secondary vo-hide"
                           style={{ padding: '2px 8px', fontSize: '10px', border: '1px solid #333' }}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -973,7 +974,7 @@ export default function ClientDetailView({
                                 <label key={idx} className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
                                   <input
                                     type="checkbox"
-                                    className="premium-check"
+                                    className="premium-check vo-disable"
                                     checked={item.checked}
                                     onChange={() => handleToggleChecklist(modName, idx)}
                                   />
@@ -996,7 +997,7 @@ export default function ClientDetailView({
                                         <label key={idx} className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
                                           <input
                                             type="checkbox"
-                                            className="premium-check"
+                                            className="premium-check vo-disable"
                                             checked={item.checked}
                                             onChange={() => handleToggleChecklist(modName, idx)}
                                           />
@@ -1037,7 +1038,7 @@ export default function ClientDetailView({
                   >
                     <input
                       type="checkbox"
-                      className="premium-check"
+                      className="premium-check vo-disable"
                       checked={false}
                       onChange={() => onCompleteTask(client.id, task.id)}
                     />
@@ -1057,7 +1058,7 @@ export default function ClientDetailView({
                 <LifeBuoy size={12} />
                 CHAMADOS DE SUPORTE {tickets && tickets.length > 0 ? `(${tickets.length})` : ''}
               </h3>
-              <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setIsNewTicketOpen(true)}>
+              <button className="btn-secondary vo-hide" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setIsNewTicketOpen(true)}>
                 <Plus size={11} />
                 <span>Novo</span>
               </button>
@@ -1100,11 +1101,11 @@ export default function ClientDetailView({
                             <MessageSquarePlus size={12} />
                             <span>Abrir no Discord</span>
                           </a>
-                          <button className="btn-icon" style={{ width: '30px', height: '30px' }} onClick={() => { setEditingTicketLinkId(ticket.id); setEditingTicketLinkValue(ticket.discordUrl || ''); }} title="Editar link"><Edit2 size={12} /></button>
+                          <button className="btn-icon vo-hide" style={{ width: '30px', height: '30px' }} onClick={() => { setEditingTicketLinkId(ticket.id); setEditingTicketLinkValue(ticket.discordUrl || ''); }} title="Editar link"><Edit2 size={12} /></button>
                         </div>
                       ) : (
                         <button
-                          className="btn-secondary"
+                          className="btn-secondary vo-hide"
                           style={{ fontSize: '11px', padding: '6px', justifyContent: 'center', gap: '6px', color: '#666' }}
                           onClick={() => { setEditingTicketLinkId(ticket.id); setEditingTicketLinkValue(''); }}
                         >
@@ -1116,7 +1117,7 @@ export default function ClientDetailView({
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '11px', color: '#666' }}>{ticket.status} · {ticket.createdDate}</span>
                         <button
-                          className="btn-secondary"
+                          className="btn-secondary vo-hide"
                           style={{ fontSize: '11px', padding: '4px 8px', gap: '4px' }}
                           onClick={() => onUpdateTicketStatus(ticket.id, next.status)}
                         >
@@ -1188,7 +1189,7 @@ export default function ClientDetailView({
             <div className={`detail-card ${isEditingSla ? 'edit-mode-active' : ''}`} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderLeft: `3px solid ${criticalityMeta.color}`, borderRadius: '8px', padding: '20px' }}>
               <div className="section-header" style={{ marginBottom: '14px' }}>
                 <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Ciclo SLA & Criticidade</h3>
-                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { setCriticality(client.criticality); setJustification(client.criticalityJustification || ''); setIsEditingSla(true); }}><Edit2 size={11} /></button>
+                <button className="btn-secondary vo-hide" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { setCriticality(client.criticality); setJustification(client.criticalityJustification || ''); setIsEditingSla(true); }}><Edit2 size={11} /></button>
               </div>
 
               {!isEditingSla ? (
@@ -1230,7 +1231,7 @@ export default function ClientDetailView({
             <div className={`detail-card ${isEditingObs ? 'edit-mode-active' : ''}`} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
               <div className="section-header" style={{ marginBottom: '14px' }}>
                 <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Observações</h3>
-                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { setObservations(client.observations || ''); setIsEditingObs(true); }}><Edit2 size={11} /></button>
+                <button className="btn-secondary vo-hide" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { setObservations(client.observations || ''); setIsEditingObs(true); }}><Edit2 size={11} /></button>
               </div>
               
               {!isEditingObs ? (

@@ -50,6 +50,7 @@ export default function TarefasView({
   standaloneTasks,
   stages,
   profile,
+  viewOnly,
   onNavigate,
   onCompleteClientNextAction,
   onSnoozeClientNextContact,
@@ -415,7 +416,7 @@ export default function TarefasView({
           ) : (
             <input
               type="checkbox"
-              className="premium-check"
+              className="premium-check vo-disable"
               checked={false}
               style={{ marginTop: '2px', flexShrink: 0 }}
               onChange={() => {
@@ -465,7 +466,7 @@ export default function TarefasView({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
             {canSnooze && (
-              <button className="btn-icon" style={{ width: '28px', height: '28px' }} title="Adiar 1 dia" onClick={() => handleSnooze(item)}>
+              <button className="btn-icon vo-hide" style={{ width: '28px', height: '28px' }} title="Adiar 1 dia" onClick={() => handleSnooze(item)}>
                 <Clock size={13} />
               </button>
             )}
@@ -475,12 +476,12 @@ export default function TarefasView({
               </button>
             )}
             {isEditable(item) && (
-              <button className="btn-icon" style={{ width: '28px', height: '28px' }} title="Editar" onClick={() => openEditItemModal(item)}>
+              <button className="btn-icon vo-hide" style={{ width: '28px', height: '28px' }} title="Editar" onClick={() => openEditItemModal(item)}>
                 <Pencil size={13} />
               </button>
             )}
             {isDeletable(item) && (
-              <button className="btn-danger-icon" style={{ width: '28px', height: '28px' }} title="Excluir" onClick={() => handleDeleteItem(item)}>
+              <button className="btn-danger-icon vo-hide" style={{ width: '28px', height: '28px' }} title="Excluir" onClick={() => handleDeleteItem(item)}>
                 <Trash2 size={13} />
               </button>
             )}
@@ -540,7 +541,7 @@ export default function TarefasView({
             </div>
           </div>
 
-          <button className="btn-primary" onClick={openNewTaskModal}>
+          <button className="btn-primary vo-hide" onClick={openNewTaskModal}>
             <Plus size={16} />
             <span>Nova tarefa</span>
           </button>
@@ -663,7 +664,7 @@ export default function TarefasView({
                       </span>
                     )}
                   </div>
-                  <button className="btn-icon" style={{ width: '28px', height: '28px' }} title="Desfazer conclusão" onClick={() => handleUndoComplete(item)}>
+                  <button className="btn-icon vo-hide" style={{ width: '28px', height: '28px' }} title="Desfazer conclusão" onClick={() => handleUndoComplete(item)}>
                     <Undo2 size={13} />
                   </button>
                 </div>

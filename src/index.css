@@ -54,6 +54,21 @@ button, input, select, textarea {
   min-height: 100vh;
 }
 
+/* Modo Visualização — marca elementos de mutação (criar/editar/excluir)
+   com .vo-hide (some por completo) ou .vo-disable (fica visível, mas
+   inerte e apagado) sem precisar reestruturar o JSX de cada tela; some
+   liga quando o ancestral .app-layout ganha .view-only-mode. */
+.view-only-mode .vo-hide {
+  display: none !important;
+}
+
+.view-only-mode .vo-disable {
+  pointer-events: none !important;
+  opacity: 0.35 !important;
+  filter: grayscale(0.4);
+  cursor: not-allowed !important;
+}
+
 /* Sidebar styling */
 .sidebar {
   width: 260px;

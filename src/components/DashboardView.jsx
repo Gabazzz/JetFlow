@@ -437,7 +437,7 @@ export default function DashboardView({
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                         <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>{isDone ? 'CONCLUÍDO' : 'PRÓXIMA AÇÃO'}</span>
                         <button
-                          className="btn-secondary"
+                          className="btn-secondary vo-disable"
                           disabled={isDone}
                           style={{
                             fontSize: '11px',
@@ -470,7 +470,7 @@ export default function DashboardView({
             <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#fff', marginBottom: '14px' }}>Lembretes Gerais</h3>
 
             {/* Quick Reminder Form */}
-            <form onSubmit={handleQuickAddReminder} className="quick-reminder-bar" style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <form onSubmit={handleQuickAddReminder} className="quick-reminder-bar vo-hide" style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
               <input 
                 type="text" 
                 className="form-input" 
@@ -527,7 +527,7 @@ export default function DashboardView({
                         Prazo: {item.deadline}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
+                    <div className="vo-hide" style={{ display: 'flex', gap: '6px' }}>
                       {item.type === 'custom' && (
                         <button className="btn-icon" onClick={() => handleOpenEditReminder(item)}><Edit2 size={13} /></button>
                       )}
@@ -642,13 +642,14 @@ export default function DashboardView({
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '11px', color: '#aaa' }}>
                         <span>Próxima Ação:</span>
-                        <button 
-                          style={{ 
-                            background: 'none', 
-                            border: 'none', 
-                            color: 'var(--green-primary)', 
-                            fontWeight: '700', 
-                            fontSize: '11px', 
+                        <button
+                          className="vo-hide"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--green-primary)',
+                            fontWeight: '700',
+                            fontSize: '11px',
                             padding: 0,
                             cursor: 'pointer',
                             display: 'flex',

@@ -2,14 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, Kanban, Users, Settings, Search,
   Link as LinkIcon, ChevronDown, ChevronRight, ExternalLink,
-  Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap, LifeBuoy, FileText, TrendingUp
+  Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap, LifeBuoy, FileText, TrendingUp, Eye, EyeOff
 } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import NotaReuniaoModal from './NotaReuniaoModal';
 import jetflowLogo from '../assets/jetflow-logo.webp';
 
-export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket, onUpdateClient, onUpdateChecklist }) {
+export default function Sidebar({ currentRoute, onNavigate, profile, clients, offers, viewOnly, onToggleViewOnly, onOpenNewLeadModal, onAddClientTask, onAddClientOffer, onAddTicket, onUpdateClient, onUpdateChecklist }) {
   // Client context — reused as-is when the quick action is opened from within a client's page
   const contextClientId = currentRoute && currentRoute.startsWith('clientes/') ? currentRoute.split('/')[1] : null;
   const contextClient = contextClientId ? (clients || []).find(c => c.id === contextClientId) || null : null;
@@ -146,7 +146,7 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
       </div>
 
       {/* Quick Actions menu */}
-      <div style={{ padding: '0 8px 16px 8px', position: 'relative' }} ref={quickMenuRef}>
+      <div className="vo-hide" style={{ padding: '0 8px 16px 8px', position: 'relative' }} ref={quickMenuRef}>
         <button
           onClick={() => setIsQuickMenuOpen(v => !v)}
           className="btn-primary quick-action-trigger"
@@ -293,6 +293,31 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
           </div>
         </div>
       </nav>
+
+      {/* Modo Visualização */}
+      <button
+        onClick={onToggleViewOnly}
+        title={viewOnly ? 'Sair do Modo Visualização' : 'Entrar no Modo Visualização (navegar sem editar nada)'}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
+          width: '100%',
+          padding: '8px',
+          marginBottom: '10px',
+          borderRadius: '8px',
+          fontSize: '11px',
+          fontWeight: '700',
+          cursor: 'pointer',
+          backgroundColor: viewOnly ? 'rgba(101, 255, 75, 0.12)' : 'transparent',
+          border: `1px solid ${viewOnly ? 'var(--green-primary)' : 'var(--border-color)'}`,
+          color: viewOnly ? 'var(--green-primary)' : '#888'
+        }}
+      >
+        {viewOnly ? <Eye size={13} /> : <EyeOff size={13} />}
+        <span>{viewOnly ? 'Modo Visualização ativo' : 'Modo Visualização'}</span>
+      </button>
 
       {/* Footer Profile */}
       <div className="sidebar-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>

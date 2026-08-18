@@ -12,6 +12,7 @@ export default function ClientsListView({
   tickets,
   stages,
   profile,
+  viewOnly,
   onAddClient,
   onImportClients,
   onNavigate,
@@ -118,7 +119,7 @@ export default function ClientsListView({
           </button>
         </div>
 
-        <button className="btn-primary" onClick={onOpenNewLeadModal}>
+        <button className="btn-primary vo-hide" onClick={onOpenNewLeadModal}>
           <Plus size={16} />
           <span>Novo Cliente</span>
         </button>
@@ -140,7 +141,7 @@ export default function ClientsListView({
                   {isExporting ? 'Exportando...' : 'Exportar clientes (.xlsx)'}
                 </span>
               </button>
-              <button className="quick-action-item" onClick={() => { setIsMoreMenuOpen(false); setIsImportModalOpen(true); }}>
+              <button className="quick-action-item vo-hide" onClick={() => { setIsMoreMenuOpen(false); setIsImportModalOpen(true); }}>
                 <Upload size={14} />
                 <span className="quick-action-item-title" style={{ fontWeight: '500' }}>Importar clientes (.xlsx)</span>
               </button>
@@ -164,6 +165,7 @@ export default function ClientsListView({
         <KanbanView
           clients={filteredClients}
           stages={stages}
+          viewOnly={viewOnly}
           onUpdateClientStage={onUpdateClientStage}
           onUpdateClientNextAction={onUpdateClientNextAction}
           onEditStage={onEditStage}
@@ -268,7 +270,7 @@ export default function ClientsListView({
                       </td>
                       <td style={{ position: 'relative' }}>
                         {/* Hover Quick Actions triggers */}
-                        <div className="hover-actions-overlay">
+                        <div className="hover-actions-overlay vo-hide">
                           <button 
                             className="btn-action-small"
                             onClick={(e) => { e.stopPropagation(); handleOpenPopover(client.id, 'contato'); }}

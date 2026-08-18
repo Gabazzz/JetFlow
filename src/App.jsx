@@ -51,6 +51,10 @@ export default function App() {
   const [tickets, setTickets] = useState([]);
   const [standaloneTasks, setStandaloneTasks] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  // Modo Visualização — não persiste entre sessões de propósito: é um
+  // botão que qualquer um logado pode ligar pra navegar sem risco de criar/
+  // editar/excluir nada por engano, não uma permissão de conta.
+  const [viewOnly, setViewOnly] = useState(false);
 
   // Last-known id sets per collection, used to detect deletions on sync.
   const lastClientIds = useRef(new Set());
@@ -693,6 +697,7 @@ export default function App() {
           tickets={tickets}
           profile={profile}
           stages={stages}
+          viewOnly={viewOnly}
           onAddReminder={handleAddClientReminder}
           onUpdateReminder={handleEditClientReminder}
           onRemoveReminder={handleRemoveClientReminder}
@@ -708,6 +713,7 @@ export default function App() {
         <KanbanView
           clients={clients}
           stages={stages}
+          viewOnly={viewOnly}
           onUpdateClientStage={handleUpdateClientStage}
           onUpdateClientNextAction={handleUpdateClientNextAction}
           onEditStage={handleEditStage}
@@ -727,6 +733,7 @@ export default function App() {
           tickets={tickets}
           stages={stages}
           profile={profile}
+          viewOnly={viewOnly}
           onAddClient={handleAddClient}
           onImportClients={handleImportClients}
           onNavigate={handleNavigate}
@@ -753,6 +760,7 @@ export default function App() {
             modules={modules}
             stages={stages}
             profile={profile}
+            viewOnly={viewOnly}
             availableOffers={offers}
             onUpdateClient={handleUpdateClient}
             onRegisterContact={handleRegisterContact}
@@ -780,7 +788,7 @@ export default function App() {
     }
 
     if (currentRoute === 'agenda') {
-      return <AgendaView clients={clients} accountEmail={session.user.email} profile={profile} onUpdateClient={handleUpdateClient} onAddClientActivity={handleAddClientActivity} />;
+      return <AgendaView clients={clients} accountEmail={session.user.email} profile={profile} viewOnly={viewOnly} onUpdateClient={handleUpdateClient} onAddClientActivity={handleAddClientActivity} />;
     }
 
     if (currentRoute === 'tarefas') {
@@ -791,6 +799,7 @@ export default function App() {
           standaloneTasks={standaloneTasks}
           stages={stages}
           profile={profile}
+          viewOnly={viewOnly}
           onNavigate={handleNavigate}
           onCompleteClientNextAction={handleCompleteClientNextAction}
           onSnoozeClientNextContact={handleSnoozeClientNextContact}
@@ -817,6 +826,7 @@ export default function App() {
       return (
         <OportunidadesView
           clients={clients}
+          viewOnly={viewOnly}
           onNavigate={handleNavigate}
           onUpdateClient={handleUpdateClient}
         />
@@ -828,6 +838,7 @@ export default function App() {
         <SuporteView
           clients={clients}
           tickets={tickets}
+          viewOnly={viewOnly}
           onAddTicket={handleAddTicket}
           onUpdateTicketStatus={handleUpdateTicketStatus}
           onUpdateTicketLink={handleUpdateTicketLink}
@@ -841,6 +852,7 @@ export default function App() {
       return (
         <ConfiguracoesView
           profile={profile}
+          viewOnly={viewOnly}
           onUpdateProfile={handleUpdateProfile}
           accountEmail={session.user.email}
           onSignOut={handleSignOut}
@@ -911,9 +923,11 @@ export default function App() {
   }
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${viewOnly ? 'view-only-mode' : ''}`}>
       <Sidebar
         currentRoute={currentRoute}
+        viewOnly={viewOnly}
+        onToggleViewOnly={() => setViewOnly(v => !v)}
         onNavigate={handleNavigate}
         profile={profile}
         clients={clients}

@@ -9,6 +9,7 @@ import {
 import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, getTodayBR, getContactAlert, OPPORTUNITY_STATUS_OPTIONS } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
+import useIsMobile from '../hooks/useIsMobile';
 
 export default function ClientDetailView({ 
   client,
@@ -32,6 +33,7 @@ export default function ClientDetailView({
   onNavigate
 }) {
   const todayStr = getTodayBR();
+  const isMobile = useIsMobile();
 
   // Section Editing states
   const [isEditingInfo, setIsEditingInfo] = useState(false);
@@ -478,7 +480,7 @@ export default function ClientDetailView({
       })()}
 
       {/* ── TWO COLUMN LAYOUT ── */}
-      <div className="detail-layout" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px', alignItems: 'start' }}>
+      <div className="detail-layout" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '320px 1fr', gap: '20px', alignItems: 'start' }}>
         
         {/* ── LEFT COLUMN: INFO & QUICK LINKS ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -698,7 +700,7 @@ export default function ClientDetailView({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: interestOffers.length > 0 ? '14px' : 0 }}>
               {interestOffers.map(offer => (
-                <div key={offer.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px' }}>
+                <div key={offer.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                     <TrendingUp size={14} style={{ color: 'var(--green-primary)', flexShrink: 0 }} />
                     <span style={{ color: '#fff', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{offer.name}</span>
@@ -806,10 +808,11 @@ export default function ClientDetailView({
               </span>
             </div>
 
-            <div className="timeline-tracker-steps" style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', alignItems: 'flex-start', padding: '0 10px' }}>
+            <div style={isMobile ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch' } : undefined}>
+            <div className="timeline-tracker-steps" style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', alignItems: 'flex-start', padding: '0 10px', minWidth: isMobile ? `${allStages.length * 62}px` : undefined }}>
               <div className="timeline-tracker-line-bg" style={{ position: 'absolute', left: '20px', right: '20px', top: '16px', height: '2px', backgroundColor: '#252525', zIndex: 1 }} />
               <div className="timeline-tracker-line-fill" style={{ position: 'absolute', left: '20px', top: '16px', height: '2px', width: `calc(${fillWidth} - 40px)`, backgroundColor: 'var(--badge-green)', zIndex: 2, transition: 'width 300ms ease-in-out' }} />
-              
+
               {allStages.map((stage, idx) => {
                 const isCompleted = idx < currentStageIndex;
                 const isActive = idx === currentStageIndex;
@@ -855,6 +858,7 @@ export default function ClientDetailView({
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
 
@@ -1184,7 +1188,7 @@ export default function ClientDetailView({
           </div>
           
           {/* Lembretes / Observações details card */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}>
             {/* Criticality & SLA card */}
             <div className={`detail-card ${isEditingSla ? 'edit-mode-active' : ''}`} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderLeft: `3px solid ${criticalityMeta.color}`, borderRadius: '8px', padding: '20px' }}>
               <div className="section-header" style={{ marginBottom: '14px' }}>

@@ -2833,6 +2833,10 @@ input[type="checkbox"].premium-check:active {
   .search-bar-row {
     flex-wrap: wrap;
   }
+
+  .settings-inline-add-row {
+    flex-wrap: wrap;
+  }
 }
 
 

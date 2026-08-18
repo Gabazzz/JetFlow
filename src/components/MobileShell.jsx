@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, Users, Calendar, CheckSquare, MoreHorizontal,
-  Kanban, TrendingUp, LifeBuoy, Settings, Eye, EyeOff, LogOut, ArrowLeft, X
+  Kanban, TrendingUp, LifeBuoy, Settings, Eye, EyeOff, LogOut, ArrowLeft, X, FileText
 } from 'lucide-react';
 
 const TABS = [
@@ -34,6 +34,7 @@ export default function MobileShell({
   viewOnly,
   onToggleViewOnly,
   onSignOut,
+  onOpenNotaReuniao,
   children
 }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -94,6 +95,12 @@ export default function MobileShell({
           <div className="mobile-sheet-overlay" onClick={() => setIsSheetOpen(false)} />
           <div className="mobile-sheet">
             <div className="mobile-sheet-handle" />
+            {!viewOnly && (
+              <button className="mobile-sheet-item" onClick={() => { setIsSheetOpen(false); onOpenNotaReuniao(); }}>
+                <FileText size={18} style={{ color: 'var(--green-primary)' }} />
+                <span>Nova Nota de Reunião</span>
+              </button>
+            )}
             {SHEET_ITEMS.map(item => (
               <button key={item.id} className="mobile-sheet-item" onClick={() => goTab(item.id)}>
                 <item.icon size={18} />

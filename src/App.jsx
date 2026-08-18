@@ -11,6 +11,7 @@ import TarefasView from './components/TarefasView';
 import OportunidadesView from './components/OportunidadesView';
 import Auth from './components/Auth';
 import MobileShell from './components/MobileShell';
+import NotaReuniaoModal from './components/NotaReuniaoModal';
 import useIsMobile from './hooks/useIsMobile';
 
 import { initialProfile } from './data/data';
@@ -58,6 +59,7 @@ export default function App() {
   // botão que qualquer um logado pode ligar pra navegar sem risco de criar/
   // editar/excluir nada por engano, não uma permissão de conta.
   const [viewOnly, setViewOnly] = useState(false);
+  const [isMobileNotaOpen, setIsMobileNotaOpen] = useState(false);
 
   // Last-known id sets per collection, used to detect deletions on sync.
   const lastClientIds = useRef(new Set());
@@ -1114,6 +1116,9 @@ export default function App() {
   );
 
   if (isMobile) {
+    const notaContextClientId = currentRoute.startsWith('clientes/') ? currentRoute.split('/')[1] : null;
+    const notaContextClient = notaContextClientId ? clients.find(c => c.id === notaContextClientId) || null : null;
+
     return (
       <>
         <MobileShell
@@ -1124,9 +1129,22 @@ export default function App() {
           viewOnly={viewOnly}
           onToggleViewOnly={() => setViewOnly(v => !v)}
           onSignOut={handleSignOut}
+          onOpenNotaReuniao={() => setIsMobileNotaOpen(true)}
         >
           {renderView()}
         </MobileShell>
+
+        {isMobileNotaOpen && (
+          <NotaReuniaoModal
+            clients={clients}
+            contextClient={notaContextClient}
+            profile={profile}
+            availableOffers={offers}
+            onUpdateClient={handleUpdateClient}
+            onUpdateChecklist={handleUpdateClientChecklist}
+            onClose={() => setIsMobileNotaOpen(false)}
+          />
+        )}
 
         {/* Global New Lead Modal */}
         {isNewLeadModalOpen && (

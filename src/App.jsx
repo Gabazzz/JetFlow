@@ -10,6 +10,7 @@ import AgendaView from './components/AgendaView';
 import TarefasView from './components/TarefasView';
 import OportunidadesView from './components/OportunidadesView';
 import Auth from './components/Auth';
+import TwoFactorChallenge from './components/TwoFactorChallenge';
 import MobileShell from './components/MobileShell';
 import NotaReuniaoModal from './components/NotaReuniaoModal';
 import useIsMobile from './hooks/useIsMobile';
@@ -41,7 +42,16 @@ export default function App() {
   const [dataReady, setDataReady] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  // Trava de 2FA. O status anda junto do userId a que ele se refere de
+  // propósito: guardar só o status abriria uma janela onde a sessão já
+  // mudou mas o status ainda é o da sessão anterior — e, como os dois
+  // efeitos rodam no mesmo ciclo, o carregamento leria esse valor velho e
+  // buscaria os dados antes do segundo fator.
+  const [mfaGate, setMfaGate] = useState({ userId: null, status: 'checking' });
+  const [mfaAttempt, setMfaAttempt] = useState(0);
   const userId = session?.user?.id || null;
+  // Só é "liberado" quando o status conferido pertence a esta mesma sessão.
+  const mfaCleared = !!userId && mfaGate.userId === userId && mfaGate.status === 'ok';
 
   // Application Local State (Single source of truth — now backed by Supabase.
   // Handlers below are untouched from before; a set of sync effects further
@@ -78,9 +88,39 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  // 2FA — a senha correta abre a sessão em aal1; quem tem autenticador
+  // ativo só chega em aal2 depois do código. A verificação roda antes do
+  // carregamento dos dados de propósito: RLS libera as linhas já em aal1
+  // (o JWT tem o auth.uid() válido), então checar só na hora de desenhar a
+  // tela deixaria os 62 clientes no navegador antes do segundo fator.
+  useEffect(() => {
+    if (!session) {
+      setMfaGate({ userId: null, status: 'ok' });
+      return;
+    }
+    const uid = session.user.id;
+    let cancelled = false;
+    setMfaGate({ userId: uid, status: 'checking' });
+    (async () => {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (cancelled) return;
+      if (error) {
+        // Sem resposta confiável sobre o nível, não trava o acesso — a conta
+        // sem 2FA cadastrado ficaria presa fora do app por um erro de rede.
+        setMfaGate({ userId: uid, status: 'ok' });
+        return;
+      }
+      setMfaGate({
+        userId: uid,
+        status: data.nextLevel === 'aal2' && data.currentLevel !== 'aal2' ? 'required' : 'ok'
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [session, mfaAttempt]);
+
   // Load everything for the signed-in user once, right after login.
   useEffect(() => {
-    if (!userId) {
+    if (!mfaCleared) {
       setDataReady(false);
       return;
     }
@@ -112,7 +152,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [userId, loadAttempt]);
+  }, [userId, loadAttempt, mfaCleared]);
 
   // Sync effects — fire after every local change to each collection, once
   // the initial load has completed. Business logic in the handlers below
@@ -912,6 +952,15 @@ export default function App() {
         <span style={{ fontSize: '11px', color: '#666', maxWidth: '420px' }}>{loadError}</span>
         <button className="btn-primary" onClick={() => setLoadAttempt(n => n + 1)}>Tentar novamente</button>
       </div>
+    );
+  }
+
+  if (session && mfaGate.userId === userId && mfaGate.status === 'required') {
+    return (
+      <TwoFactorChallenge
+        onVerified={() => setMfaAttempt(n => n + 1)}
+        onSignOut={handleSignOut}
+      />
     );
   }
 

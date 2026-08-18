@@ -102,7 +102,7 @@ export default function TarefasView({
 
     clients.forEach(client => {
       const clientTickets = tickets.filter(t => t.clientId === client.id);
-      const phase = getClientPhase(client, clientTickets, todayStr);
+      const phase = getClientPhase(client, clientTickets, todayStr, stages);
       const origin = phase === 'Onboarding' ? 'Onboarding' : 'CS';
 
       if (client.nextAction && client.nextAction.trim()) {
@@ -213,7 +213,7 @@ export default function TarefasView({
 
     clients.forEach(client => {
       const clientTickets = tickets.filter(t => t.clientId === client.id);
-      const phase = getClientPhase(client, clientTickets, todayStr);
+      const phase = getClientPhase(client, clientTickets, todayStr, stages);
       const origin = phase === 'Onboarding' ? 'Onboarding' : 'CS';
 
       (client.tasks || []).forEach(t => {
@@ -246,7 +246,7 @@ export default function TarefasView({
     });
 
     return items;
-  }, [clients, tickets, standaloneTasks, todayStr]);
+  }, [clients, tickets, standaloneTasks, stages, todayStr]);
 
   const filteredItems = useMemo(() => {
     if (activeFilter === 'Todas') return allItems;

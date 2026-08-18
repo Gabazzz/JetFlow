@@ -126,8 +126,8 @@ export function getHealthTier(score) {
 }
 
 // Onboarding | Ativação | Ativo | Em Risco
-export function getClientPhase(client, clientTickets = [], systemDateStr = getTodayBR()) {
-  if (client.stage !== 'Finalizado') return 'Onboarding';
+export function getClientPhase(client, clientTickets = [], systemDateStr = getTodayBR(), stages = []) {
+  if (!isClientPostOnboarding(client, stages)) return 'Onboarding';
 
   const health = calculateHealthScore(client, clientTickets, systemDateStr);
   if (health < 40) return 'Em Risco';

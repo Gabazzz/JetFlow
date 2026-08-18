@@ -124,7 +124,7 @@ export default function DashboardView({
   // CX phase: clients past onboarding whose health score dropped into risk territory
   const atRiskCSClients = clients.filter(c => {
     const clientTickets = (tickets || []).filter(t => t.clientId === c.id);
-    return getClientPhase(c, clientTickets, todayStr) === 'Em Risco';
+    return getClientPhase(c, clientTickets, todayStr, stages) === 'Em Risco';
   });
 
   // Sort clients by criticality and gap for "Precisam de Atenção"

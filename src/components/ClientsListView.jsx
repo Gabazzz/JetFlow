@@ -188,7 +188,7 @@ export default function ClientsListView({
               if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
 
               const clientTickets = (tickets || []).filter(t => t.clientId === client.id);
-              const phase = getClientPhase(client, clientTickets, todayStr);
+              const phase = getClientPhase(client, clientTickets, todayStr, stages);
               const phaseMeta = PHASE_META[phase];
               const demandType = getDemandType(phase);
               const contactAlert = getContactAlert(client, stages, profile, todayStr);
@@ -248,7 +248,7 @@ export default function ClientsListView({
                   if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
 
                   const clientTickets = (tickets || []).filter(t => t.clientId === client.id);
-                  const phase = getClientPhase(client, clientTickets, todayStr);
+                  const phase = getClientPhase(client, clientTickets, todayStr, stages);
                   const phaseMeta = PHASE_META[phase];
                   const demandType = getDemandType(phase);
                   const contactAlert = getContactAlert(client, stages, profile, todayStr);

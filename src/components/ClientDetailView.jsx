@@ -301,7 +301,7 @@ export default function ClientDetailView({
   }[client.criticality] || { color: '#10B981', Icon: CheckCircle, badgeClass: 'badge-estavel' };
 
   const clientTickets = tickets || [];
-  const phase = getClientPhase(client, clientTickets, todayStr);
+  const phase = getClientPhase(client, clientTickets, todayStr, stages);
   const phaseMeta = PHASE_META[phase];
   const demandType = getDemandType(phase);
   const healthScore = calculateHealthScore(client, clientTickets, todayStr);

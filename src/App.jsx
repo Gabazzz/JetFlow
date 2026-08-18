@@ -8,6 +8,7 @@ import ConfiguracoesView from './components/ConfiguracoesView';
 import SuporteView from './components/SuporteView';
 import AgendaView from './components/AgendaView';
 import TarefasView from './components/TarefasView';
+import OportunidadesView from './components/OportunidadesView';
 import Auth from './components/Auth';
 
 import { initialProfile } from './data/data';
@@ -774,6 +775,16 @@ export default function App() {
       );
     }
 
+    if (currentRoute === 'oportunidades') {
+      return (
+        <OportunidadesView
+          clients={clients}
+          onNavigate={handleNavigate}
+          onUpdateClient={handleUpdateClient}
+        />
+      );
+    }
+
     if (currentRoute === 'suporte') {
       return (
         <SuporteView
@@ -833,6 +844,7 @@ export default function App() {
     if (currentRoute.startsWith('clientes/')) return 'Detalhes do Cliente';
     if (currentRoute === 'agenda') return 'Agenda';
     if (currentRoute === 'tarefas') return 'Minha Fila Hoje';
+    if (currentRoute === 'oportunidades') return 'Oportunidades';
     if (currentRoute === 'suporte') return 'Central de Suporte';
     if (currentRoute === 'configuracoes') return 'Configurações do Sistema';
     return 'JetFlow';

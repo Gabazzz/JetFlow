@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
-import { getTodayBR, getChecklistDiff, getItemDoneText, getItemPendingText } from '../utils';
+import { getTodayBR, getChecklistDiff, getItemDoneText, getItemPendingText, OPPORTUNITY_STATUS_OPTIONS } from '../utils';
 
 const STATUS_OPTIONS = [
   { value: 'Em andamento', emoji: '🟢' },
@@ -23,6 +23,7 @@ const UPSELL_STATUS_PHRASE = {
   'Solicitar abordagem comercial': (produtos) => `Solicitar abordagem comercial para ${produtos}.`,
   'Encaminhado ao comercial': (produtos) => `Encaminhado ao comercial: ${produtos}.`,
   'Em negociação': (produtos) => `Em negociação: ${produtos}.`,
+  'Convertido': (produtos) => `Convertido: ${produtos}.`,
   'Sem interesse': (produtos) => `Sem interesse em ${produtos}.`
 };
 
@@ -250,12 +251,30 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
 
   const isValid = () => !!client && form.numeroReuniao.trim() !== '';
 
+  // O upsell marcado na Seção 4 não fica só no texto copiado — vira (ou
+  // atualiza) uma oportunidade real em client.interestOffers, pra dar pra
+  // achar depois no card do cliente e na aba Oportunidades. Faz upsert por
+  // nome do produto: se já existe uma oportunidade com esse nome, só troca
+  // o status; senão cria uma nova.
+  const syncUpsellToOpportunities = () => {
+    if (!client || form.upsellProdutos.length === 0) return;
+    const existing = client.interestOffers || [];
+    const updated = [...existing];
+    form.upsellProdutos.forEach((produto, i) => {
+      const idx = updated.findIndex(o => o.name === produto);
+      if (idx >= 0) updated[idx] = { ...updated[idx], status: form.upsellStatus };
+      else updated.push({ id: `io_${Date.now()}_${i}`, name: produto, status: form.upsellStatus });
+    });
+    onUpdateClient(client.id, { interestOffers: updated });
+  };
+
   const handleGenerate = () => {
     if (!isValid()) {
       setShowValidation(true);
       return;
     }
     setShowValidation(false);
+    syncUpsellToOpportunities();
     setGeneratedNote(buildNotaText(form, diff, profile.name));
     generatedOnceRef.current = true;
     setCopyFeedback(false);
@@ -458,7 +477,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
                   <CustomSelect
                     value={form.upsellStatus}
                     onChange={v => setField('upsellStatus', v)}
-                    options={Object.keys(UPSELL_STATUS_PHRASE)}
+                    options={OPPORTUNITY_STATUS_OPTIONS}
                   />
                 </div>
               )}

@@ -4,9 +4,9 @@ import {
   ExternalLink, Link, CheckSquare, PlusCircle, Check,
   ChevronDown, ChevronRight, Clock, Building, User, Info, CheckCircle,
   AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw,
-  Hash, Wifi, Users as UsersIcon
+  Hash, Wifi, Users as UsersIcon, TrendingUp
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, getTodayBR, getContactAlert } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, getTodayBR, getContactAlert, OPPORTUNITY_STATUS_OPTIONS } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 
@@ -99,7 +99,7 @@ export default function ClientDetailView({
   // Offers States
   const [interestOffers, setInterestOffers] = useState(client.interestOffers || []);
   const [selectedNewOffer, setSelectedNewOffer] = useState('');
-  const [newOfferStatus, setNewOfferStatus] = useState('Interessado');
+  const [newOfferStatus, setNewOfferStatus] = useState(OPPORTUNITY_STATUS_OPTIONS[0]);
 
   // SLA Form States
   const [criticality, setCriticality] = useState(client.criticality);
@@ -205,9 +205,20 @@ export default function ClientDetailView({
 
   const handleSaveLinks = (e) => {
     e.preventDefault();
+    // Se o usuário digitou nome+URL em "Links Adicionais" mas esqueceu de
+    // clicar no "+", o link ainda entra ao salvar — não fica silenciosamente perdido.
+    const pendingLink = newLinkLabel.trim() && newLinkUrl.trim()
+      ? [{ id: `link_${Date.now()}`, label: newLinkLabel.trim(), url: newLinkUrl.trim() }]
+      : [];
+    const finalDiscordSupport = [...linkDiscordSupportList, ...pendingLink];
     onUpdateClient(client.id, {
-      quickLinks: { dealId: linkDealId, crm: linkCrm, discordIntegration: linkDiscordInt, discordSupport: linkDiscordSupportList, site: linkSite, deskPlatformUrl: linkDeskUrl, deskPlatformEmail: linkDeskEmail }
+      quickLinks: { dealId: linkDealId, crm: linkCrm, discordIntegration: linkDiscordInt, discordSupport: finalDiscordSupport, site: linkSite, deskPlatformUrl: linkDeskUrl, deskPlatformEmail: linkDeskEmail }
     });
+    if (pendingLink.length > 0) {
+      setLinkDiscordSupportList(finalDiscordSupport);
+      setNewLinkLabel('');
+      setNewLinkUrl('');
+    }
     setIsEditingLinks(false);
   };
 
@@ -645,6 +656,55 @@ export default function ClientDetailView({
               {!client.quickLinks?.dealId && !client.quickLinks?.crm && !client.quickLinks?.discordIntegration && !(client.quickLinks?.discordSupport?.length) && !client.quickLinks?.site && !client.quickLinks?.deskPlatformUrl && (
                 <span style={{ color: 'var(--text-secondary)', fontSize: '12px', textAlign: 'center', padding: '8px 0' }}>Nenhum link configurado.</span>
               )}
+            </div>
+          </div>
+
+          {/* Card: Interesse em Ofertas (Oportunidades) */}
+          <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+            <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 16px' }}>
+              INTERESSE EM OFERTAS
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: interestOffers.length > 0 ? '14px' : 0 }}>
+              {interestOffers.map(offer => (
+                <div key={offer.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <TrendingUp size={14} style={{ color: 'var(--green-primary)', flexShrink: 0 }} />
+                    <span style={{ color: '#fff', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{offer.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    <CustomSelect
+                      value={offer.status}
+                      onChange={v => handleOfferStatusChange(offer.id, v)}
+                      options={OPPORTUNITY_STATUS_OPTIONS}
+                      style={{ width: '190px' }}
+                    />
+                    <button type="button" className="btn-danger-icon" onClick={() => handleRemoveOffer(offer.id)} title="Remover"><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              ))}
+              {interestOffers.length === 0 && (
+                <span style={{ color: 'var(--text-secondary)', fontSize: '12px', textAlign: 'center', padding: '8px 0' }}>Nenhuma oportunidade registrada.</span>
+              )}
+            </div>
+
+            <div className="settings-inline-add-row">
+              <CustomSelect
+                value={selectedNewOffer}
+                onChange={setSelectedNewOffer}
+                placeholder="Selecionar oferta..."
+                options={(availableOffers || []).filter(o => !interestOffers.some(io => io.name === o.name)).map(o => ({ value: o.name, label: o.name }))}
+                style={{ flex: 1 }}
+              />
+              <CustomSelect
+                value={newOfferStatus}
+                onChange={setNewOfferStatus}
+                options={OPPORTUNITY_STATUS_OPTIONS}
+                style={{ flex: '0 0 190px' }}
+              />
+              <button type="button" className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={handleAddOffer} title="Adicionar oportunidade">
+                <Plus size={16} />
+              </button>
             </div>
           </div>
         </div>

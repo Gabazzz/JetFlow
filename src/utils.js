@@ -155,6 +155,28 @@ export function getDemandType(phase) {
   return phase === 'Onboarding' ? 'Onboarding' : 'CS';
 }
 
+// Status possíveis de uma oportunidade (client.interestOffers[].status) —
+// mesma lista usada no Upsell da Nota de Reunião (Seção 4), no card
+// "Interesse em Ofertas" do Cliente 360 e na aba Oportunidades, para que
+// marcar um upsell na nota e editar depois no cliente falem a mesma língua.
+export const OPPORTUNITY_STATUS_OPTIONS = [
+  'Interesse demonstrado',
+  'Solicitar abordagem comercial',
+  'Encaminhado ao comercial',
+  'Em negociação',
+  'Convertido',
+  'Sem interesse'
+];
+
+export const OPPORTUNITY_STATUS_META = {
+  'Interesse demonstrado': { badgeClass: 'badge-atencao' },
+  'Solicitar abordagem comercial': { badgeClass: 'badge-atencao' },
+  'Encaminhado ao comercial': { badgeClass: 'badge-atencao' },
+  'Em negociação': { badgeClass: 'badge-atencao' },
+  'Convertido': { badgeClass: 'badge-estavel' },
+  'Sem interesse': { badgeClass: 'badge-critico' }
+};
+
 // Whether a client has finished onboarding — i.e. sits on the last
 // configured Kanban stage (stages is the account's own ordered list, since
 // stage names are fully customizable in Configurações > Kanban). Used to

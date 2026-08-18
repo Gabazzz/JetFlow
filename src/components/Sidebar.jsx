@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, Kanban, Users, Settings, Search,
   Link as LinkIcon, ChevronDown, ChevronRight, ExternalLink,
-  Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap, LifeBuoy, FileText
+  Calendar, CheckSquare, Plus, User, Building2, Target, X, Zap, LifeBuoy, FileText, TrendingUp
 } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
@@ -261,6 +261,13 @@ export default function Sidebar({ currentRoute, onNavigate, profile, clients, of
             >
               <CheckSquare size={18} />
               <span>Tarefas</span>
+            </button>
+            <button
+              className={`nav-item ${currentRoute === 'oportunidades' ? 'active' : ''}`}
+              onClick={() => onNavigate('oportunidades')}
+            >
+              <TrendingUp size={18} />
+              <span>Oportunidades</span>
             </button>
           </div>
         </div>

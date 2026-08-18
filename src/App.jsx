@@ -310,6 +310,47 @@ export default function App() {
 
   const handleUpdateModuleChecklist = (id, checklist) => {
     setModules(prev => prev.map(m => m.id === id ? { ...m, checklist } : m));
+
+    // O checklist do cliente é uma cópia do modelo, feita quando o módulo é
+    // vinculado — e antes ela nunca mais era tocada. Resultado: editar as
+    // etapas em Configurações não chegava a quem já tinha o módulo, e as
+    // etapas novas nunca apareciam na Nota de Reunião. Aqui o modelo passa a
+    // valer também para os clientes atuais, sem perder o progresso deles:
+    // o que já existe mantém o marcado/desmarcado, o que é novo entra
+    // desmarcado, o que foi excluído do modelo sai, e a ordem passa a ser a
+    // do modelo. Etapa renomeada conta como outra etapa (a antiga sai, a nova
+    // entra), porque a correspondência é pelo texto da etapa.
+    const modObj = modules.find(m => m.id === id);
+    if (!modObj) return;
+    const modName = modObj.name;
+    const modelo = checklist || [];
+
+    setClients(prev => prev.map(c => {
+      if (!(c.activeModules || []).includes(modName)) return c;
+
+      const atuais = new Map(((c.checklists || {})[modName] || []).map(it => [it.label, it]));
+      const jaReportados = new Map(((c.checklistBaseline || {})[modName] || []).map(it => [it.label, it]));
+
+      const novoChecklist = modelo.map(modeloItem => {
+        const existente = atuais.get(modeloItem.label);
+        // Mantém o estado do cliente e absorve ajustes de texto do modelo
+        // (doneText/pendingText), que só existem no modelo.
+        return existente ? { ...modeloItem, checked: !!existente.checked } : { ...modeloItem, checked: false };
+      });
+
+      // O baseline guarda o que já foi reportado em nota. Etapa nova não
+      // entra aqui de propósito: assim, quando for marcada, ela aparece como
+      // "realizado" na próxima nota em vez de nascer já reportada.
+      const novoBaseline = modelo
+        .filter(modeloItem => jaReportados.has(modeloItem.label))
+        .map(modeloItem => ({ ...modeloItem, checked: !!jaReportados.get(modeloItem.label).checked }));
+
+      return {
+        ...c,
+        checklists: { ...(c.checklists || {}), [modName]: novoChecklist },
+        checklistBaseline: { ...(c.checklistBaseline || {}), [modName]: novoBaseline }
+      };
+    }));
   };
 
   const handleRemoveModule = (id) => {

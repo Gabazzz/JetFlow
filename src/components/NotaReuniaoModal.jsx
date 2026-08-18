@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, Sparkles, Eraser, Copy, RefreshCw, Building2, Calendar,
+  X, Sparkles, Eraser, Copy, Building2, Calendar,
   Clock, Users, DollarSign, Plus, Trash2, Link
 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
@@ -172,13 +172,13 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
   const [selectedClientId, setSelectedClientId] = useState('');
   const [form, setForm] = useState(initialFormState());
   const [participantInput, setParticipantInput] = useState('');
-  const [generatedNote, setGeneratedNote] = useState(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
 
   const lastClientId = useRef(null);
-  const generatedOnceRef = useRef(false);
+  const copiedOnceRef = useRef(false);
 
   const client = contextClient || clients.find(c => c.id === selectedClientId) || null;
   const crmLink = getClientCrmLink(client);
@@ -188,17 +188,35 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
   // enquanto o modal está aberto) atualiza a nota na hora.
   const diff = client ? getChecklistDiff(client) : EMPTY_DIFF;
 
+  // O texto é derivado do estado atual, não uma cópia tirada no clique de
+  // "Gerar Nota". Antes ele era um retrato congelado: marcar uma etapa depois
+  // de gerar mudava a pílula na tela mas não o texto, e a pessoa copiava uma
+  // nota dizendo "pendente" para algo que acabara de concluir.
+  const notaText = client ? buildNotaText(form, diff, profile.name) : '';
+
+  const defaultNumeroFor = (c) => {
+    if (!c) return '';
+    const count = c.meetingNotesCount || 0;
+    return count < NUMERO_REUNIAO_BASE.length ? NUMERO_REUNIAO_BASE[count] : 'Outro';
+  };
+
+  // Trocar de cliente recomeça a nota do zero. Antes só o "Qual reunião?" era
+  // reposto, então observações, participantes e o upsell marcado seguiam na
+  // tela — e o upsell chegava a ser gravado no cliente errado ao gerar.
   useEffect(() => {
-    if (client?.id !== lastClientId.current) {
-      lastClientId.current = client?.id || null;
-      generatedOnceRef.current = false;
-      if (client) {
-        const count = client.meetingNotesCount || 0;
-        const defaultNumero = count < NUMERO_REUNIAO_BASE.length ? NUMERO_REUNIAO_BASE[count] : 'Outro';
-        setForm(prev => ({ ...prev, numeroReuniao: defaultNumero }));
-      }
-    }
-  }, [client?.id]);
+    if (client?.id === lastClientId.current) return;
+    lastClientId.current = client?.id || null;
+    copiedOnceRef.current = false;
+    setHasGenerated(false);
+    setParticipantInput('');
+    setShowValidation(false);
+    setCopyFeedback(false);
+    setCopyError(false);
+    setForm({ ...initialFormState(), numeroReuniao: defaultNumeroFor(client) });
+    // Só o id entra nas dependências: o objeto `client` muda de identidade a
+    // cada marcação de checklist, e reagir a ele zeraria o formulário no meio
+    // do preenchimento. Dentro do efeito ele já é o do render atual.
+  }, [client?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -233,10 +251,14 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
   const addGravacao = () => setForm(prev => ({ ...prev, gravacoes: [...prev.gravacoes, ''] }));
   const removeGravacao = (idx) => setForm(prev => ({ ...prev, gravacoes: prev.gravacoes.filter((_, i) => i !== idx) }));
 
+  // "Sujo" = tem conteúdo digitado que se perderia. O "Qual reunião?" é
+  // comparado com o padrão calculado, e não com vazio: ele já nasce
+  // preenchido, então tratá-lo como alteração deixaria o formulário sempre
+  // sujo e faria pedir confirmação à toa.
   const isFormDirty = () => {
     const initial = initialFormState();
     return (
-      form.numeroReuniao !== '' ||
+      form.numeroReuniao !== defaultNumeroFor(client) ||
       form.proximaReuniao !== '' ||
       form.duracaoTexto !== '' ||
       form.participantes.length > 0 ||
@@ -245,9 +267,19 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
       form.upsellObservacao !== '' ||
       form.observacoes !== '' ||
       form.gravacoes.some(g => g.trim() !== '') ||
-      generatedNote !== null ||
-      (!contextClient && selectedClientId !== '')
+      hasGenerated
     );
+  };
+
+  // Trocar de cliente zera a nota — então avisa antes, em vez de descartar o
+  // que já foi preenchido sem perguntar.
+  const handleSelectClient = (novoId) => {
+    if (novoId === selectedClientId) return;
+    if (selectedClientId && isFormDirty() &&
+        !window.confirm('Trocar de cliente vai recomeçar esta nota do zero.\nO que você já preencheu será descartado. Continuar?')) {
+      return;
+    }
+    setSelectedClientId(novoId);
   };
 
   const isValid = () => !!client && form.numeroReuniao.trim() !== '';
@@ -276,28 +308,36 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
     }
     setShowValidation(false);
     syncUpsellToOpportunities();
-    setGeneratedNote(buildNotaText(form, diff, profile.name));
-    generatedOnceRef.current = true;
+    setHasGenerated(true);
     setCopyFeedback(false);
     setCopyError(false);
   };
 
   const handleClear = () => {
     if (isFormDirty() && !window.confirm('Limpar informações?\nTodos os dados preenchidos serão removidos.')) return;
-    setForm(initialFormState());
+    // Limpar apaga o conteúdo da nota, mas mantém o cliente: quem clica aqui
+    // quer refazer a nota daquele cliente, não recomeçar a escolha. Com o
+    // cliente preservado dá para repor o padrão de "Qual reunião?" em vez de
+    // devolver o campo obrigatório em branco. Para trocar de cliente existe o
+    // próprio seletor, que já avisa antes de descartar.
+    setForm({ ...initialFormState(), numeroReuniao: defaultNumeroFor(client) });
     setParticipantInput('');
-    setGeneratedNote(null);
-    generatedOnceRef.current = false;
+    setHasGenerated(false);
+    copiedOnceRef.current = false;
     setCopyFeedback(false);
     setCopyError(false);
     setShowValidation(false);
-    if (!contextClient) setSelectedClientId('');
   };
 
   const handleCopy = async () => {
-    if (!generatedNote) return;
+    if (!hasGenerated || !notaText) return;
     try {
-      await navigator.clipboard.writeText(generatedNote);
+      await navigator.clipboard.writeText(notaText);
+      // Copiar é o que caracteriza a nota como entregue — é esse gesto que
+      // autoriza avançar o "já reportado" ao fechar.
+      copiedOnceRef.current = true;
+      // Se o upsell mudou depois de gerar, o que vale é o que foi copiado.
+      syncUpsellToOpportunities();
       setCopyError(false);
       setCopyFeedback(true);
       setTimeout(() => setCopyFeedback(false), 2500);
@@ -313,11 +353,22 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
   // Marcar itens aqui dentro já grava no checklist real na hora; isso só
   // controla o que conta como "já reportado" pela próxima nota.
   const handleClose = () => {
-    if (generatedOnceRef.current && client) {
-      onUpdateClient(client.id, {
-        checklistBaseline: JSON.parse(JSON.stringify(client.checklists || {})),
-        meetingNotesCount: (client.meetingNotesCount || 0) + 1
-      });
+    if (client && hasGenerated) {
+      // Copiada: a nota foi entregue, então os itens contam como reportados.
+      // Gerada mas não copiada: antes isso avançava o baseline do mesmo jeito,
+      // e um clique fora do modal fazia os itens sumirem da próxima nota sem
+      // aviso. Agora a decisão é de quem está usando.
+      const reportar = copiedOnceRef.current || window.confirm(
+        'Você gerou a nota mas não clicou em "Copiar Nota".\n\n' +
+        'OK = marcar os itens como já reportados (some da próxima nota).\n' +
+        'Cancelar = manter tudo para a próxima nota.'
+      );
+      if (reportar) {
+        onUpdateClient(client.id, {
+          checklistBaseline: JSON.parse(JSON.stringify(client.checklists || {})),
+          meetingNotesCount: (client.meetingNotesCount || 0) + 1
+        });
+      }
     }
     onClose();
   };
@@ -357,7 +408,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
                 <label className="form-label">Cliente *</label>
                 <CustomSelect
                   value={selectedClientId}
-                  onChange={setSelectedClientId}
+                  onChange={handleSelectClient}
                   placeholder="Selecionar cliente..."
                   options={clients.map(c => ({ value: c.id, label: c.name }))}
                 />
@@ -553,12 +604,17 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
           <div className="nota-reuniao-preview">
             <span className="form-label" style={{ display: 'block', marginBottom: '10px' }}>Pré-visualização da nota</span>
             <div className="nota-reuniao-preview-box">
-              {generatedNote ? (
-                <pre>{generatedNote}</pre>
+              {hasGenerated ? (
+                <pre>{notaText}</pre>
               ) : (
                 <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Preencha as informações e clique em "Gerar nota".</span>
               )}
             </div>
+            {hasGenerated && (
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '8px' }}>
+                A nota acompanha o que você marcar no checklist — o texto acima é sempre o que será copiado.
+              </span>
+            )}
             {copyError && <span style={{ fontSize: '11px', color: 'var(--badge-red)' }}>Não foi possível copiar automaticamente — selecione o texto acima e copie manualmente.</span>}
           </div>
         </div>
@@ -573,15 +629,9 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
                 <Eraser size={14} />
                 <span>Limpar</span>
               </button>
-              {generatedNote && (
-                <button type="button" className="btn-secondary" onClick={handleGenerate}>
-                  <RefreshCw size={14} />
-                  <span>Gerar Novamente</span>
-                </button>
-              )}
             </div>
           </div>
-          {generatedNote ? (
+          {hasGenerated ? (
             <button type="button" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleCopy}>
               <Copy size={14} />
               <span>Copiar Nota</span>

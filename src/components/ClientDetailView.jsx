@@ -737,6 +737,58 @@ export default function ClientDetailView({
               </button>
             </div>
           </div>
+
+          {/* Card: Lembretes */}
+          <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>
+                LEMBRETES
+              </h3>
+              <button
+                className="btn-secondary"
+                style={{ padding: '4px 8px', fontSize: '11px', border: '1px solid #333' }}
+                onClick={() => { setRemTitle(''); setRemDesc(''); setRemDeadline(''); setRemCriticality('Normal'); setIsAddReminderOpen(true); }}
+              >
+                <Plus size={11} />
+                <span>Novo</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[...(client.reminders || [])].sort((a, b) => parseBRDate(a.deadline) - parseBRDate(b.deadline)).map(rem => {
+                const dateStatus = getDateStatus(rem.deadline, todayStr);
+                return (
+                  <div key={rem.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ color: '#fff', fontSize: '12px', fontWeight: '600' }}>{rem.title}</span>
+                        <span className={`badge ${TICKET_PRIORITY_BADGE[rem.criticality] || 'badge-estavel'}`} style={{ fontSize: '9px' }}>{rem.criticality}</span>
+                      </div>
+                      {rem.description && <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>{rem.description}</p>}
+                      <span className={dateStatus === 'overdue' ? 'date-overdue' : dateStatus === 'today' ? 'date-today' : ''} style={{ fontSize: '11px', color: dateStatus === 'overdue' || dateStatus === 'today' ? undefined : '#666', display: 'block', marginTop: '4px' }}>
+                        {rem.deadline}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <button type="button" className="btn-icon" style={{ width: '24px', height: '24px' }} title="Editar" onClick={() => handleOpenEditReminder(rem)}><Edit2 size={11} /></button>
+                      <button
+                        type="button"
+                        className="btn-danger-icon"
+                        style={{ width: '24px', height: '24px' }}
+                        title="Remover"
+                        onClick={() => { if (window.confirm('Remover este lembrete?')) onRemoveReminder(client.id, rem.id); }}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {(client.reminders || []).length === 0 && (
+                <span style={{ color: 'var(--text-secondary)', fontSize: '12px', textAlign: 'center', padding: '8px 0' }}>Nenhum lembrete.</span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* ── RIGHT COLUMN: TIMELINE, MODULE ACCORDIONS, HISTORY ── */}
@@ -1409,6 +1461,82 @@ export default function ClientDetailView({
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={() => setIsEditingLinks(false)}>Cancelar</button>
                 <button type="submit" className="btn-primary">Salvar Links</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Reminder Modal */}
+      {isAddReminderOpen && (
+        <div className="modal-overlay" onClick={() => setIsAddReminderOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Novo Lembrete</h3>
+              <button className="btn-icon" onClick={() => setIsAddReminderOpen(false)}><X size={16} /></button>
+            </div>
+            <form onSubmit={handleAddReminderSubmit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Título *</label>
+                  <input type="text" className="form-input" autoFocus value={remTitle} onChange={e => setRemTitle(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descrição</label>
+                  <textarea className="form-textarea" rows={2} value={remDesc} onChange={e => setRemDesc(e.target.value)} />
+                </div>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">Prazo *</label>
+                    <CustomDatePicker value={remDeadline} onChange={setRemDeadline} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Criticidade</label>
+                    <CustomSelect value={remCriticality} onChange={setRemCriticality} options={['Urgente', 'Normal', 'Baixo']} />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setIsAddReminderOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn-primary">Salvar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Reminder Modal */}
+      {editingReminderObj && (
+        <div className="modal-overlay" onClick={() => setEditingReminderObj(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Editar Lembrete</h3>
+              <button className="btn-icon" onClick={() => setEditingReminderObj(null)}><X size={16} /></button>
+            </div>
+            <form onSubmit={handleSaveEditReminder}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Título *</label>
+                  <input type="text" className="form-input" autoFocus value={editRemTitle} onChange={e => setEditRemTitle(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descrição</label>
+                  <textarea className="form-textarea" rows={2} value={editRemDesc} onChange={e => setEditRemDesc(e.target.value)} />
+                </div>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">Prazo *</label>
+                    <CustomDatePicker value={editRemDeadline} onChange={setEditRemDeadline} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Criticidade</label>
+                    <CustomSelect value={editRemCriticality} onChange={setEditRemCriticality} options={['Urgente', 'Normal', 'Baixo']} />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setEditingReminderObj(null)}>Cancelar</button>
+                <button type="submit" className="btn-primary">Salvar</button>
               </div>
             </form>
           </div>

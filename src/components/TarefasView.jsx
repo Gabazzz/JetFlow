@@ -299,15 +299,26 @@ export default function TarefasView({
   }, [filteredItems, selectedDateBR, isViewingToday, todayDateObj]);
 
   // The "concluídas hoje" counter always tracks real today, regardless of
-  // which day is currently being browsed.
+  // which day is currently being browsed. Tarefas de cliente/avulsas têm
+  // completedAt persistido, então são contadas direto dos dados — refletem
+  // "Desfazer conclusão" automaticamente e não se perdem ao trocar de rota
+  // ou recarregar a página. Próxima ação/lembrete/chamado não guardam
+  // quando foram concluídos, então esses continuam num contador de sessão.
+  const tasksCompletedTodayCount = completedItems.filter(i => i.completedAt === todayStr).length;
+  const totalCompletedTodayCount = completedTodayCount + tasksCompletedTodayCount;
   const pendingTodayCount = allItems.filter(i => i.dueDate === todayStr).length;
-  const totalTodayCount = completedTodayCount + pendingTodayCount;
-  const progressPct = totalTodayCount === 0 ? 0 : Math.round((completedTodayCount / totalTodayCount) * 100);
+  const totalTodayCount = totalCompletedTodayCount + pendingTodayCount;
+  const progressPct = totalTodayCount === 0 ? 0 : Math.round((totalCompletedTodayCount / totalTodayCount) * 100);
 
   const shiftDay = (delta) => setSelectedDateBR(prev => addDaysToBRDate(prev, delta));
 
   const handleComplete = (item) => {
-    if (item.dueDate === todayStr) setCompletedTodayCount(c => c + 1);
+    // clientTask/task já entram em tasksCompletedTodayCount (derivado de
+    // completedAt) — só incrementa aqui pros tipos que não persistem
+    // quando foram concluídos, senão contaria em dobro.
+    if (item.dueDate === todayStr && item.kind !== 'clientTask' && item.kind !== 'task') {
+      setCompletedTodayCount(c => c + 1);
+    }
     if (item.kind === 'nextAction') onCompleteClientNextAction(item.clientId);
     else if (item.kind === 'reminder') onRemoveClientReminder(item.clientId, item.reminderId);
     else if (item.kind === 'clientTask') onCompleteClientTask(item.clientId, item.clientTaskId);
@@ -522,7 +533,7 @@ export default function TarefasView({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '240px' }}>
             <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-              {completedTodayCount} de {totalTodayCount} concluídas hoje
+              {totalCompletedTodayCount} de {totalTodayCount} concluídas hoje
             </span>
             <div style={{ width: '260px', maxWidth: '100%', height: '6px', backgroundColor: '#1E1E1E', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{ width: `${progressPct}%`, height: '100%', backgroundColor: 'var(--badge-green)', transition: 'width 250ms ease-out' }} />

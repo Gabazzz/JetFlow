@@ -391,7 +391,26 @@ export default function ClientDetailView({
               fontSize: '13px',
               gap: '6px'
             }}
-            onClick={() => setIsEditingInfo(v => !v)}
+            onClick={() => {
+              if (!isEditingInfo) {
+                // Reabastece o formulário com os dados atuais do cliente —
+                // sem isso, um "Cancelar" anterior deixava valores digitados
+                // (e nunca salvos) prontos pra serem salvos por engano na
+                // próxima vez que o usuário abrisse "Editar" e clicasse Salvar.
+                setName(client.name);
+                setPhone(client.phone);
+                setWhatsapp(client.whatsapp);
+                setEmail(client.email);
+                setCnpj(client.cnpj);
+                setEntryDate(client.entryDate);
+                setResponsible(client.responsible);
+                setContractType(client.contractType || '');
+                setConnections(client.connections ?? '');
+                setUsersCount(client.users ?? '');
+                setUsersEstimated(client.usersEstimated || false);
+              }
+              setIsEditingInfo(v => !v);
+            }}
           >
             <Edit2 size={13} />
             <span>Editar</span>
@@ -591,7 +610,18 @@ export default function ClientDetailView({
               <button 
                 className="btn-secondary" 
                 style={{ padding: '4px 8px', fontSize: '11px', border: '1px solid #333' }}
-                onClick={() => setIsEditingLinks(true)}
+                onClick={() => {
+                  setLinkDealId(client.quickLinks?.dealId || '');
+                  setLinkCrm(client.quickLinks?.crm || '');
+                  setLinkDiscordInt(client.quickLinks?.discordIntegration || '');
+                  setLinkSite(client.quickLinks?.site || '');
+                  setLinkDeskUrl(client.quickLinks?.deskPlatformUrl || '');
+                  setLinkDeskEmail(client.quickLinks?.deskPlatformEmail || '');
+                  setLinkDiscordSupportList(client.quickLinks?.discordSupport || []);
+                  setNewLinkLabel('');
+                  setNewLinkUrl('');
+                  setIsEditingLinks(true);
+                }}
               >
                 Configurar
               </button>
@@ -1106,7 +1136,7 @@ export default function ClientDetailView({
             <div className={`detail-card ${isEditingSla ? 'edit-mode-active' : ''}`} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderLeft: `3px solid ${criticalityMeta.color}`, borderRadius: '8px', padding: '20px' }}>
               <div className="section-header" style={{ marginBottom: '14px' }}>
                 <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Ciclo SLA & Criticidade</h3>
-                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setIsEditingSla(true)}><Edit2 size={11} /></button>
+                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { setCriticality(client.criticality); setJustification(client.criticalityJustification || ''); setIsEditingSla(true); }}><Edit2 size={11} /></button>
               </div>
 
               {!isEditingSla ? (
@@ -1148,7 +1178,7 @@ export default function ClientDetailView({
             <div className={`detail-card ${isEditingObs ? 'edit-mode-active' : ''}`} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
               <div className="section-header" style={{ marginBottom: '14px' }}>
                 <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Observações</h3>
-                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setIsEditingObs(true)}><Edit2 size={11} /></button>
+                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => { setObservations(client.observations || ''); setIsEditingObs(true); }}><Edit2 size={11} /></button>
               </div>
               
               {!isEditingObs ? (

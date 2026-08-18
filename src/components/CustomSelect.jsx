@@ -51,15 +51,15 @@ export default function CustomSelect({
   useEffect(() => {
     if (isOpen) {
       setSearch('');
-      setHighlightIndex(Math.max(0, filteredOptions.findIndex(o => o.value === value)));
+      // Usa normalizedOptions (não filteredOptions) porque a busca só é
+      // zerada NESTE efeito — no render em que isOpen vira true, uma busca
+      // digitada numa sessão anterior ainda estaria filtrando a lista, e o
+      // índice calculado contra ela ficaria errado.
+      setHighlightIndex(Math.max(0, normalizedOptions.findIndex(o => o.value === value)));
       if (searchable) setTimeout(() => searchRef.current?.focus(), 10);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-
-  useEffect(() => {
-    setHighlightIndex(0);
-  }, [search]);
 
   const commitSelection = (opt) => {
     onChange(opt.value);
@@ -115,7 +115,7 @@ export default function CustomSelect({
                 ref={searchRef}
                 type="text"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => { setSearch(e.target.value); setHighlightIndex(0); }}
                 placeholder="Buscar..."
               />
             </div>

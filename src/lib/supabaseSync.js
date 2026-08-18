@@ -164,16 +164,29 @@ export function profileFromRow(row) {
 
 // Loads every collection for the signed-in user in one go.
 export async function loadAllData(userId) {
-  const [profileRes, plansRes, modulesRes, offersRes, stagesRes, clientsRes, ticketsRes, tasksRes] = await Promise.all([
-    supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
-    supabase.from('plans').select('*'),
-    supabase.from('modules').select('*'),
-    supabase.from('offers').select('*'),
-    supabase.from('stages').select('*').order('position'),
-    supabase.from('clients').select('*'),
-    supabase.from('tickets').select('*'),
-    supabase.from('tasks').select('*')
-  ]);
+  const queries = {
+    profile: supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
+    plans: supabase.from('plans').select('*'),
+    modules: supabase.from('modules').select('*'),
+    offers: supabase.from('offers').select('*'),
+    stages: supabase.from('stages').select('*').order('position'),
+    clients: supabase.from('clients').select('*'),
+    tickets: supabase.from('tickets').select('*'),
+    tasks: supabase.from('tasks').select('*')
+  };
+  const keys = Object.keys(queries);
+  const results = await Promise.all(Object.values(queries));
+  const [profileRes, plansRes, modulesRes, offersRes, stagesRes, clientsRes, ticketsRes, tasksRes] = results;
+
+  // supabase-js resolves (never rejects) with { data: null, error } on
+  // failure — sem checar isso aqui, uma query falha vira silenciosamente
+  // "0 clientes"/"sem planos" etc., indistinguível de a conta realmente
+  // não ter nada.
+  const failed = keys.filter((k, i) => results[i].error);
+  if (failed.length > 0) {
+    const firstError = results.find(r => r.error)?.error?.message || '';
+    throw new Error(`Falha ao carregar dados (${failed.join(', ')}). ${firstError}`.trim());
+  }
 
   return {
     profile: profileRes.data ? profileFromRow(profileRes.data) : null,
@@ -194,14 +207,26 @@ export async function loadAllData(userId) {
 export async function syncTable(table, rows, toRow, lastIdsRef, idKey = 'id') {
   const currentIds = new Set(rows.map(r => r[idKey]));
   const removedIds = [...lastIdsRef.current].filter(id => !currentIds.has(id));
-  lastIdsRef.current = currentIds;
 
+  // lastIdsRef só avança depois que delete/upsert realmente confirmam
+  // sucesso — se avançasse antes (como fazia aqui) e a chamada falhasse
+  // (rede, RLS), a próxima sincronização já não veria mais o id removido
+  // pra tentar de novo, e a linha ficava órfã no banco pra sempre.
   if (removedIds.length > 0) {
-    await supabase.from(table).delete().in(idKey, removedIds);
+    const { error } = await supabase.from(table).delete().in(idKey, removedIds);
+    if (error) {
+      console.error(`syncTable(${table}): falha ao deletar`, error);
+      return;
+    }
   }
   if (rows.length > 0) {
-    await supabase.from(table).upsert(rows.map(toRow));
+    const { error } = await supabase.from(table).upsert(rows.map(toRow));
+    if (error) {
+      console.error(`syncTable(${table}): falha ao salvar`, error);
+      return;
+    }
   }
+  lastIdsRef.current = currentIds;
 }
 
 // Stages are a plain ordered string[] in the app — turn them into

@@ -35,6 +35,8 @@ export default function App() {
   // whole app waits for a session before it has anything to show.
   const [session, setSession] = useState(undefined); // undefined = still checking
   const [dataReady, setDataReady] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const userId = session?.user?.id || null;
 
   // Application Local State (Single source of truth — now backed by Supabase.
@@ -75,27 +77,33 @@ export default function App() {
     }
     let cancelled = false;
     (async () => {
-      const data = await loadAllData(userId);
-      if (cancelled) return;
-      setProfile(data.profile || initialProfile);
-      setPlans(data.plans);
-      setModules(data.modules);
-      setOffers(data.offers);
-      setStages(data.stages);
-      setClients(data.clients);
-      setTickets(data.tickets);
-      setStandaloneTasks(data.tasks);
-      lastPlanIds.current = new Set(data.plans.map(p => p.id));
-      lastModuleIds.current = new Set(data.modules.map(m => m.id));
-      lastOfferIds.current = new Set(data.offers.map(o => o.id));
-      lastStageNames.current = new Set(data.stages);
-      lastClientIds.current = new Set(data.clients.map(c => c.id));
-      lastTicketIds.current = new Set(data.tickets.map(t => t.id));
-      lastTaskIds.current = new Set(data.tasks.map(t => t.id));
-      setDataReady(true);
+      setLoadError(null);
+      try {
+        const data = await loadAllData(userId);
+        if (cancelled) return;
+        setProfile(data.profile || initialProfile);
+        setPlans(data.plans);
+        setModules(data.modules);
+        setOffers(data.offers);
+        setStages(data.stages);
+        setClients(data.clients);
+        setTickets(data.tickets);
+        setStandaloneTasks(data.tasks);
+        lastPlanIds.current = new Set(data.plans.map(p => p.id));
+        lastModuleIds.current = new Set(data.modules.map(m => m.id));
+        lastOfferIds.current = new Set(data.offers.map(o => o.id));
+        lastStageNames.current = new Set(data.stages);
+        lastClientIds.current = new Set(data.clients.map(c => c.id));
+        lastTicketIds.current = new Set(data.tickets.map(t => t.id));
+        lastTaskIds.current = new Set(data.tasks.map(t => t.id));
+        setDataReady(true);
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err.message || 'Falha ao carregar dados.');
+      }
     })();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, loadAttempt]);
 
   // Sync effects — fire after every local change to each collection, once
   // the initial load has completed. Business logic in the handlers below
@@ -218,15 +226,27 @@ export default function App() {
 
   const handleEditModule = (id, newName) => {
     setModules(prev => prev.map(m => m.id === id ? { ...m, name: newName } : m));
+    const oldModObj = modules.find(m => m.id === id);
+    if (!oldModObj || oldModObj.name === newName) return;
+    const oldName = oldModObj.name;
+    // client.checklists/checklistBaseline são chaveados pelo NOME do módulo
+    // (não pelo id do catálogo) — sem renomear a chave aqui, o checklist do
+    // cliente para esse módulo para de bater com activeModules/modules e
+    // some (ou o diff da Nota de Reunião perde o baseline e reapresenta
+    // tudo como "feito agora").
+    const renameKey = (obj) => {
+      if (!obj || !(oldName in obj)) return obj;
+      const { [oldName]: value, ...rest } = obj;
+      return { ...rest, [newName]: value };
+    };
     setClients(prev => prev.map(c => {
-      const oldModObj = modules.find(m => m.id === id);
-      if (oldModObj && c.activeModules.includes(oldModObj.name)) {
-        return {
-          ...c,
-          activeModules: c.activeModules.map(mName => mName === oldModObj.name ? newName : mName)
-        };
-      }
-      return c;
+      if (!c.activeModules.includes(oldName)) return c;
+      return {
+        ...c,
+        activeModules: c.activeModules.map(mName => mName === oldName ? newName : mName),
+        checklists: renameKey(c.checklists),
+        checklistBaseline: renameKey(c.checklistBaseline)
+      };
     }));
   };
 
@@ -293,9 +313,26 @@ export default function App() {
   };
 
   const handleUpdateClient = (clientId, fieldsToUpdate) => {
-    setClients(prev => prev.map(c => 
+    setClients(prev => prev.map(c =>
       c.id === clientId ? { ...c, ...fieldsToUpdate } : c
     ));
+  };
+
+  // Prepende uma entrada em activityHistory lendo o estado atual (via
+  // prev), não um snapshot capturado antes de um await — evita perder
+  // entradas mais novas quando o chamador é assíncrono (ex: aguardando a
+  // API do Google Agenda) e o histórico muda enquanto isso.
+  const handleAddClientActivity = (clientId, action) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        activityHistory: [
+          { avatar: profile.avatarInitials, name: profile.name, action, date: `${getTodayBR()} às ${getNowTimeBR()}`, isObservation: false },
+          ...(c.activityHistory || [])
+        ]
+      };
+    }));
   };
 
   const handleUpdateClientStage = (clientId, newStage) => {
@@ -743,7 +780,7 @@ export default function App() {
     }
 
     if (currentRoute === 'agenda') {
-      return <AgendaView clients={clients} accountEmail={session.user.email} profile={profile} onUpdateClient={handleUpdateClient} />;
+      return <AgendaView clients={clients} accountEmail={session.user.email} profile={profile} onUpdateClient={handleUpdateClient} onAddClientActivity={handleAddClientActivity} />;
     }
 
     if (currentRoute === 'tarefas') {
@@ -850,6 +887,16 @@ export default function App() {
     if (currentRoute === 'configuracoes') return 'Configurações do Sistema';
     return 'JetFlow';
   };
+
+  if (session && loadError) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', fontSize: '13px', padding: '20px', textAlign: 'center' }}>
+        <span>Não foi possível carregar seus dados.</span>
+        <span style={{ fontSize: '11px', color: '#666', maxWidth: '420px' }}>{loadError}</span>
+        <button className="btn-primary" onClick={() => setLoadAttempt(n => n + 1)}>Tentar novamente</button>
+      </div>
+    );
+  }
 
   if (session === undefined || (session && !dataReady)) {
     return (

@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, X, Plus, Phone, Mail, List, Zap, Sparkles,
   ChevronLeft, ChevronRight, Heart, Video, ExternalLink
 } from 'lucide-react';
-import { parseBRDate, getDateStatus, toBRDate, getClientPhase, getTodayBR, toISODate, getContactAlert } from '../utils';
+import { parseBRDate, getDateStatus, toBRDate, getClientPhase, getTodayBR, toISODate, getContactAlert, isClientPostOnboarding } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
@@ -97,8 +97,10 @@ export default function DashboardView({
     ...googleEvents.map(ev => ({ kind: 'google', id: `google_${ev.id}`, sortKey: ev.allDay ? '00:00' : formatEventTime(ev.start), data: ev }))
   ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
-  // Active clients
-  const activeClients = clients.filter(c => c.stage !== 'Finalizado');
+  // Active clients — "ativo" = ainda não chegou na última etapa configurada
+  // do Kanban (o nome dessa etapa é customizável pela conta, então não dá
+  // pra comparar com uma string fixa como 'Finalizado').
+  const activeClients = clients.filter(c => !isClientPostOnboarding(c, stages));
 
   // Pending tasks
   const pendingTasks = [];

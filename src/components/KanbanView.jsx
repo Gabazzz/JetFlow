@@ -384,7 +384,7 @@ export default function KanbanView({ clients, stages, onUpdateClientStage, onUpd
                   minHeight: '200px'
                 }}
               >
-                {stageClients.length === 0 && stage === 'Finalizado' && (
+                {stageClients.length === 0 && stage === allStages[allStages.length - 1] && (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '40px 16px', color: '#444' }}>
                     <CheckCircle size={36} />
                     <span style={{ fontSize: '12px', fontWeight: '600' }}>Nenhum cliente aqui</span>

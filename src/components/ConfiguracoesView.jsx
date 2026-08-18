@@ -108,14 +108,27 @@ export default function ConfiguracoesView({
 
   // Stages
   const confirmAddStage = () => {
-    if (!newStageName.trim()) return;
-    onAddStage(newStageName);
+    const name = newStageName.trim();
+    if (!name) return;
+    // Etapas são casadas por igualdade de string (App.jsx/KanbanView) —
+    // duas com o mesmo nome viram colunas indistinguíveis, e renomear ou
+    // excluir "uma" afeta as duas ao mesmo tempo.
+    if (stages.some(s => s.toLowerCase() === name.toLowerCase())) {
+      window.alert('Já existe uma etapa com esse nome.');
+      return;
+    }
+    onAddStage(name);
     setNewStageName(''); setAddingStage(false);
   };
 
   const confirmEditStage = () => {
-    if (!editStageName.trim()) return;
-    onEditStage(editingStage, editStageName);
+    const name = editStageName.trim();
+    if (!name) return;
+    if (name.toLowerCase() !== editingStage.toLowerCase() && stages.some(s => s.toLowerCase() === name.toLowerCase())) {
+      window.alert('Já existe uma etapa com esse nome.');
+      return;
+    }
+    onEditStage(editingStage, name);
     setEditingStage(null);
   };
 

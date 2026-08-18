@@ -156,10 +156,10 @@ export async function parseXlsxFile(file) {
   return { headers, rows };
 }
 
-function buildNewClientFromFields(fields, profileName) {
+function buildNewClientFromFields(fields, profileName, stages) {
   const entryDate = fields.entryDate || getTodayBR();
   const criticality = fields.criticality || 'Estável';
-  const stage = fields.stage || 'Novo';
+  const stage = fields.stage || (stages && stages[0]) || 'Novo';
   const initials = (profileName || '').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return {
@@ -248,7 +248,7 @@ export function buildImportPlan({ headers, rows, mapping, existingClients, dupli
         updated.push({ id: match.id, name: match.name, fields: patch });
       }
     } else {
-      created.push(buildNewClientFromFields(fields, profileName));
+      created.push(buildNewClientFromFields(fields, profileName, stages));
     }
   });
 

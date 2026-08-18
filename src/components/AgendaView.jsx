@@ -80,7 +80,7 @@ function closestDurationOption(minutes) {
   , DURATION_OPTIONS[0].value);
 }
 
-export default function AgendaView({ clients = [], accountEmail = '', profile, onUpdateClient }) {
+export default function AgendaView({ clients = [], accountEmail = '', profile, onUpdateClient, onAddClientActivity }) {
   const [dateBR, setDateBR] = useState(getTodayBR());
   const [status, setStatus] = useState({ loading: true, connected: false, email: null });
   const [connecting, setConnecting] = useState(false);
@@ -329,20 +329,12 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, o
       }
       setCreatedEvent(data.event);
       if (selectedMeetingClient) {
-        onUpdateClient(selectedMeetingClient.id, {
-          activityHistory: [
-            {
-              avatar: profile.avatarInitials,
-              name: profile.name,
-              action: editingEventId
-                ? `Editou reunião no Google Agenda: ${meetingTitle.trim()}`
-                : `Agendou reunião no Google Agenda: ${meetingTitle.trim()}`,
-              date: `${getTodayBR()} às ${getNowTimeBR()}`,
-              isObservation: false
-            },
-            ...(selectedMeetingClient.activityHistory || [])
-          ]
-        });
+        onAddClientActivity(
+          selectedMeetingClient.id,
+          editingEventId
+            ? `Editou reunião no Google Agenda: ${meetingTitle.trim()}`
+            : `Agendou reunião no Google Agenda: ${meetingTitle.trim()}`
+        );
       }
       if (meetingDateBR === dateBR) loadEvents();
       setMeetingStep('success');

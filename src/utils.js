@@ -168,6 +168,24 @@ export const OPPORTUNITY_STATUS_OPTIONS = [
   'Sem interesse'
 ];
 
+// Base URL of the Jetsales Active CRM — a deal's page is always this base
+// plus its numeric Deal ID, so the CRM link doesn't need to be typed in by
+// hand for every client: it's derived straight from quickLinks.dealId.
+const ACTIVE_CRM_DEAL_BASE_URL = 'https://jetsalesbrasil14316.activehosted.com/app/deals/';
+
+export function getActiveDealUrl(dealId) {
+  const id = String(dealId || '').trim();
+  return id ? `${ACTIVE_CRM_DEAL_BASE_URL}${id}` : null;
+}
+
+// The client's CRM quick link: an explicitly saved quickLinks.crm always
+// wins (lets a client be pointed somewhere else if ever needed), otherwise
+// it's derived from the Deal ID so every client with a Deal ID cadastrado
+// gets a working "Acesso ao CRM" link for free.
+export function getClientCrmLink(client) {
+  return client?.quickLinks?.crm || getActiveDealUrl(client?.quickLinks?.dealId);
+}
+
 // Whether a client has finished onboarding — i.e. sits on the last
 // configured Kanban stage (stages is the account's own ordered list, since
 // stage names are fully customizable in Configurações > Kanban). Used to

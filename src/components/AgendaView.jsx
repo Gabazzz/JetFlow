@@ -3,7 +3,7 @@ import { Calendar, Video, MapPin, ExternalLink, RefreshCw, ChevronLeft, ChevronR
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
-import { getTodayBR, getNowTimeBR, toISODate, parseBRDate, formatBRDate } from '../utils';
+import { getTodayBR, getNowTimeBR, toISODate, parseBRDate, formatBRDate, getClientCrmLink } from '../utils';
 
 function formatEventTime(iso) {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
@@ -450,6 +450,7 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {events.map(ev => {
             const evClient = matchClientForEvent(ev, clients);
+            const evCrmLink = getClientCrmLink(evClient);
             return (
             <div key={ev.id} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -466,8 +467,8 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {evClient?.quickLinks?.crm && (
-                  <a href={evClient.quickLinks.crm} target="_blank" rel="noreferrer" className="btn-icon" title={`Acesso ao CRM — ${evClient.name}`}>
+                {evCrmLink && (
+                  <a href={evCrmLink} target="_blank" rel="noreferrer" className="btn-icon" title={`Acesso ao CRM — ${evClient.name}`}>
                     <Link size={14} />
                   </a>
                 )}

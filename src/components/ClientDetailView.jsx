@@ -6,7 +6,7 @@ import {
   AlertTriangle, AlertCircle, MessageSquarePlus, LifeBuoy, ArrowRight, RotateCcw,
   Hash, Wifi, Users as UsersIcon, TrendingUp
 } from 'lucide-react';
-import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, getTodayBR, getContactAlert, OPPORTUNITY_STATUS_OPTIONS } from '../utils';
+import { toBRDate, toISODate, getDateStatus, parseBRDate, getClientPhase, PHASE_META, getDemandType, calculateHealthScore, getHealthTier, calculateNextContactDate, getTodayBR, getContactAlert, OPPORTUNITY_STATUS_OPTIONS, getClientCrmLink } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import useIsMobile from '../hooks/useIsMobile';
@@ -301,6 +301,7 @@ export default function ClientDetailView({
   }[client.criticality] || { color: '#10B981', Icon: CheckCircle, badgeClass: 'badge-estavel' };
 
   const clientTickets = tickets || [];
+  const crmLink = getClientCrmLink(client);
   const phase = getClientPhase(client, clientTickets, todayStr, stages);
   const phaseMeta = PHASE_META[phase];
   const demandType = getDemandType(phase);
@@ -632,16 +633,29 @@ export default function ClientDetailView({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {client.quickLinks?.dealId && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Hash size={14} style={{ color: '#888' }} />
-                    <span style={{ color: '#fff' }}>Deal ID</span>
+                crmLink ? (
+                  <a href={crmLink} target="_blank" rel="noreferrer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px', color: '#fff', textDecoration: 'none', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Hash size={14} style={{ color: '#888' }} />
+                      <span style={{ color: '#fff' }}>Deal ID</span>
+                    </div>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#aaa', fontWeight: '700' }}>{client.quickLinks.dealId}</span>
+                      <ExternalLink size={11} style={{ color: '#666' }} />
+                    </span>
+                  </a>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Hash size={14} style={{ color: '#888' }} />
+                      <span style={{ color: '#fff' }}>Deal ID</span>
+                    </div>
+                    <span style={{ color: '#aaa', fontWeight: '700' }}>{client.quickLinks.dealId}</span>
                   </div>
-                  <span style={{ color: '#aaa', fontWeight: '700' }}>{client.quickLinks.dealId}</span>
-                </div>
+                )
               )}
-              {client.quickLinks?.crm && (
-                <a href={client.quickLinks.crm} target="_blank" rel="noreferrer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px', color: '#fff', textDecoration: 'none', fontSize: '12px' }}>
+              {crmLink && (
+                <a href={crmLink} target="_blank" rel="noreferrer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px', color: '#fff', textDecoration: 'none', fontSize: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Link size={14} style={{ color: 'var(--green-primary)' }} />
                     <span>Acesso ao CRM</span>
@@ -686,7 +700,7 @@ export default function ClientDetailView({
                 </a>
               )}
               
-              {!client.quickLinks?.dealId && !client.quickLinks?.crm && !client.quickLinks?.discordIntegration && !(client.quickLinks?.discordSupport?.length) && !client.quickLinks?.site && !client.quickLinks?.deskPlatformUrl && (
+              {!client.quickLinks?.dealId && !crmLink && !client.quickLinks?.discordIntegration && !(client.quickLinks?.discordSupport?.length) && !client.quickLinks?.site && !client.quickLinks?.deskPlatformUrl && (
                 <span style={{ color: 'var(--text-secondary)', fontSize: '12px', textAlign: 'center', padding: '8px 0' }}>Nenhum link configurado.</span>
               )}
             </div>

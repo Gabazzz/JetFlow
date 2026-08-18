@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
-import { getTodayBR, getChecklistDiff, getItemDoneText, getItemPendingText, OPPORTUNITY_STATUS_OPTIONS } from '../utils';
+import { getTodayBR, getChecklistDiff, getItemDoneText, getItemPendingText, OPPORTUNITY_STATUS_OPTIONS, getClientCrmLink } from '../utils';
 
 const STATUS_OPTIONS = [
   { value: 'Em andamento', emoji: '🟢' },
@@ -181,6 +181,7 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
   const generatedOnceRef = useRef(false);
 
   const client = contextClient || clients.find(c => c.id === selectedClientId) || null;
+  const crmLink = getClientCrmLink(client);
 
   // O checklist é a fonte do "o que foi feito" — lido ao vivo a cada render,
   // então marcar/desmarcar um item aqui dentro (ou na tela do cliente,
@@ -344,8 +345,8 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
                   <Building2 size={15} style={{ color: 'var(--green-primary)' }} />
                   <span style={{ fontSize: '13px', color: '#fff' }}>Cliente: <strong style={{ color: 'var(--green-primary)' }}>{contextClient.name}</strong></span>
                 </div>
-                {contextClient.quickLinks?.crm && (
-                  <a href={contextClient.quickLinks.crm} target="_blank" rel="noreferrer" className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', gap: '6px' }}>
+                {crmLink && (
+                  <a href={crmLink} target="_blank" rel="noreferrer" className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', gap: '6px' }}>
                     <Link size={12} />
                     <span>Acesso ao CRM</span>
                   </a>
@@ -361,8 +362,8 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
                   options={clients.map(c => ({ value: c.id, label: c.name }))}
                 />
                 {showValidation && !client && <span style={{ fontSize: '11px', color: 'var(--badge-red)' }}>Selecione o cliente.</span>}
-                {client?.quickLinks?.crm && (
-                  <a href={client.quickLinks.crm} target="_blank" rel="noreferrer" className="btn-secondary" style={{ marginTop: '8px', alignSelf: 'flex-start', padding: '5px 10px', fontSize: '11px', gap: '6px' }}>
+                {crmLink && (
+                  <a href={crmLink} target="_blank" rel="noreferrer" className="btn-secondary" style={{ marginTop: '8px', alignSelf: 'flex-start', padding: '5px 10px', fontSize: '11px', gap: '6px' }}>
                     <Link size={12} />
                     <span>Acesso ao CRM</span>
                   </a>

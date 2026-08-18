@@ -2829,6 +2829,10 @@ input[type="checkbox"].premium-check:active {
   .tab-btn {
     flex-shrink: 0;
   }
+
+  .search-bar-row {
+    flex-wrap: wrap;
+  }
 }
 
 

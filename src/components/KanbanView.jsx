@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User, CheckCircle, Filter, ArrowUpDown, MoreHorizontal, Edit2, Trash2, Check, X, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { getDateStatus, parseBRDate, getTodayBR } from '../utils';
 import CustomSelect from './CustomSelect';
+import useIsMobile from '../hooks/useIsMobile';
 
 const CRITICALITY_ORDER = { 'Crítico': 3, 'Atenção': 2, 'Estável': 1 };
 
 export default function KanbanView({ clients, stages, viewOnly, onUpdateClientStage, onUpdateClientNextAction, onEditStage, onRemoveStage, onRemoveClient, onNavigate }) {
+  const isMobile = useIsMobile();
   const [draggedClientId, setDraggedClientId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -212,7 +214,7 @@ export default function KanbanView({ clients, stages, viewOnly, onUpdateClientSt
         </div>
 
         {/* Filters and Order buttons */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
             className="btn-primary vo-hide"
             style={{ padding: '8px 16px', fontSize: '13px' }}
@@ -435,9 +437,9 @@ export default function KanbanView({ clients, stages, viewOnly, onUpdateClientSt
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '10px',
-                          cursor: 'grab'
+                          cursor: isMobile ? 'default' : 'grab'
                         }}
-                        draggable={!viewOnly}
+                        draggable={!viewOnly && !isMobile}
                         onDragStart={(e) => handleDragStart(e, client.id)}
                         onDragEnd={handleDragEnd}
                       >
@@ -486,6 +488,17 @@ export default function KanbanView({ clients, stages, viewOnly, onUpdateClientSt
                           <User size={12} />
                           <span>{client.responsible || 'Especialista'}</span>
                         </div>
+
+                        {/* Arrastar não funciona por toque — no mobile, mudar de etapa é por aqui */}
+                        {isMobile && (
+                          <div className="vo-hide" onClick={e => e.stopPropagation()}>
+                            <CustomSelect
+                              value={stage}
+                              onChange={v => onUpdateClientStage(client.id, v)}
+                              options={allStages}
+                            />
+                          </div>
+                        )}
 
                         {/* Modules tags */}
                         {client.activeModules && client.activeModules.length > 0 && (

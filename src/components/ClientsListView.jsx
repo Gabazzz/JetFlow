@@ -4,6 +4,7 @@ import KanbanView from './KanbanView';
 import ImportExportClientsModal from './ImportExportClientsModal';
 import { getClientPhase, PHASE_META, getDemandType, getTodayBR, getContactAlert } from '../utils';
 import { exportClientsToXlsx } from '../lib/clientImportExport';
+import useIsMobile from '../hooks/useIsMobile';
 
 export default function ClientsListView({
   clients,
@@ -25,6 +26,7 @@ export default function ClientsListView({
   onRemoveStage
 }) {
   const todayStr = getTodayBR();
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('lista'); // 'lista' or 'kanban'
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
@@ -172,6 +174,51 @@ export default function ClientsListView({
           onRemoveStage={onRemoveStage}
           onNavigate={onNavigate}
         />
+      ) : isMobile ? (
+        filteredClients.length === 0 ? (
+          <div className="empty-state">
+            <span className="empty-state-icon">👥</span>
+            <p>Nenhum cliente cadastrado ou encontrado.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {filteredClients.map(client => {
+              let badgeClass = 'badge-estavel';
+              if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
+              if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
+
+              const clientTickets = (tickets || []).filter(t => t.clientId === client.id);
+              const phase = getClientPhase(client, clientTickets, todayStr);
+              const phaseMeta = PHASE_META[phase];
+              const demandType = getDemandType(phase);
+              const contactAlert = getContactAlert(client, stages, profile, todayStr);
+
+              return (
+                <div key={client.id} className="mobile-card" onClick={() => onNavigate(`clientes/${client.id}`)} style={{ cursor: 'pointer' }}>
+                  <div className="mobile-card-row">
+                    <span style={{ fontWeight: '700', color: '#fff', fontSize: '14px' }}>{client.name}</span>
+                    <span className={`badge ${badgeClass}`} style={{ fontSize: '9px', flexShrink: 0 }}>{client.criticality}</span>
+                  </div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{client.cnpj || 'Sem CNPJ'} · {client.plan}</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    <span className="stage-pill-list">{client.stage}</span>
+                    <span className={`type-badge type-${demandType.toLowerCase()}`}>{demandType}</span>
+                    <span className="badge" style={{ backgroundColor: phaseMeta.bg, color: phaseMeta.color, border: `1px solid ${phaseMeta.border}`, fontSize: '9px' }}>{phase}</span>
+                    {contactAlert && (
+                      <span className={`contact-alert-badge ${contactAlert.level}`} style={{ padding: '1px 6px', fontSize: '9px' }}>
+                        ⏰ {contactAlert.dias}d
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span>Próxima ação: {client.nextAction || '—'}</span>
+                    <span style={{ color: '#666' }}>SLA: {client.nextContactDate || '—'} · Resp.: {client.responsible || '—'}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
       ) : (
         <div className="table-responsive">
           {filteredClients.length === 0 ? (

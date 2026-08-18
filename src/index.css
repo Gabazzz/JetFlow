@@ -2566,5 +2566,270 @@ input[type="checkbox"].premium-check:active {
   color: #000 !important;
 }
 
+/* ============================================================
+   Mobile shell (< 768px) — a second, purpose-built presentation for
+   phones, not a squeezed-down desktop. Rendered by MobileShell.jsx
+   instead of the fixed sidebar; each view branches its own JSX for
+   isMobile rather than relying on these rules to reflow the desktop
+   markup, since most desktop layout is done with inline styles (which
+   media queries can't touch). What lives here is either (a) the mobile
+   shell's own chrome (topbar/bottom nav/sheet/cards), used only by
+   mobile branches, or (b) narrow global overrides for the handful of
+   reusable CSS-class-based patterns (modals, .form-grid) that both
+   shells share.
+   ============================================================ */
+
+.mobile-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+}
+
+.mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 16px;
+  background-color: var(--card-surface);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.mobile-topbar-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.mobile-topbar-back:active {
+  background-color: var(--surface-hover);
+}
+
+.mobile-topbar-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-content {
+  flex: 1;
+  padding: 16px;
+  padding-bottom: calc(64px + 16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.mobile-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  height: 64px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background-color: var(--card-surface);
+  border-top: 1px solid var(--border-color);
+}
+
+.mobile-bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mobile-bottom-nav-item.active {
+  color: var(--green-primary);
+}
+
+.mobile-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background-color: rgba(0, 0, 0, 0.6);
+  animation: fadeIn 150ms ease-out;
+}
+
+.mobile-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  max-height: 80vh;
+  overflow-y: auto;
+  background-color: var(--card-surface);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  padding: 8px 8px calc(12px + env(safe-area-inset-bottom, 0px));
+  animation: slideUp 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.mobile-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--border-color);
+  margin: 8px auto 12px;
+}
+
+.mobile-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobile-sheet-item:active {
+  background-color: var(--surface-hover);
+}
+
+.mobile-sheet-item.danger {
+  color: var(--badge-red);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* Generic tappable card used by mobile list views (Clientes, Kanban,
+   Suporte, Oportunidades) in place of desktop tables/multi-column boards */
+.mobile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #161616;
+  border: 1px solid #252525;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.mobile-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mobile-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  background-color: #1C1C1C;
+  border: 1px solid #252525;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mobile-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(64px + 16px + env(safe-area-inset-bottom, 0px));
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: var(--green-primary);
+  color: #000;
+  border: none;
+  box-shadow: 0 6px 16px rgba(101, 255, 75, 0.35);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  /* Modals become full-screen sheets — using !important is deliberate
+     here: every call site passes its own inline maxWidth for the desktop
+     size, which a plain class rule can't outrank. */
+  .modal-overlay {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    height: 100vh !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-layout {
+    padding: 16px !important;
+  }
+
+  .tabs-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+
+  .tab-btn {
+    flex-shrink: 0;
+  }
+}
+
 
 

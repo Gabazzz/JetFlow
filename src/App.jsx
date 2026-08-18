@@ -10,6 +10,8 @@ import AgendaView from './components/AgendaView';
 import TarefasView from './components/TarefasView';
 import OportunidadesView from './components/OportunidadesView';
 import Auth from './components/Auth';
+import MobileShell from './components/MobileShell';
+import useIsMobile from './hooks/useIsMobile';
 
 import { initialProfile } from './data/data';
 
@@ -30,6 +32,7 @@ import { loadAllData, clientToRow, ticketToRow, taskToRow, catalogToRow, syncTab
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState('dashboard');
+  const isMobile = useIsMobile();
 
   // Auth — every table in Supabase is scoped to auth.uid() via RLS, so the
   // whole app waits for a session before it has anything to show.
@@ -922,6 +925,227 @@ export default function App() {
     return <Auth />;
   }
 
+  const newLeadFormBody = (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      const nextContact = calculateNextContactDate(newCriticality, newEntryDate);
+
+      // Populate checklists from each module's configured template
+      const clientChecklists = {};
+      newSelectedModules.forEach(mod => {
+        const modObj = modules.find(m => m.name === mod);
+        clientChecklists[mod] = modObj?.checklist
+          ? JSON.parse(JSON.stringify(modObj.checklist))
+          : [];
+      });
+
+      const newClient = {
+        id: `c_${Date.now()}`,
+        name: newName,
+        cnpj: newCnpj,
+        phone: newPhone,
+        whatsapp: newWhatsapp,
+        email: newEmail,
+        entryDate: newEntryDate,
+        plan: newPlan,
+        criticality: newCriticality,
+        criticalityJustification: newJustification,
+        activeModules: newSelectedModules,
+        observations: newObservations,
+        responsible: profile.name,
+        stage: 'Novo',
+        nextAction: 'Reunião de Alinhamento inicial',
+        nextContactDate: nextContact,
+        checklists: clientChecklists,
+        checklistBaseline: JSON.parse(JSON.stringify(clientChecklists)),
+        reminders: [],
+        lastUpdated: {
+          date: getTodayBR(),
+          time: getNowTimeBR(),
+          user: profile.name
+        },
+        lastContacts: [
+          { date: newEntryDate, obs: 'Cliente cadastrado no sistema.' }
+        ],
+        activityHistory: [
+          { avatar: profile.avatarInitials, name: profile.name, action: 'Criou o cliente no sistema', date: `${newEntryDate} às ${getNowTimeBR()}`, isObservation: false }
+        ],
+        quickLinks: {
+          crm: '',
+          discordIntegration: '',
+          discordSupport: [],
+          site: '',
+          deskPlatformUrl: '',
+          deskPlatformEmail: ''
+        }
+      };
+
+      handleAddClient(newClient);
+
+      // Reset
+      setNewName('');
+      setNewCnpj('');
+      setNewPhone('');
+      setNewWhatsapp('');
+      setNewEmail('');
+      setNewEntryDate(getTodayBR());
+      setNewPlan('Pro');
+      setNewCriticality('Estável');
+      setNewJustification('');
+      setNewSelectedModules([]);
+      setNewObservations('');
+      setIsNewLeadModalOpen(false);
+    }}>
+      <div className="modal-body">
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">Nome do Cliente *</label>
+            <input
+              type="text"
+              className="form-input"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder="Razão Social ou Nome Fantasia"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">CNPJ</label>
+            <input
+              type="text"
+              className="form-input"
+              value={newCnpj}
+              onChange={e => setNewCnpj(e.target.value)}
+              placeholder="00.000.000/0001-00"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Telefone</label>
+            <input
+              type="text"
+              className="form-input"
+              value={newPhone}
+              onChange={e => setNewPhone(e.target.value)}
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">WhatsApp</label>
+            <input
+              type="text"
+              className="form-input"
+              value={newWhatsapp}
+              onChange={e => setNewWhatsapp(e.target.value)}
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">E-mail</label>
+            <input
+              type="email"
+              className="form-input"
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              placeholder="contato@cliente.com"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Data de Entrada</label>
+            <CustomDatePicker value={newEntryDate} onChange={setNewEntryDate} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Plano</label>
+            <CustomSelect value={newPlan} onChange={setNewPlan} options={plans.map(p => ({ value: p.name, label: p.name }))} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Nível de Criticidade</label>
+            <CustomSelect value={newCriticality} onChange={setNewCriticality} options={['Estável', 'Atenção', 'Crítico']} />
+          </div>
+          {newCriticality !== 'Estável' && (
+            <div className="form-group full-width">
+              <label className="form-label">Justificativa da Criticidade *</label>
+              <input
+                type="text"
+                className="form-input"
+                value={newJustification}
+                onChange={e => setNewJustification(e.target.value)}
+                placeholder="Descreva o motivo de atenção/crítico..."
+                required
+              />
+            </div>
+          )}
+          <div className="form-group full-width">
+            <label className="form-label">Módulos Contratados</label>
+            <div className="checkbox-group">
+              {modules.map(mod => (
+                <label key={mod.id} className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    className="premium-check"
+                    checked={newSelectedModules.includes(mod.name)}
+                    onChange={() => {
+                      setNewSelectedModules(prev =>
+                        prev.includes(mod.name) ? prev.filter(m => m !== mod.name) : [...prev, mod.name]
+                      );
+                    }}
+                  />
+                  <span>{mod.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="form-group full-width">
+            <label className="form-label">Observações</label>
+            <textarea
+              className="form-textarea"
+              rows="3"
+              value={newObservations}
+              onChange={e => setNewObservations(e.target.value)}
+              placeholder="Observações gerais adicionais..."
+            />
+          </div>
+        </div>
+      </div>
+      <div className="modal-footer">
+        <button type="button" className="btn-secondary" onClick={() => setIsNewLeadModalOpen(false)}>Cancelar</button>
+        <button type="submit" className="btn-primary">Criar Cliente</button>
+      </div>
+    </form>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        <MobileShell
+          currentRoute={currentRoute}
+          onNavigate={handleNavigate}
+          title={getPageTitle()}
+          profile={profile}
+          viewOnly={viewOnly}
+          onToggleViewOnly={() => setViewOnly(v => !v)}
+          onSignOut={handleSignOut}
+        >
+          {renderView()}
+        </MobileShell>
+
+        {/* Global New Lead Modal */}
+        {isNewLeadModalOpen && (
+          <div className="modal-overlay" onClick={() => setIsNewLeadModalOpen(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3 className="modal-title">Cadastrar Novo Cliente</h3>
+                <button className="btn-icon" onClick={() => setIsNewLeadModalOpen(false)}>
+                  <X size={16} />
+                </button>
+              </div>
+              {newLeadFormBody}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className={`app-layout ${viewOnly ? 'view-only-mode' : ''}`}>
       <Sidebar
@@ -1021,191 +1245,7 @@ export default function App() {
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const nextContact = calculateNextContactDate(newCriticality, newEntryDate);
-              
-              // Populate checklists from each module's configured template
-              const clientChecklists = {};
-              newSelectedModules.forEach(mod => {
-                const modObj = modules.find(m => m.name === mod);
-                clientChecklists[mod] = modObj?.checklist
-                  ? JSON.parse(JSON.stringify(modObj.checklist))
-                  : [];
-              });
-
-              const newClient = {
-                id: `c_${Date.now()}`,
-                name: newName,
-                cnpj: newCnpj,
-                phone: newPhone,
-                whatsapp: newWhatsapp,
-                email: newEmail,
-                entryDate: newEntryDate,
-                plan: newPlan,
-                criticality: newCriticality,
-                criticalityJustification: newJustification,
-                activeModules: newSelectedModules,
-                observations: newObservations,
-                responsible: profile.name,
-                stage: 'Novo',
-                nextAction: 'Reunião de Alinhamento inicial',
-                nextContactDate: nextContact,
-                checklists: clientChecklists,
-                checklistBaseline: JSON.parse(JSON.stringify(clientChecklists)),
-                reminders: [],
-                lastUpdated: {
-                  date: getTodayBR(),
-                  time: getNowTimeBR(),
-                  user: profile.name
-                },
-                lastContacts: [
-                  { date: newEntryDate, obs: 'Cliente cadastrado no sistema.' }
-                ],
-                activityHistory: [
-                  { avatar: profile.avatarInitials, name: profile.name, action: 'Criou o cliente no sistema', date: `${newEntryDate} às ${getNowTimeBR()}`, isObservation: false }
-                ],
-                quickLinks: {
-                  crm: '',
-                  discordIntegration: '',
-                  discordSupport: [],
-                  site: '',
-                  deskPlatformUrl: '',
-                  deskPlatformEmail: ''
-                }
-              };
-
-              handleAddClient(newClient);
-              
-              // Reset
-              setNewName('');
-              setNewCnpj('');
-              setNewPhone('');
-              setNewWhatsapp('');
-              setNewEmail('');
-              setNewEntryDate(getTodayBR());
-              setNewPlan('Pro');
-              setNewCriticality('Estável');
-              setNewJustification('');
-              setNewSelectedModules([]);
-              setNewObservations('');
-              setIsNewLeadModalOpen(false);
-            }}>
-              <div className="modal-body">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label className="form-label">Nome do Cliente *</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newName} 
-                      onChange={e => setNewName(e.target.value)} 
-                      placeholder="Razão Social ou Nome Fantasia"
-                      required 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">CNPJ</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newCnpj} 
-                      onChange={e => setNewCnpj(e.target.value)} 
-                      placeholder="00.000.000/0001-00"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Telefone</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newPhone} 
-                      onChange={e => setNewPhone(e.target.value)} 
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">WhatsApp</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newWhatsapp} 
-                      onChange={e => setNewWhatsapp(e.target.value)} 
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">E-mail</label>
-                    <input 
-                      type="email" 
-                      className="form-input" 
-                      value={newEmail} 
-                      onChange={e => setNewEmail(e.target.value)} 
-                      placeholder="contato@cliente.com"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Data de Entrada</label>
-                    <CustomDatePicker value={newEntryDate} onChange={setNewEntryDate} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Plano</label>
-                    <CustomSelect value={newPlan} onChange={setNewPlan} options={plans.map(p => ({ value: p.name, label: p.name }))} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Nível de Criticidade</label>
-                    <CustomSelect value={newCriticality} onChange={setNewCriticality} options={['Estável', 'Atenção', 'Crítico']} />
-                  </div>
-                  {newCriticality !== 'Estável' && (
-                    <div className="form-group full-width">
-                      <label className="form-label">Justificativa da Criticidade *</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={newJustification} 
-                        onChange={e => setNewJustification(e.target.value)}
-                        placeholder="Descreva o motivo de atenção/crítico..."
-                        required
-                      />
-                    </div>
-                  )}
-                  <div className="form-group full-width">
-                    <label className="form-label">Módulos Contratados</label>
-                    <div className="checkbox-group">
-                      {modules.map(mod => (
-                        <label key={mod.id} className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            className="premium-check"
-                            checked={newSelectedModules.includes(mod.name)}
-                            onChange={() => {
-                              setNewSelectedModules(prev => 
-                                prev.includes(mod.name) ? prev.filter(m => m !== mod.name) : [...prev, mod.name]
-                              );
-                            }}
-                          />
-                          <span>{mod.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="form-group full-width">
-                    <label className="form-label">Observações</label>
-                    <textarea 
-                      className="form-textarea" 
-                      rows="3" 
-                      value={newObservations} 
-                      onChange={e => setNewObservations(e.target.value)} 
-                      placeholder="Observações gerais adicionais..."
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setIsNewLeadModalOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary">Criar Cliente</button>
-              </div>
-            </form>
+            {newLeadFormBody}
           </div>
         </div>
       )}

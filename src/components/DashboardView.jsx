@@ -8,6 +8,7 @@ import { parseBRDate, getDateStatus, toBRDate, getClientPhase, getTodayBR, toISO
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
+import useIsMobile from '../hooks/useIsMobile';
 
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -28,6 +29,7 @@ export default function DashboardView({
   onNavigate
 }) {
   const [activeModal, setActiveModal] = useState(null);
+  const isMobile = useIsMobile();
   
   // Quick Reminder Form State
   const [quickTitle, setQuickTitle] = useState('');
@@ -266,7 +268,7 @@ export default function DashboardView({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
       
       {/* Top KPI Cards Row */}
-      <div className="grid-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+      <div className="grid-cards" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: isMobile ? '10px' : '16px' }}>
         <button className="kpi-card" onClick={() => setActiveModal('reunioes')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <span className="kpi-label">Reuniões Hoje</span>
@@ -314,7 +316,7 @@ export default function DashboardView({
       </div>
 
       {/* Main Dashboard Layout (Split Column left & right) */}
-      <div className="dashboard-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'start' }}>
+      <div className="dashboard-layout" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: '20px', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: Activities & Reminders */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -412,6 +414,7 @@ export default function DashboardView({
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         gap: '16px',
+                        flexWrap: 'wrap',
                         opacity: isDone ? 0.55 : 1,
                         transition: 'opacity 200ms ease-out'
                       }}

@@ -33,7 +33,16 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}']
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // A versão nova assume assim que termina de baixar, em vez de ficar
+        // esperando todas as abas fecharem — senão uma correção pode demorar
+        // dias para chegar em quem deixa o JetFlow aberto o dia inteiro.
+        skipWaiting: true,
+        // Mas não toma conta das abas já abertas: quem está com a tela aberta
+        // continua na versão que carregou, com os mesmos arquivos, até
+        // recarregar por conta própria. É isso que evita a recarga no meio de
+        // um preenchimento.
+        clientsClaim: false
       }
     })
   ],

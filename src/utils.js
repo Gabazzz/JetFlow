@@ -236,12 +236,20 @@ export function getContactAlert(client, stages, profile, systemDateStr = getToda
 // pendente para concluído especificamente nesta reunião.
 // ============================================================
 
-export function getItemDoneText(item) {
-  return item.doneText || `${item.label} realizado.`;
-}
-
-export function getItemPendingText(item) {
-  return item.pendingText || `${item.label} pendente.`;
+// O texto que vai para a nota é a própria etapa cadastrada em Configurações.
+// `noteText` é o campo opcional para quando a etapa carrega instrução interna
+// que não deve chegar ao cliente — ex.: a etapa "Aba de contatos (Só marca se
+// explicou sobre importação)" pode sair como "Aba de contatos configurada".
+// Vazio, vale o que está escrito na etapa.
+//
+// Antes existiam `doneText`/`pendingText`, preenchidos no cadastro inicial e
+// invisíveis na tela de Configurações: renomear uma etapa trocava só o rótulo
+// e a nota seguia imprimindo a frase antiga, sem relação com o que havia sido
+// escrito. Os campos antigos ficaram no banco de contas existentes, mas são
+// ignorados de propósito.
+export function getItemNoteText(item) {
+  const custom = (item.noteText || '').trim();
+  return custom || item.label;
 }
 
 // Everything the checklist still has to say since the last note: what's

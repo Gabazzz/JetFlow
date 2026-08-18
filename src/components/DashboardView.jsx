@@ -1,21 +1,35 @@
-import React, { useState } from 'react';
-import { 
-  Calendar as CalendarIcon, Users, CheckSquare, AlertTriangle, 
+import React, { useState, useEffect } from 'react';
+import {
+  Calendar as CalendarIcon, Users, CheckSquare, AlertTriangle,
   Edit2, Trash2, X, Plus, Phone, Mail, List, Zap, Sparkles,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Heart, Video, ExternalLink
 } from 'lucide-react';
-import { parseBRDate, getDateStatus, toBRDate } from '../utils';
+import { parseBRDate, getDateStatus, toBRDate, getClientPhase, getTodayBR, toISODate, getContactAlert, isClientPostOnboarding } from '../utils';
 import CustomDatePicker from './CustomDatePicker';
+import CustomSelect from './CustomSelect';
+import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
+import useIsMobile from '../hooks/useIsMobile';
 
-export default function DashboardView({ 
-  clients, 
-  onAddReminder, 
-  onUpdateReminder, 
-  onRemoveReminder, 
-  onRegisterContact, 
-  onNavigate 
+const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+function formatEventTime(iso) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+}
+
+export default function DashboardView({
+  clients,
+  tickets,
+  profile,
+  stages,
+  onAddReminder,
+  onUpdateReminder,
+  onRemoveReminder,
+  onRegisterContact,
+  onCompleteMeeting,
+  onNavigate
 }) {
   const [activeModal, setActiveModal] = useState(null);
+  const isMobile = useIsMobile();
   
   // Quick Reminder Form State
   const [quickTitle, setQuickTitle] = useState('');
@@ -31,7 +45,12 @@ export default function DashboardView({
 
   const [dismissingReminderIds, setDismissingReminderIds] = useState([]);
 
-  const todayStr = '30/06/2026';
+  const todayStr = getTodayBR();
+  const todayDateObj = parseBRDate(todayStr);
+
+  const [calendarMonth, setCalendarMonth] = useState(
+    () => new Date(todayDateObj.getFullYear(), todayDateObj.getMonth(), 1)
+  );
   
   // Meetings today
   const meetingsToday = [];
@@ -49,8 +68,41 @@ export default function DashboardView({
     }
   });
 
-  // Active clients
-  const activeClients = clients.filter(c => c.stage !== 'Finalizado');
+  // Google Calendar events for today (if the user has connected their Google Agenda)
+  const [googleEvents, setGoogleEvents] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadGoogleEventsToday() {
+      const { data: statusData, error: statusErr } = await supabase.functions.invoke('google-calendar-status');
+      if (statusErr || !statusData?.connected || cancelled) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || cancelled) return;
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-events?date=${toISODate(todayStr)}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+        const data = await res.json();
+        if (!cancelled && res.ok && !data.error) {
+          setGoogleEvents(data.events || []);
+        }
+      } catch (e) {}
+    }
+    loadGoogleEventsToday();
+    return () => { cancelled = true; };
+  }, [todayStr]);
+
+  const todayItems = [
+    ...meetingsToday.map(m => ({ kind: 'local', id: `local_${m.id}`, sortKey: m.time || '00:00', data: m })),
+    ...googleEvents.map(ev => ({ kind: 'google', id: `google_${ev.id}`, sortKey: ev.allDay ? '00:00' : formatEventTime(ev.start), data: ev }))
+  ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+  // Active clients — "ativo" = ainda não chegou na última etapa configurada
+  // do Kanban (o nome dessa etapa é customizável pela conta, então não dá
+  // pra comparar com uma string fixa como 'Finalizado').
+  const activeClients = clients.filter(c => !isClientPostOnboarding(c, stages));
 
   // Pending tasks
   const pendingTasks = [];
@@ -69,6 +121,12 @@ export default function DashboardView({
   // Critical clients
   const criticalClients = clients.filter(c => c.criticality === 'Crítico');
 
+  // CX phase: clients past onboarding whose health score dropped into risk territory
+  const atRiskCSClients = clients.filter(c => {
+    const clientTickets = (tickets || []).filter(t => t.clientId === c.id);
+    return getClientPhase(c, clientTickets, todayStr, stages) === 'Em Risco';
+  });
+
   // Sort clients by criticality and gap for "Precisam de Atenção"
   const getCriticalityScore = (crit) => {
     if (crit === 'Crítico') return 3;
@@ -76,8 +134,18 @@ export default function DashboardView({
     return 1;
   };
 
+  // A client who's silently gone quiet (crossed the Risco no-contact
+  // threshold) is treated as urgent as a manually-flagged Crítico client for
+  // this ranking — that's the whole point of the automatic signal, so it
+  // isn't buried under "Estável" even though the manual field says so.
+  const getAttentionScore = (client) => {
+    const baseScore = getCriticalityScore(client.criticality);
+    const alert = getContactAlert(client, stages, profile, todayStr);
+    return alert?.level === 'risco' ? Math.max(baseScore, 3) : baseScore;
+  };
+
   const slaClients = [...clients]
-    .sort((a, b) => getCriticalityScore(b.criticality) - getCriticalityScore(a.criticality))
+    .sort((a, b) => getAttentionScore(b) - getAttentionScore(a))
     .slice(0, 3);
 
   // Merge Custom Reminders and SLA Automatic Cycles
@@ -114,6 +182,25 @@ export default function DashboardView({
   mergedReminders.sort((a, b) => {
     return parseBRDate(a.deadline).getTime() - parseBRDate(b.deadline).getTime();
   });
+
+  // Days in the visible calendar month that have a meeting or reminder due
+  const calendarYear = calendarMonth.getFullYear();
+  const calendarMonthIndex = calendarMonth.getMonth();
+  const daysWithActivity = new Set();
+  const registerActivityDate = (brDateStr) => {
+    if (!brDateStr) return;
+    const d = parseBRDate(brDateStr);
+    if (d.getFullYear() === calendarYear && d.getMonth() === calendarMonthIndex) {
+      daysWithActivity.add(d.getDate());
+    }
+  };
+  clients.forEach(c => {
+    (c.meetings || []).forEach(m => registerActivityDate(m.date));
+  });
+  mergedReminders.forEach(r => registerActivityDate(r.deadline));
+
+  const calendarFirstWeekday = new Date(calendarYear, calendarMonthIndex, 1).getDay();
+  const calendarDaysInMonth = new Date(calendarYear, calendarMonthIndex + 1, 0).getDate();
 
   const handleQuickAddReminder = (e) => {
     e.preventDefault();
@@ -181,13 +268,13 @@ export default function DashboardView({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
       
       {/* Top KPI Cards Row */}
-      <div className="grid-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+      <div className="grid-cards" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: isMobile ? '10px' : '16px' }}>
         <button className="kpi-card" onClick={() => setActiveModal('reunioes')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <span className="kpi-label">Reuniões Hoje</span>
             <CalendarIcon size={18} style={{ color: 'var(--green-primary)' }} />
           </div>
-          <span className="kpi-value">{meetingsToday.length}</span>
+          <span className="kpi-value">{todayItems.length}</span>
           <span className="kpi-subtitle">Agendadas para hoje</span>
         </button>
 
@@ -217,10 +304,19 @@ export default function DashboardView({
           <span className="kpi-value">{criticalClients.length}</span>
           <span className="kpi-subtitle">SLA crítico ativo</span>
         </button>
+
+        <button className="kpi-card" onClick={() => setActiveModal('em-risco-cs')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <span className="kpi-label">Em Risco (CS)</span>
+            <Heart size={18} style={{ color: 'var(--badge-red)' }} />
+          </div>
+          <span className="kpi-value">{atRiskCSClients.length}</span>
+          <span className="kpi-subtitle">Pós-onboarding, saúde baixa</span>
+        </button>
       </div>
 
       {/* Main Dashboard Layout (Split Column left & right) */}
-      <div className="dashboard-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'start' }}>
+      <div className="dashboard-layout" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: '20px', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: Activities & Reminders */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -243,27 +339,84 @@ export default function DashboardView({
 
             {/* List items formatted as in reference Image 3 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {meetingsToday.length === 0 ? (
+              {todayItems.length === 0 ? (
                 <div className="empty-state" style={{ padding: '24px' }}>
                   <span className="empty-state-icon">📅</span>
                   <p>Nenhuma atividade agendada para hoje.</p>
                 </div>
               ) : (
-                meetingsToday.map(m => {
+                todayItems.map(item => {
+                  if (item.kind === 'google') {
+                    const ev = item.data;
+                    const timeLabel = ev.allDay ? 'Dia inteiro' : formatEventTime(ev.start);
+                    return (
+                      <div
+                        key={item.id}
+                        className="daily-activity-item"
+                        style={{
+                          backgroundColor: '#1C1C1C',
+                          border: '1px solid #252525',
+                          borderRadius: '6px',
+                          padding: '14px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '16px',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <div style={{ width: '48px', height: '48px', backgroundColor: '#2E2E2E', borderRadius: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, gap: '2px' }}>
+                            <CalendarIcon size={13} style={{ color: 'var(--green-primary)' }} />
+                            <span style={{ fontSize: '9px', fontWeight: '800', color: '#888' }}>{timeLabel}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                              {ev.title} - <span style={{ color: 'var(--green-primary)' }}>Google Agenda</span>
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#888' }}>
+                              🕐 {ev.allDay ? 'Dia inteiro' : `${formatEventTime(ev.start)} - ${formatEventTime(ev.end)}`}{ev.location ? ` · ${ev.location}` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {ev.htmlLink && (
+                            <a href={ev.htmlLink} target="_blank" rel="noreferrer" className="btn-icon" title="Abrir no Google Agenda">
+                              <ExternalLink size={14} />
+                            </a>
+                          )}
+                          {ev.meetLink && (
+                            <a href={ev.meetLink} target="_blank" rel="noreferrer" className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }}>
+                              <Video size={13} />
+                              <span>Entrar no Meet</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const m = item.data;
                   const badge = formatDateBadge(todayStr);
+                  const isDone = !!m.completed;
                   return (
-                    <div 
-                      key={m.id} 
+                    <div
+                      key={item.id}
                       className="daily-activity-item"
-                      style={{ 
-                        backgroundColor: '#1C1C1C', 
-                        border: '1px solid #252525', 
-                        borderRadius: '6px', 
-                        padding: '14px', 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
+                      style={{
+                        backgroundColor: '#1C1C1C',
+                        border: '1px solid #252525',
+                        borderRadius: '6px',
+                        padding: '14px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: '16px'
+                        gap: '16px',
+                        flexWrap: 'wrap',
+                        opacity: isDone ? 0.55 : 1,
+                        transition: 'opacity 200ms ease-out'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -272,41 +425,40 @@ export default function DashboardView({
                           <span style={{ fontSize: '9px', fontWeight: '800', color: '#888' }}>{badge.month}</span>
                           <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff' }}>{badge.day}</span>
                         </div>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff', textDecoration: isDone ? 'line-through' : 'none' }}>
                             {m.title} - <span style={{ color: 'var(--green-primary)' }}>{m.clientName}</span>
                           </span>
                           <span style={{ fontSize: '11px', color: '#888' }}>
-                            🕐 {m.time} - 16:00 · Responsável: Gabriel Almeida
+                            🕐 {m.time} - 16:00 · Responsável: {profile?.name || 'Não definido'}
                           </span>
                         </div>
                       </div>
 
                       {/* Right action button */}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                        <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>PRÓXIMA AÇÃO</span>
-                        <button 
-                          className="btn-secondary" 
-                          style={{ 
-                            fontSize: '11px', 
-                            padding: '6px 12px', 
-                            border: '1px solid var(--green-primary)', 
-                            color: 'var(--green-primary)', 
-                            backgroundColor: 'transparent',
+                        <span style={{ fontSize: '9px', fontWeight: '700', color: '#555' }}>{isDone ? 'CONCLUÍDO' : 'PRÓXIMA AÇÃO'}</span>
+                        <button
+                          className="btn-secondary vo-disable"
+                          disabled={isDone}
+                          style={{
+                            fontSize: '11px',
+                            padding: '6px 12px',
+                            border: `1px solid ${isDone ? '#333' : 'var(--green-primary)'}`,
+                            color: isDone ? '#666' : 'var(--green-primary)',
+                            backgroundColor: isDone ? '#161616' : 'transparent',
                             borderRadius: '4px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px'
+                            gap: '6px',
+                            cursor: isDone ? 'default' : 'pointer'
                           }}
-                          onClick={() => {
-                            onRegisterContact(m.clientId, `Atividade concluída: ${m.title}`);
-                            alert('Atividade marcada como concluída!');
-                          }}
-                          title="Marcar como concluído"
+                          onClick={() => !isDone && onCompleteMeeting(m.clientId, m.id)}
+                          title={isDone ? 'Já concluído' : 'Marcar como concluído'}
                         >
                           <CheckSquare size={13} />
-                          <span>Concluir</span>
+                          <span>{isDone ? 'Concluído' : 'Concluir'}</span>
                         </button>
                       </div>
                     </div>
@@ -321,7 +473,7 @@ export default function DashboardView({
             <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#fff', marginBottom: '14px' }}>Lembretes Gerais</h3>
 
             {/* Quick Reminder Form */}
-            <form onSubmit={handleQuickAddReminder} className="quick-reminder-bar" style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <form onSubmit={handleQuickAddReminder} className="quick-reminder-bar vo-hide" style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
               <input 
                 type="text" 
                 className="form-input" 
@@ -331,18 +483,13 @@ export default function DashboardView({
                 style={{ flex: 2, minWidth: '150px' }}
                 required
               />
-              <select 
-                className="form-select" 
+              <CustomSelect
                 value={quickClientId}
-                onChange={e => setQuickClientId(e.target.value)}
+                onChange={setQuickClientId}
+                placeholder="Selecionar cliente..."
+                options={clients.map(c => ({ value: c.id, label: c.name }))}
                 style={{ flex: 1, minWidth: '120px' }}
-                required
-              >
-                <option value="">Selecionar cliente...</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              />
               <div style={{ flex: 1, minWidth: '120px' }}>
                 <CustomDatePicker value={quickDate} onChange={setNewDate => setQuickDate(setNewDate)} />
               </div>
@@ -352,11 +499,16 @@ export default function DashboardView({
               </button>
             </form>
 
-            <div className="reminders-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {mergedReminders.slice(0, 6).map(item => {
+            {(() => {
+              const grouped = { overdue: [], today: [], future: [] };
+              mergedReminders.forEach(item => {
+                grouped[getDateStatus(item.deadline, todayStr)].push(item);
+              });
+
+              const renderItem = (item) => {
                 const isDismissing = dismissingReminderIds.includes(item.id);
                 const status = getDateStatus(item.deadline, todayStr);
-                
+
                 let statusClass = 'date-future';
                 if (status === 'overdue') statusClass = 'date-overdue';
                 else if (status === 'today') statusClass = 'date-today';
@@ -365,7 +517,7 @@ export default function DashboardView({
                   <div key={item.id} className={`reminder-item ${isDismissing ? 'item-fadeout' : ''}`} style={{ backgroundColor: '#1B1B1B', border: '1px solid #252525', padding: '12px', borderRadius: '6px' }}>
                     <div className="reminder-info">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span 
+                        <span
                           style={{ cursor: 'pointer', color: 'var(--green-primary)', fontWeight: '600' }}
                           onClick={() => onNavigate(`clientes/${item.clientId}`)}
                         >
@@ -378,7 +530,7 @@ export default function DashboardView({
                         Prazo: {item.deadline}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
+                    <div className="vo-hide" style={{ display: 'flex', gap: '6px' }}>
                       {item.type === 'custom' && (
                         <button className="btn-icon" onClick={() => handleOpenEditReminder(item)}><Edit2 size={13} /></button>
                       )}
@@ -386,8 +538,33 @@ export default function DashboardView({
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              };
+
+              const groups = [
+                { key: 'overdue', label: 'Atrasado', className: 'date-overdue', items: grouped.overdue },
+                { key: 'today', label: 'Hoje', className: 'date-today', items: grouped.today },
+                { key: 'future', label: 'Próximos', className: 'date-future', items: grouped.future.slice(0, 4) },
+              ];
+
+              if (mergedReminders.length === 0) {
+                return <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Nenhum lembrete ativo.</span>;
+              }
+
+              return (
+                <div className="reminders-list" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {groups.map(g => g.items.length > 0 && (
+                    <div key={g.key} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <span className={g.className} style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        {g.label} ({g.items.length})
+                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {g.items.map(renderItem)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -404,8 +581,11 @@ export default function DashboardView({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {slaClients.map(client => {
                 const initials = client.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-                let badgeClass = client.criticality === 'Crítico' ? 'badge-critico' : 'badge-atencao';
-                
+                let badgeClass = 'badge-estavel';
+                if (client.criticality === 'Crítico') badgeClass = 'badge-critico';
+                else if (client.criticality === 'Atenção') badgeClass = 'badge-atencao';
+                const contactAlert = getContactAlert(client, stages, profile, todayStr);
+
                 // Gap calculations
                 const lastContact = client.lastContacts?.[0];
                 let daysText = 'HÁ 3 DIAS SEM CONTATO';
@@ -437,8 +617,8 @@ export default function DashboardView({
                     </div>
 
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span 
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span
                           style={{ fontSize: '13px', fontWeight: '700', color: '#fff', cursor: 'pointer' }}
                           onClick={() => onNavigate(`clientes/${client.id}`)}
                         >
@@ -447,6 +627,15 @@ export default function DashboardView({
                         <span className={`badge ${badgeClass}`} style={{ fontSize: '8px', padding: '1px 4px' }}>
                           {client.criticality}
                         </span>
+                        {contactAlert && (
+                          <span
+                            className={`contact-alert-badge ${contactAlert.level}`}
+                            style={{ padding: '1px 6px', fontSize: '9px' }}
+                            title="Sinal automático — não substitui a criticidade manual."
+                          >
+                            ⏰ Sem contato há {contactAlert.dias} dias
+                          </span>
+                        )}
                       </div>
                       
                       {/* Red/Yellow warning text */}
@@ -456,23 +645,21 @@ export default function DashboardView({
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '11px', color: '#aaa' }}>
                         <span>Próxima Ação:</span>
-                        <button 
-                          style={{ 
-                            background: 'none', 
-                            border: 'none', 
-                            color: 'var(--green-primary)', 
-                            fontWeight: '700', 
-                            fontSize: '11px', 
+                        <button
+                          className="vo-hide"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--green-primary)',
+                            fontWeight: '700',
+                            fontSize: '11px',
                             padding: 0,
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '4px'
                           }}
-                          onClick={() => {
-                            onRegisterContact(client.id, `Acompanhamento concluído: ${client.nextAction}`);
-                            alert('Lembrete concluído!');
-                          }}
+                          onClick={() => onRegisterContact(client.id, `Acompanhamento concluído: ${client.nextAction}`)}
                         >
                           <CheckSquare size={11} />
                           <span>Concluir</span>
@@ -498,9 +685,25 @@ export default function DashboardView({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <span style={{ fontSize: '11px', fontWeight: '800', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visão Mensal</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <button className="btn-icon" style={{ width: '22px', height: '22px', color: '#666' }}><ChevronLeft size={12} /></button>
-                <span style={{ fontSize: '10px', fontWeight: '800', color: '#aaa', textTransform: 'uppercase' }}>Junho 2026</span>
-                <button className="btn-icon" style={{ width: '22px', height: '22px', color: '#666' }}><ChevronRight size={12} /></button>
+                <button
+                  type="button"
+                  className="btn-icon"
+                  style={{ width: '22px', height: '22px', color: '#666' }}
+                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                >
+                  <ChevronLeft size={12} />
+                </button>
+                <span style={{ fontSize: '10px', fontWeight: '800', color: '#aaa', textTransform: 'uppercase' }}>
+                  {MONTH_NAMES[calendarMonthIndex]} {calendarYear}
+                </span>
+                <button
+                  type="button"
+                  className="btn-icon"
+                  style={{ width: '22px', height: '22px', color: '#666' }}
+                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                >
+                  <ChevronRight size={12} />
+                </button>
               </div>
             </div>
 
@@ -510,34 +713,51 @@ export default function DashboardView({
               ))}
             </div>
 
-            {/* Simulated days for June 2026 starting on Mon (1) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
-              {Array.from({ length: 30 }).map((_, idx) => {
+              {Array.from({ length: calendarFirstWeekday }).map((_, idx) => (
+                <div key={`blank-${idx}`} />
+              ))}
+              {Array.from({ length: calendarDaysInMonth }).map((_, idx) => {
                 const dayNum = idx + 1;
-                const isSystemToday = dayNum === 30; // 30/06
-                
+                const isSystemToday =
+                  calendarYear === todayDateObj.getFullYear() &&
+                  calendarMonthIndex === todayDateObj.getMonth() &&
+                  dayNum === todayDateObj.getDate();
+                const hasActivity = daysWithActivity.has(dayNum);
+
                 return (
-                  <div 
+                  <div
                     key={idx}
-                    style={{ 
-                      height: '24px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                    style={{
+                      height: '24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
                       justifyContent: 'center',
+                      gap: '2px',
                       fontSize: '10px',
                       fontWeight: isSystemToday ? '800' : '500',
                       borderRadius: '4px',
                       color: isSystemToday ? '#000' : '#555',
-                      backgroundColor: isSystemToday ? 'var(--green-primary)' : 'transparent',
-                      border: isSystemToday ? 'none' : 'none'
+                      backgroundColor: isSystemToday ? 'var(--green-primary)' : 'transparent'
                     }}
                   >
-                    {dayNum}
+                    <span>{dayNum}</span>
+                    {hasActivity && (
+                      <span
+                        style={{
+                          width: '3px',
+                          height: '3px',
+                          borderRadius: '50%',
+                          backgroundColor: isSystemToday ? '#000' : 'var(--green-primary)'
+                        }}
+                      />
+                    )}
                   </div>
                 );
               })}
             </div>
-            
+
             {/* Status indicators */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '12px', borderTop: '1px solid #222', paddingTop: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: '700', color: '#555' }}>
@@ -564,6 +784,7 @@ export default function DashboardView({
                 {activeModal === 'ativos' && 'Clientes em Onboarding Ativo'}
                 {activeModal === 'tarefas' && 'Checklist: Próximas Tarefas'}
                 {activeModal === 'criticos' && 'Clientes em Estado Crítico'}
+                {activeModal === 'em-risco-cs' && 'Clientes em Risco (Pós-Onboarding)'}
               </h3>
               <button className="btn-icon" onClick={() => setActiveModal(null)}>
                 <X size={16} />
@@ -572,26 +793,56 @@ export default function DashboardView({
             <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               {activeModal === 'reunioes' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {meetingsToday.length === 0 ? (
+                  {todayItems.length === 0 ? (
                     <p style={{ color: 'var(--text-secondary)' }}>Nenhuma reunião agendada para hoje.</p>
                   ) : (
-                    meetingsToday.map(m => (
-                      <div 
-                        key={m.id} 
-                        style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
-                      >
-                        <div>
-                          <strong 
-                            style={{ cursor: 'pointer', color: 'var(--green-primary)' }}
-                            onClick={() => { setActiveModal(null); onNavigate(`clientes/${m.clientId}`); }}
+                    todayItems.map(item => {
+                      if (item.kind === 'google') {
+                        const ev = item.data;
+                        return (
+                          <div
+                            key={item.id}
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
                           >
-                            {m.clientName}
-                          </strong>
-                          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>{m.title}</div>
+                            <div>
+                              <strong style={{ color: 'var(--green-primary)' }}>{ev.title}</strong>
+                              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                Google Agenda{ev.location ? ` · ${ev.location}` : ''}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ color: 'var(--green-primary)', fontWeight: '600' }}>
+                                {ev.allDay ? 'Dia inteiro' : formatEventTime(ev.start)}
+                              </span>
+                              {ev.meetLink && (
+                                <a href={ev.meetLink} target="_blank" rel="noreferrer" className="btn-primary" style={{ padding: '6px 10px', fontSize: '11px' }}>
+                                  <Video size={12} />
+                                  <span>Meet</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                      const m = item.data;
+                      return (
+                        <div
+                          key={item.id}
+                          style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
+                        >
+                          <div>
+                            <strong
+                              style={{ cursor: 'pointer', color: 'var(--green-primary)' }}
+                              onClick={() => { setActiveModal(null); onNavigate(`clientes/${m.clientId}`); }}
+                            >
+                              {m.clientName}
+                            </strong>
+                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>{m.title}</div>
+                          </div>
+                          <span style={{ color: 'var(--green-primary)', fontWeight: '600' }}>{m.time}</span>
                         </div>
-                        <span style={{ color: 'var(--green-primary)', fontWeight: '600' }}>{m.time}</span>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               )}
@@ -676,6 +927,40 @@ export default function DashboardView({
                   )}
                 </div>
               )}
+
+              {activeModal === 'em-risco-cs' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {atRiskCSClients.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)' }}>Nenhum cliente pós-onboarding em risco no momento.</p>
+                  ) : (
+                    atRiskCSClients.map(c => {
+                      const clientTickets = (tickets || []).filter(t => t.clientId === c.id);
+                      const openTickets = clientTickets.filter(t => t.status !== 'Resolvido');
+                      return (
+                        <div
+                          key={c.id}
+                          style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-primary)' }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong
+                              style={{ cursor: 'pointer', color: 'var(--badge-red)' }}
+                              onClick={() => { setActiveModal(null); onNavigate(`clientes/${c.id}`); }}
+                            >
+                              {c.name}
+                            </strong>
+                            <span className="badge badge-critico">{c.criticality}</span>
+                          </div>
+                          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                            {openTickets.length > 0
+                              ? `${openTickets.length} chamado(s) de suporte em aberto.`
+                              : 'Health score baixo — reveja o ciclo de contato.'}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setActiveModal(null)}>Fechar</button>
@@ -719,15 +1004,7 @@ export default function DashboardView({
                     </div>
                     <div className="form-group">
                       <label className="form-label">Criticidade</label>
-                      <select 
-                        className="form-select" 
-                        value={editCriticality}
-                        onChange={e => setEditCriticality(e.target.value)}
-                      >
-                        <option value="Urgente">Urgente</option>
-                        <option value="Normal">Normal</option>
-                        <option value="Baixo">Baixo</option>
-                      </select>
+                      <CustomSelect value={editCriticality} onChange={setEditCriticality} options={['Urgente', 'Normal', 'Baixo']} />
                     </div>
                   </>
                 )}

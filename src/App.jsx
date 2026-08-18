@@ -1,40 +1,168 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
 import KanbanView from './components/KanbanView';
 import ClientsListView from './components/ClientsListView';
 import ClientDetailView from './components/ClientDetailView';
 import ConfiguracoesView from './components/ConfiguracoesView';
+import SuporteView from './components/SuporteView';
+import AgendaView from './components/AgendaView';
+import TarefasView from './components/TarefasView';
+import OportunidadesView from './components/OportunidadesView';
+import Auth from './components/Auth';
+import MobileShell from './components/MobileShell';
+import NotaReuniaoModal from './components/NotaReuniaoModal';
+import useIsMobile from './hooks/useIsMobile';
 
-import { 
-  initialProfile, 
-  initialPlans, 
-  initialModules, 
-  initialAvailableOffers, 
-  initialClients,
-  initialStages
-} from './data/data';
+import { initialProfile } from './data/data';
 
-import { 
-  calculateNextContactDate, 
-  getDateStatus 
+import {
+  calculateNextContactDate,
+  getDateStatus,
+  getTodayBR,
+  getNowTimeBR,
+  addDaysToBRDate,
+  OPPORTUNITY_STATUS_OPTIONS
 } from './utils';
 
 import { Bell, X, Plus } from 'lucide-react';
 import CustomDatePicker from './components/CustomDatePicker';
-import { moduleChecklistsTemplate } from './data/data';
+import CustomSelect from './components/CustomSelect';
+import { supabase } from './lib/supabaseClient';
+import { loadAllData, clientToRow, ticketToRow, taskToRow, catalogToRow, syncTable, syncStages, syncProfile } from './lib/supabaseSync';
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState('dashboard');
-  
-  // Application Local State (Single source of truth)
+  const isMobile = useIsMobile();
+
+  // Auth — every table in Supabase is scoped to auth.uid() via RLS, so the
+  // whole app waits for a session before it has anything to show.
+  const [session, setSession] = useState(undefined); // undefined = still checking
+  const [dataReady, setDataReady] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const userId = session?.user?.id || null;
+
+  // Application Local State (Single source of truth — now backed by Supabase.
+  // Handlers below are untouched from before; a set of sync effects further
+  // down watches each collection and persists changes automatically.)
   const [profile, setProfile] = useState(initialProfile);
-  const [plans, setPlans] = useState(initialPlans);
-  const [modules, setModules] = useState(initialModules);
-  const [offers, setOffers] = useState(initialAvailableOffers);
-  const [clients, setClients] = useState(initialClients);
-  const [stages, setStages] = useState(initialStages);
+  const [plans, setPlans] = useState([]);
+  const [modules, setModules] = useState([]);
+  const [offers, setOffers] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [stages, setStages] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [standaloneTasks, setStandaloneTasks] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  // Modo Visualização — não persiste entre sessões de propósito: é um
+  // botão que qualquer um logado pode ligar pra navegar sem risco de criar/
+  // editar/excluir nada por engano, não uma permissão de conta.
+  const [viewOnly, setViewOnly] = useState(false);
+  const [isMobileNotaOpen, setIsMobileNotaOpen] = useState(false);
+
+  // Last-known id sets per collection, used to detect deletions on sync.
+  const lastClientIds = useRef(new Set());
+  const lastTicketIds = useRef(new Set());
+  const lastTaskIds = useRef(new Set());
+  const lastPlanIds = useRef(new Set());
+  const lastModuleIds = useRef(new Set());
+  const lastOfferIds = useRef(new Set());
+  const lastStageNames = useRef(new Set());
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // Load everything for the signed-in user once, right after login.
+  useEffect(() => {
+    if (!userId) {
+      setDataReady(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadError(null);
+      try {
+        const data = await loadAllData(userId);
+        if (cancelled) return;
+        setProfile(data.profile || initialProfile);
+        setPlans(data.plans);
+        setModules(data.modules);
+        setOffers(data.offers);
+        setStages(data.stages);
+        setClients(data.clients);
+        setTickets(data.tickets);
+        setStandaloneTasks(data.tasks);
+        lastPlanIds.current = new Set(data.plans.map(p => p.id));
+        lastModuleIds.current = new Set(data.modules.map(m => m.id));
+        lastOfferIds.current = new Set(data.offers.map(o => o.id));
+        lastStageNames.current = new Set(data.stages);
+        lastClientIds.current = new Set(data.clients.map(c => c.id));
+        lastTicketIds.current = new Set(data.tickets.map(t => t.id));
+        lastTaskIds.current = new Set(data.tasks.map(t => t.id));
+        setDataReady(true);
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err.message || 'Falha ao carregar dados.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId, loadAttempt]);
+
+  // Sync effects — fire after every local change to each collection, once
+  // the initial load has completed. Business logic in the handlers below
+  // never talks to Supabase directly; this is the only place that does.
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('clients', clients, c => clientToRow(c, userId), lastClientIds);
+  }, [clients, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('tickets', tickets, t => ticketToRow(t, userId), lastTicketIds);
+  }, [tickets, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('tasks', standaloneTasks, t => taskToRow(t, userId), lastTaskIds);
+  }, [standaloneTasks, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('plans', plans, p => catalogToRow('plans', p, userId), lastPlanIds);
+  }, [plans, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('modules', modules, m => catalogToRow('modules', m, userId), lastModuleIds);
+  }, [modules, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncTable('offers', offers, o => catalogToRow('offers', o, userId), lastOfferIds);
+  }, [offers, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncStages(stages, lastStageNames, userId);
+  }, [stages, dataReady, userId]);
+
+  useEffect(() => {
+    if (!dataReady || !userId) return;
+    syncProfile(profile, userId);
+  }, [profile, dataReady, userId]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setDataReady(false);
+    setProfile(initialProfile);
+    setPlans([]); setModules([]); setOffers([]); setClients([]); setStages([]); setTickets([]); setStandaloneTasks([]);
+  };
 
   // Global New Lead Modal Form State
   const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
@@ -43,7 +171,7 @@ export default function App() {
   const [newPhone, setNewPhone] = useState('');
   const [newWhatsapp, setNewWhatsapp] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newEntryDate, setNewEntryDate] = useState('30/06/2026');
+  const [newEntryDate, setNewEntryDate] = useState(() => getTodayBR());
   const [newPlan, setNewPlan] = useState('Pro');
   const [newCriticality, setNewCriticality] = useState('Estável');
   const [newJustification, setNewJustification] = useState('');
@@ -76,8 +204,8 @@ export default function App() {
   };
 
   // State Mutators — Profile
-  const handleUpdateProfile = (updatedProfile) => {
-    setProfile(updatedProfile);
+  const handleUpdateProfile = (updatedFields) => {
+    setProfile(prev => ({ ...prev, ...updatedFields }));
   };
 
   // State Mutators — Plans
@@ -107,16 +235,32 @@ export default function App() {
 
   const handleEditModule = (id, newName) => {
     setModules(prev => prev.map(m => m.id === id ? { ...m, name: newName } : m));
+    const oldModObj = modules.find(m => m.id === id);
+    if (!oldModObj || oldModObj.name === newName) return;
+    const oldName = oldModObj.name;
+    // client.checklists/checklistBaseline são chaveados pelo NOME do módulo
+    // (não pelo id do catálogo) — sem renomear a chave aqui, o checklist do
+    // cliente para esse módulo para de bater com activeModules/modules e
+    // some (ou o diff da Nota de Reunião perde o baseline e reapresenta
+    // tudo como "feito agora").
+    const renameKey = (obj) => {
+      if (!obj || !(oldName in obj)) return obj;
+      const { [oldName]: value, ...rest } = obj;
+      return { ...rest, [newName]: value };
+    };
     setClients(prev => prev.map(c => {
-      const oldModObj = modules.find(m => m.id === id);
-      if (oldModObj && c.activeModules.includes(oldModObj.name)) {
-        return {
-          ...c,
-          activeModules: c.activeModules.map(mName => mName === oldModObj.name ? newName : mName)
-        };
-      }
-      return c;
+      if (!c.activeModules.includes(oldName)) return c;
+      return {
+        ...c,
+        activeModules: c.activeModules.map(mName => mName === oldName ? newName : mName),
+        checklists: renameKey(c.checklists),
+        checklistBaseline: renameKey(c.checklistBaseline)
+      };
     }));
+  };
+
+  const handleUpdateModuleChecklist = (id, checklist) => {
+    setModules(prev => prev.map(m => m.id === id ? { ...m, checklist } : m));
   };
 
   const handleRemoveModule = (id) => {
@@ -165,10 +309,39 @@ export default function App() {
     setClients(prev => [newClient, ...prev]);
   };
 
+  const handleRemoveClient = (clientId) => {
+    setClients(prev => prev.filter(c => c.id !== clientId));
+  };
+
+  const handleImportClients = ({ created, updated }) => {
+    setClients(prev => {
+      const updateMap = new Map(updated.map(u => [u.id, u.fields]));
+      const merged = prev.map(c => updateMap.has(c.id) ? { ...c, ...updateMap.get(c.id) } : c);
+      return [...created, ...merged];
+    });
+  };
+
   const handleUpdateClient = (clientId, fieldsToUpdate) => {
-    setClients(prev => prev.map(c => 
+    setClients(prev => prev.map(c =>
       c.id === clientId ? { ...c, ...fieldsToUpdate } : c
     ));
+  };
+
+  // Prepende uma entrada em activityHistory lendo o estado atual (via
+  // prev), não um snapshot capturado antes de um await — evita perder
+  // entradas mais novas quando o chamador é assíncrono (ex: aguardando a
+  // API do Google Agenda) e o histórico muda enquanto isso.
+  const handleAddClientActivity = (clientId, action) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        activityHistory: [
+          { avatar: profile.avatarInitials, name: profile.name, action, date: `${getTodayBR()} às ${getNowTimeBR()}`, isObservation: false },
+          ...(c.activityHistory || [])
+        ]
+      };
+    }));
   };
 
   const handleUpdateClientStage = (clientId, newStage) => {
@@ -183,21 +356,79 @@ export default function App() {
     ));
   };
 
-  // Contact cycle handler: updates nextContactDate automatically starting from 30/06/2026
+  // Contact cycle handler: updates nextContactDate and logs the contact — does not spawn a fake meeting
   const handleRegisterContact = (clientId, obsText = '') => {
     setClients(prev => prev.map(c => {
       if (c.id === clientId) {
-        const nextContact = calculateNextContactDate(c.criticality, '30/06/2026');
-        const nextMeet = {
-          id: `meet_${Date.now()}`,
-          date: '30/06/2026',
-          time: '12:00',
-          title: obsText.trim() ? `Contato: ${obsText}` : 'Contato periódico realizado'
-        };
+        const todayStr = getTodayBR();
+        const nextContact = calculateNextContactDate(c.criticality, todayStr);
+        const label = obsText.trim() || 'Registrou contato periódico';
         return {
           ...c,
           nextContactDate: nextContact,
-          meetings: [nextMeet, ...(c.meetings || [])]
+          lastContacts: [
+            { date: todayStr, obs: label },
+            ...(c.lastContacts || [])
+          ],
+          activityHistory: [
+            { avatar: profile.avatarInitials, name: profile.name, action: label, date: `${todayStr} às ${getNowTimeBR()}`, isObservation: false },
+            ...(c.activityHistory || [])
+          ]
+        };
+      }
+      return c;
+    }));
+  };
+
+  // Marks an existing scheduled meeting as done, in place — no new entries created
+  const handleCompleteMeeting = (clientId, meetingId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          meetings: (c.meetings || []).map(m => m.id === meetingId ? { ...m, completed: true } : m)
+        };
+      }
+      return c;
+    }));
+  };
+
+  // Quick-action handlers
+  const handleAddClientTask = (clientId, text, deadline) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          tasks: [...(c.tasks || []), { id: `task_${Date.now()}`, text, deadline }]
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleCompleteClientTask = (clientId, taskId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        const task = (c.tasks || []).find(t => t.id === taskId);
+        return {
+          ...c,
+          tasks: (c.tasks || []).map(t => t.id === taskId ? { ...t, completed: true, completedAt: getTodayBR() } : t),
+          activityHistory: task ? [
+            { avatar: profile.avatarInitials, name: profile.name, action: `Concluiu tarefa: ${task.text}`, date: `${getTodayBR()} às ${getNowTimeBR()}`, isObservation: false },
+            ...(c.activityHistory || [])
+          ] : (c.activityHistory || [])
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleAddClientOffer = (clientId, offerName) => {
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          interestOffers: [...(c.interestOffers || []), { id: `io_${Date.now()}`, name: offerName, status: OPPORTUNITY_STATUS_OPTIONS[0] }]
         };
       }
       return c;
@@ -207,7 +438,7 @@ export default function App() {
   const handleUpdateClientCriticality = (clientId, newCriticality) => {
     setClients(prev => prev.map(c => {
       if (c.id === clientId) {
-        const nextContact = calculateNextContactDate(newCriticality, '30/06/2026');
+        const nextContact = calculateNextContactDate(newCriticality, getTodayBR());
         return {
           ...c,
           criticality: newCriticality,
@@ -296,12 +527,141 @@ export default function App() {
     }));
   };
 
+  // State Mutators — Support Tickets
+  const handleAddTicket = (clientId, subject, description, priority, discordUrl = '') => {
+    const newTicket = {
+      id: `tk_${Date.now()}`,
+      clientId,
+      subject,
+      description,
+      priority,
+      status: 'Aberto',
+      createdDate: getTodayBR(),
+      origem: 'Painel',
+      discordUrl
+    };
+    setTickets(prev => [newTicket, ...prev]);
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          activityHistory: [
+            { avatar: profile.avatarInitials, name: profile.name, action: `Abriu chamado de suporte: ${subject}`, date: `${getTodayBR()} às ${getNowTimeBR()}`, isObservation: false },
+            ...(c.activityHistory || [])
+          ]
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleUpdateTicketStatus = (ticketId, newStatus) => {
+    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
+  };
+
+  const handleUpdateTicketLink = (ticketId, discordUrl) => {
+    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, discordUrl } : t));
+  };
+
+  const handleRemoveTicket = (ticketId) => {
+    setTickets(prev => prev.filter(t => t.id !== ticketId));
+  };
+
+  const handleResolveTicket = (ticketId, note = '') => {
+    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'Resolvido', resolutionNote: note } : t));
+  };
+
+  // State Mutators — Standalone Tasks ("avulsas", Minha Fila Hoje)
+  const handleAddStandaloneTask = (title, dueDate = '') => {
+    setStandaloneTasks(prev => [
+      { id: `task_${Date.now()}`, title, dueDate, completed: false, completedAt: '' },
+      ...prev
+    ]);
+  };
+
+  const handleToggleStandaloneTask = (taskId) => {
+    setStandaloneTasks(prev => prev.map(t => t.id === taskId
+      ? { ...t, completed: !t.completed, completedAt: !t.completed ? getTodayBR() : '' }
+      : t
+    ));
+  };
+
+  const handleSnoozeStandaloneTask = (taskId) => {
+    setStandaloneTasks(prev => prev.map(t => t.id === taskId ? { ...t, dueDate: addDaysToBRDate(t.dueDate, 1) } : t));
+  };
+
+  // Queue-only mutators — completing/snoozing an item pulled into Minha Fila
+  // Hoje from a client's nextAction/reminder, without leaving the queue.
+  const handleCompleteClientNextAction = (clientId) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextAction: '' } : c));
+  };
+
+  const handleSnoozeClientNextContact = (clientId) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextContactDate: addDaysToBRDate(c.nextContactDate, 1) } : c));
+  };
+
+  const handleSnoozeClientReminder = (clientId, reminderId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        reminders: (c.reminders || []).map(r => r.id === reminderId ? { ...r, deadline: addDaysToBRDate(r.deadline, 1) } : r)
+      };
+    }));
+  };
+
+  const handleSnoozeClientTask = (clientId, taskId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        tasks: (c.tasks || []).map(t => t.id === taskId ? { ...t, deadline: addDaysToBRDate(t.deadline, 1) } : t)
+      };
+    }));
+  };
+
+  const handleUncompleteClientTask = (clientId, taskId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        tasks: (c.tasks || []).map(t => t.id === taskId ? { ...t, completed: false, completedAt: '' } : t)
+      };
+    }));
+  };
+
+  const handleEditClientTask = (clientId, taskId, fields) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        tasks: (c.tasks || []).map(t => t.id === taskId ? { ...t, ...fields } : t)
+      };
+    }));
+  };
+
+  const handleDeleteClientTask = (clientId, taskId) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return { ...c, tasks: (c.tasks || []).filter(t => t.id !== taskId) };
+    }));
+  };
+
+  const handleEditStandaloneTask = (taskId, fields) => {
+    setStandaloneTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...fields } : t));
+  };
+
+  const handleDeleteStandaloneTask = (taskId) => {
+    setStandaloneTasks(prev => prev.filter(t => t.id !== taskId));
+  };
+
   // Gather overdue or today's notifications
   const alertNotifications = [];
+  const todayStrAlerts = getTodayBR();
   clients.forEach(c => {
     // 1. SLA contact reminders
     if (c.nextContactDate) {
-      const status = getDateStatus(c.nextContactDate, '30/06/2026');
+      const status = getDateStatus(c.nextContactDate, todayStrAlerts);
       if (status === 'overdue' || status === 'today') {
         alertNotifications.push({
           id: `cycle_${c.id}`,
@@ -317,7 +677,7 @@ export default function App() {
     // 2. Custom reminders
     if (c.reminders) {
       c.reminders.forEach(r => {
-        const status = getDateStatus(r.deadline, '30/06/2026');
+        const status = getDateStatus(r.deadline, todayStrAlerts);
         if (status === 'overdue' || status === 'today') {
           alertNotifications.push({
             id: r.id,
@@ -337,12 +697,17 @@ export default function App() {
   const renderView = () => {
     if (currentRoute === 'dashboard') {
       return (
-        <DashboardView 
-          clients={clients} 
+        <DashboardView
+          clients={clients}
+          tickets={tickets}
+          profile={profile}
+          stages={stages}
+          viewOnly={viewOnly}
           onAddReminder={handleAddClientReminder}
           onUpdateReminder={handleEditClientReminder}
           onRemoveReminder={handleRemoveClientReminder}
           onRegisterContact={handleRegisterContact}
+          onCompleteMeeting={handleCompleteMeeting}
           onNavigate={handleNavigate}
         />
       );
@@ -350,11 +715,15 @@ export default function App() {
 
     if (currentRoute === 'kanban') {
       return (
-        <KanbanView 
+        <KanbanView
           clients={clients}
           stages={stages}
+          viewOnly={viewOnly}
           onUpdateClientStage={handleUpdateClientStage}
           onUpdateClientNextAction={handleUpdateClientNextAction}
+          onEditStage={handleEditStage}
+          onRemoveStage={handleRemoveStage}
+          onRemoveClient={handleRemoveClient}
           onNavigate={handleNavigate}
         />
       );
@@ -362,17 +731,24 @@ export default function App() {
 
     if (currentRoute === 'clientes') {
       return (
-        <ClientsListView 
-          clients={clients} 
+        <ClientsListView
+          clients={clients}
           plans={plans}
           modules={modules}
+          tickets={tickets}
+          stages={stages}
+          profile={profile}
+          viewOnly={viewOnly}
           onAddClient={handleAddClient}
+          onImportClients={handleImportClients}
           onNavigate={handleNavigate}
           onUpdateClientStage={handleUpdateClientStage}
           onUpdateClientNextAction={handleUpdateClientNextAction}
           onUpdateClientCriticality={handleUpdateClientCriticality}
           onRegisterContact={handleRegisterContact}
           onOpenNewLeadModal={() => setIsNewLeadModalOpen(true)}
+          onEditStage={handleEditStage}
+          onRemoveStage={handleRemoveStage}
         />
       );
     }
@@ -383,11 +759,13 @@ export default function App() {
       const client = clients.find(c => c.id === clientId);
       if (client) {
         return (
-          <ClientDetailView 
+          <ClientDetailView
             client={client}
             plans={plans}
             modules={modules}
             stages={stages}
+            profile={profile}
+            viewOnly={viewOnly}
             availableOffers={offers}
             onUpdateClient={handleUpdateClient}
             onRegisterContact={handleRegisterContact}
@@ -395,6 +773,11 @@ export default function App() {
             onEditReminder={handleEditClientReminder}
             onRemoveReminder={handleRemoveClientReminder}
             onUpdateChecklist={handleUpdateClientChecklist}
+            onCompleteTask={handleCompleteClientTask}
+            tickets={tickets.filter(t => t.clientId === client.id)}
+            onAddTicket={handleAddTicket}
+            onUpdateTicketStatus={handleUpdateTicketStatus}
+            onUpdateTicketLink={handleUpdateTicketLink}
             onNavigate={handleNavigate}
           />
         );
@@ -409,11 +792,75 @@ export default function App() {
       }
     }
 
+    if (currentRoute === 'agenda') {
+      return <AgendaView clients={clients} accountEmail={session.user.email} profile={profile} viewOnly={viewOnly} onUpdateClient={handleUpdateClient} onAddClientActivity={handleAddClientActivity} />;
+    }
+
+    if (currentRoute === 'tarefas') {
+      return (
+        <TarefasView
+          clients={clients}
+          tickets={tickets}
+          standaloneTasks={standaloneTasks}
+          stages={stages}
+          profile={profile}
+          viewOnly={viewOnly}
+          onNavigate={handleNavigate}
+          onCompleteClientNextAction={handleCompleteClientNextAction}
+          onSnoozeClientNextContact={handleSnoozeClientNextContact}
+          onRemoveClientReminder={handleRemoveClientReminder}
+          onSnoozeClientReminder={handleSnoozeClientReminder}
+          onEditClientReminder={handleEditClientReminder}
+          onCompleteClientTask={handleCompleteClientTask}
+          onUncompleteClientTask={handleUncompleteClientTask}
+          onSnoozeClientTask={handleSnoozeClientTask}
+          onEditClientTask={handleEditClientTask}
+          onDeleteClientTask={handleDeleteClientTask}
+          onResolveTicket={handleResolveTicket}
+          onRemoveTicket={handleRemoveTicket}
+          onAddStandaloneTask={handleAddStandaloneTask}
+          onToggleStandaloneTask={handleToggleStandaloneTask}
+          onSnoozeStandaloneTask={handleSnoozeStandaloneTask}
+          onEditStandaloneTask={handleEditStandaloneTask}
+          onDeleteStandaloneTask={handleDeleteStandaloneTask}
+        />
+      );
+    }
+
+    if (currentRoute === 'oportunidades') {
+      return (
+        <OportunidadesView
+          clients={clients}
+          viewOnly={viewOnly}
+          onNavigate={handleNavigate}
+          onUpdateClient={handleUpdateClient}
+        />
+      );
+    }
+
+    if (currentRoute === 'suporte') {
+      return (
+        <SuporteView
+          clients={clients}
+          tickets={tickets}
+          viewOnly={viewOnly}
+          onAddTicket={handleAddTicket}
+          onUpdateTicketStatus={handleUpdateTicketStatus}
+          onUpdateTicketLink={handleUpdateTicketLink}
+          onRemoveTicket={handleRemoveTicket}
+          onNavigate={handleNavigate}
+        />
+      );
+    }
+
     if (currentRoute === 'configuracoes') {
       return (
-        <ConfiguracoesView 
+        <ConfiguracoesView
           profile={profile}
+          viewOnly={viewOnly}
           onUpdateProfile={handleUpdateProfile}
+          accountEmail={session.user.email}
+          onSignOut={handleSignOut}
           plans={plans}
           onAddPlan={handleAddPlan}
           onEditPlan={handleEditPlan}
@@ -422,6 +869,7 @@ export default function App() {
           onAddModule={handleAddModule}
           onEditModule={handleEditModule}
           onRemoveModule={handleRemoveModule}
+          onUpdateModuleChecklist={handleUpdateModuleChecklist}
           offers={offers}
           onAddOffer={handleAddOffer}
           onEditOffer={handleEditOffer}
@@ -449,18 +897,289 @@ export default function App() {
     if (currentRoute === 'kanban') return 'Quadro Kanban';
     if (currentRoute === 'clientes') return 'Lista de Clientes';
     if (currentRoute.startsWith('clientes/')) return 'Detalhes do Cliente';
+    if (currentRoute === 'agenda') return 'Agenda';
+    if (currentRoute === 'tarefas') return 'Minha Fila Hoje';
+    if (currentRoute === 'oportunidades') return 'Oportunidades';
+    if (currentRoute === 'suporte') return 'Central de Suporte';
     if (currentRoute === 'configuracoes') return 'Configurações do Sistema';
     return 'JetFlow';
   };
 
+  if (session && loadError) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', fontSize: '13px', padding: '20px', textAlign: 'center' }}>
+        <span>Não foi possível carregar seus dados.</span>
+        <span style={{ fontSize: '11px', color: '#666', maxWidth: '420px' }}>{loadError}</span>
+        <button className="btn-primary" onClick={() => setLoadAttempt(n => n + 1)}>Tentar novamente</button>
+      </div>
+    );
+  }
+
+  if (session === undefined || (session && !dataReady)) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', fontSize: '13px' }}>
+        Carregando...
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
+
+  const newLeadFormBody = (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      const nextContact = calculateNextContactDate(newCriticality, newEntryDate);
+
+      // Populate checklists from each module's configured template
+      const clientChecklists = {};
+      newSelectedModules.forEach(mod => {
+        const modObj = modules.find(m => m.name === mod);
+        clientChecklists[mod] = modObj?.checklist
+          ? JSON.parse(JSON.stringify(modObj.checklist))
+          : [];
+      });
+
+      const newClient = {
+        id: `c_${Date.now()}`,
+        name: newName,
+        cnpj: newCnpj,
+        phone: newPhone,
+        whatsapp: newWhatsapp,
+        email: newEmail,
+        entryDate: newEntryDate,
+        plan: newPlan,
+        criticality: newCriticality,
+        criticalityJustification: newJustification,
+        activeModules: newSelectedModules,
+        observations: newObservations,
+        responsible: profile.name,
+        stage: 'Novo',
+        nextAction: 'Reunião de Alinhamento inicial',
+        nextContactDate: nextContact,
+        checklists: clientChecklists,
+        checklistBaseline: JSON.parse(JSON.stringify(clientChecklists)),
+        reminders: [],
+        lastUpdated: {
+          date: getTodayBR(),
+          time: getNowTimeBR(),
+          user: profile.name
+        },
+        lastContacts: [
+          { date: newEntryDate, obs: 'Cliente cadastrado no sistema.' }
+        ],
+        activityHistory: [
+          { avatar: profile.avatarInitials, name: profile.name, action: 'Criou o cliente no sistema', date: `${newEntryDate} às ${getNowTimeBR()}`, isObservation: false }
+        ],
+        quickLinks: {
+          crm: '',
+          discordIntegration: '',
+          discordSupport: [],
+          site: '',
+          deskPlatformUrl: '',
+          deskPlatformEmail: ''
+        }
+      };
+
+      handleAddClient(newClient);
+
+      // Reset
+      setNewName('');
+      setNewCnpj('');
+      setNewPhone('');
+      setNewWhatsapp('');
+      setNewEmail('');
+      setNewEntryDate(getTodayBR());
+      setNewPlan('Pro');
+      setNewCriticality('Estável');
+      setNewJustification('');
+      setNewSelectedModules([]);
+      setNewObservations('');
+      setIsNewLeadModalOpen(false);
+    }}>
+      <div className="modal-body">
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">Nome do Cliente *</label>
+            <input
+              type="text"
+              className="form-input"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder="Razão Social ou Nome Fantasia"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">CNPJ</label>
+            <input
+              type="text"
+              className="form-input"
+              value={newCnpj}
+              onChange={e => setNewCnpj(e.target.value)}
+              placeholder="00.000.000/0001-00"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Telefone</label>
+            <input
+              type="text"
+              className="form-input"
+              value={newPhone}
+              onChange={e => setNewPhone(e.target.value)}
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">WhatsApp</label>
+            <input
+              type="text"
+              className="form-input"
+              value={newWhatsapp}
+              onChange={e => setNewWhatsapp(e.target.value)}
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">E-mail</label>
+            <input
+              type="email"
+              className="form-input"
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              placeholder="contato@cliente.com"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Data de Entrada</label>
+            <CustomDatePicker value={newEntryDate} onChange={setNewEntryDate} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Plano</label>
+            <CustomSelect value={newPlan} onChange={setNewPlan} options={plans.map(p => ({ value: p.name, label: p.name }))} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Nível de Criticidade</label>
+            <CustomSelect value={newCriticality} onChange={setNewCriticality} options={['Estável', 'Atenção', 'Crítico']} />
+          </div>
+          {newCriticality !== 'Estável' && (
+            <div className="form-group full-width">
+              <label className="form-label">Justificativa da Criticidade *</label>
+              <input
+                type="text"
+                className="form-input"
+                value={newJustification}
+                onChange={e => setNewJustification(e.target.value)}
+                placeholder="Descreva o motivo de atenção/crítico..."
+                required
+              />
+            </div>
+          )}
+          <div className="form-group full-width">
+            <label className="form-label">Módulos Contratados</label>
+            <div className="checkbox-group">
+              {modules.map(mod => (
+                <label key={mod.id} className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    className="premium-check"
+                    checked={newSelectedModules.includes(mod.name)}
+                    onChange={() => {
+                      setNewSelectedModules(prev =>
+                        prev.includes(mod.name) ? prev.filter(m => m !== mod.name) : [...prev, mod.name]
+                      );
+                    }}
+                  />
+                  <span>{mod.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="form-group full-width">
+            <label className="form-label">Observações</label>
+            <textarea
+              className="form-textarea"
+              rows="3"
+              value={newObservations}
+              onChange={e => setNewObservations(e.target.value)}
+              placeholder="Observações gerais adicionais..."
+            />
+          </div>
+        </div>
+      </div>
+      <div className="modal-footer">
+        <button type="button" className="btn-secondary" onClick={() => setIsNewLeadModalOpen(false)}>Cancelar</button>
+        <button type="submit" className="btn-primary">Criar Cliente</button>
+      </div>
+    </form>
+  );
+
+  if (isMobile) {
+    const notaContextClientId = currentRoute.startsWith('clientes/') ? currentRoute.split('/')[1] : null;
+    const notaContextClient = notaContextClientId ? clients.find(c => c.id === notaContextClientId) || null : null;
+
+    return (
+      <>
+        <MobileShell
+          currentRoute={currentRoute}
+          onNavigate={handleNavigate}
+          title={getPageTitle()}
+          profile={profile}
+          viewOnly={viewOnly}
+          onToggleViewOnly={() => setViewOnly(v => !v)}
+          onSignOut={handleSignOut}
+          onOpenNotaReuniao={() => setIsMobileNotaOpen(true)}
+        >
+          {renderView()}
+        </MobileShell>
+
+        {isMobileNotaOpen && (
+          <NotaReuniaoModal
+            clients={clients}
+            contextClient={notaContextClient}
+            profile={profile}
+            availableOffers={offers}
+            onUpdateClient={handleUpdateClient}
+            onUpdateChecklist={handleUpdateClientChecklist}
+            onClose={() => setIsMobileNotaOpen(false)}
+          />
+        )}
+
+        {/* Global New Lead Modal */}
+        {isNewLeadModalOpen && (
+          <div className="modal-overlay" onClick={() => setIsNewLeadModalOpen(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3 className="modal-title">Cadastrar Novo Cliente</h3>
+                <button className="btn-icon" onClick={() => setIsNewLeadModalOpen(false)}>
+                  <X size={16} />
+                </button>
+              </div>
+              {newLeadFormBody}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
-    <div className="app-layout">
-      <Sidebar 
-        currentRoute={currentRoute} 
-        onNavigate={handleNavigate} 
+    <div className={`app-layout ${viewOnly ? 'view-only-mode' : ''}`}>
+      <Sidebar
+        currentRoute={currentRoute}
+        viewOnly={viewOnly}
+        onToggleViewOnly={() => setViewOnly(v => !v)}
+        onNavigate={handleNavigate}
         profile={profile}
         clients={clients}
+        offers={offers}
         onOpenNewLeadModal={() => setIsNewLeadModalOpen(true)}
+        onAddClientTask={handleAddClientTask}
+        onAddClientOffer={handleAddClientOffer}
+        onAddTicket={handleAddTicket}
+        onUpdateClient={handleUpdateClient}
+        onUpdateChecklist={handleUpdateClientChecklist}
       />
       <main className="main-container">
         <div className="view-header">
@@ -517,7 +1236,6 @@ export default function App() {
                                 } else {
                                   handleRegisterContact(item.clientId, 'Contato de ciclo registrado');
                                 }
-                                alert('Contato registrado com sucesso!');
                               }}
                             >
                               Registrar Contato
@@ -545,203 +1263,7 @@ export default function App() {
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const nextContact = calculateNextContactDate(newCriticality, newEntryDate);
-              
-              // Populate checklists
-              const clientChecklists = {};
-              newSelectedModules.forEach(mod => {
-                clientChecklists[mod] = moduleChecklistsTemplate[mod] 
-                  ? JSON.parse(JSON.stringify(moduleChecklistsTemplate[mod])) 
-                  : [];
-              });
-
-              const newClient = {
-                id: `c_${Date.now()}`,
-                name: newName,
-                cnpj: newCnpj,
-                phone: newPhone,
-                whatsapp: newWhatsapp,
-                email: newEmail,
-                entryDate: newEntryDate,
-                plan: newPlan,
-                criticality: newCriticality,
-                criticalityJustification: newJustification,
-                activeModules: newSelectedModules,
-                observations: newObservations,
-                stage: 'Novo',
-                nextAction: 'Reunião de Alinhamento inicial',
-                nextContactDate: nextContact,
-                checklists: clientChecklists,
-                reminders: [],
-                lastUpdated: {
-                  date: '30/06/2026',
-                  time: '12:00',
-                  user: profile.name
-                },
-                lastContacts: [
-                  { date: newEntryDate, obs: 'Cliente cadastrado no sistema.' }
-                ],
-                activityHistory: [
-                  { avatar: profile.avatarInitials, name: profile.name, action: 'Criou o cliente no sistema', date: `${newEntryDate} às 12:00`, isObservation: false }
-                ],
-                quickLinks: {
-                  crm: '',
-                  discordIntegration: '',
-                  discordSupport: [],
-                  site: '',
-                  deskPlatformUrl: '',
-                  deskPlatformEmail: ''
-                }
-              };
-
-              handleAddClient(newClient);
-              
-              // Reset
-              setNewName('');
-              setNewCnpj('');
-              setNewPhone('');
-              setNewWhatsapp('');
-              setNewEmail('');
-              setNewEntryDate('30/06/2026');
-              setNewPlan('Pro');
-              setNewCriticality('Estável');
-              setNewJustification('');
-              setNewSelectedModules([]);
-              setNewObservations('');
-              setIsNewLeadModalOpen(false);
-            }}>
-              <div className="modal-body">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label className="form-label">Nome do Cliente *</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newName} 
-                      onChange={e => setNewName(e.target.value)} 
-                      placeholder="Razão Social ou Nome Fantasia"
-                      required 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">CNPJ</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newCnpj} 
-                      onChange={e => setNewCnpj(e.target.value)} 
-                      placeholder="00.000.000/0001-00"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Telefone</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newPhone} 
-                      onChange={e => setNewPhone(e.target.value)} 
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">WhatsApp</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newWhatsapp} 
-                      onChange={e => setNewWhatsapp(e.target.value)} 
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">E-mail</label>
-                    <input 
-                      type="email" 
-                      className="form-input" 
-                      value={newEmail} 
-                      onChange={e => setNewEmail(e.target.value)} 
-                      placeholder="contato@cliente.com"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Data de Entrada</label>
-                    <CustomDatePicker value={newEntryDate} onChange={setNewEntryDate} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Plano</label>
-                    <select 
-                      className="form-select" 
-                      value={newPlan} 
-                      onChange={e => setNewPlan(e.target.value)}
-                    >
-                      {plans.map(p => (
-                        <option key={p.id} value={p.name}>{p.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Nível de Criticidade</label>
-                    <select 
-                      className="form-select" 
-                      value={newCriticality} 
-                      onChange={e => setNewCriticality(e.target.value)}
-                    >
-                      <option value="Estável">Estável</option>
-                      <option value="Atenção">Atenção</option>
-                      <option value="Crítico">Crítico</option>
-                    </select>
-                  </div>
-                  {newCriticality !== 'Estável' && (
-                    <div className="form-group full-width">
-                      <label className="form-label">Justificativa da Criticidade *</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={newJustification} 
-                        onChange={e => setNewJustification(e.target.value)}
-                        placeholder="Descreva o motivo de atenção/crítico..."
-                        required
-                      />
-                    </div>
-                  )}
-                  <div className="form-group full-width">
-                    <label className="form-label">Módulos Contratados</label>
-                    <div className="checkbox-group">
-                      {modules.map(mod => (
-                        <label key={mod.id} className="checkbox-label">
-                          <input 
-                            type="checkbox" 
-                            checked={newSelectedModules.includes(mod.name)}
-                            onChange={() => {
-                              setNewSelectedModules(prev => 
-                                prev.includes(mod.name) ? prev.filter(m => m !== mod.name) : [...prev, mod.name]
-                              );
-                            }}
-                          />
-                          <span>{mod.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="form-group full-width">
-                    <label className="form-label">Observações</label>
-                    <textarea 
-                      className="form-textarea" 
-                      rows="3" 
-                      value={newObservations} 
-                      onChange={e => setNewObservations(e.target.value)} 
-                      placeholder="Observações gerais adicionais..."
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setIsNewLeadModalOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary">Criar Cliente</button>
-              </div>
-            </form>
+            {newLeadFormBody}
           </div>
         </div>
       )}

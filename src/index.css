@@ -1,20 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-primary: #0B0B0B;
-  --card-surface: #1B1B1B;
-  --surface-hover: #262626;
-  --surface-active: #333333;
+  --bg-primary: #0A0C10;
+  --card-surface: #191C21;
+  --surface-hover: #232730;
+  --surface-active: #2E323C;
   --green-primary: #65FF4B;
   --green-hover: #4eeb35;
   --text-primary: #FFFFFF;
   --text-secondary: #888888;
-  --border-color: #2E2E2E;
-  
+  --border-color: #2A2E38;
+
   --badge-red: #EF4444;
   --badge-yellow: #F59E0B;
   --badge-green: #10B981;
-  
+
+  /* Tipo de demanda (Onboarding/CS/Suporte) — família fria, deliberadamente
+     distante do verde de marca e da escala de criticidade (badge-*), pra
+     nunca competir visualmente com nenhuma das duas. Uso: só como
+     badge/tag de identificação de tipo — nunca em botão de ação nem como
+     indicador de status. */
+  --type-onboarding: #5B9DFF;
+  --type-cs: #B98AFF;
+  --type-suporte: #4DD9C7;
+
   --font-family: 'Inter', system-ui, sans-serif;
   --radius: 8px;
   --transition: 150ms ease-in-out;
@@ -43,6 +52,21 @@ button, input, select, textarea {
 .app-layout {
   display: flex;
   min-height: 100vh;
+}
+
+/* Modo Visualização — marca elementos de mutação (criar/editar/excluir)
+   com .vo-hide (some por completo) ou .vo-disable (fica visível, mas
+   inerte e apagado) sem precisar reestruturar o JSX de cada tela; some
+   liga quando o ancestral .app-layout ganha .view-only-mode. */
+.view-only-mode .vo-hide {
+  display: none !important;
+}
+
+.view-only-mode .vo-disable {
+  pointer-events: none !important;
+  opacity: 0.35 !important;
+  filter: grayscale(0.4);
+  cursor: not-allowed !important;
 }
 
 /* Sidebar styling */
@@ -285,18 +309,91 @@ button, input, select, textarea {
 }
 
 .badge-critico {
-  background-color: rgba(239, 68, 68, 0.15);
+  background-color: rgba(239, 68, 68, 0.12);
   color: var(--badge-red);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  animation: badgePulseRed 2.4s ease-in-out infinite;
 }
 
 .badge-atencao {
-  background-color: rgba(245, 158, 11, 0.15);
+  background-color: rgba(245, 158, 11, 0.12);
   color: var(--badge-yellow);
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .badge-estavel {
-  background-color: rgba(16, 185, 129, 0.15);
+  background-color: rgba(16, 185, 129, 0.12);
   color: var(--badge-green);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+@keyframes badgePulseRed {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+}
+
+/* Type-of-demand pills (Onboarding/CS/Suporte) — identification only, never
+   a status or an action. Deliberately more discreet than the criticality
+   badges above: no border, fully rounded, smaller — so it never competes
+   for attention with --badge-red/yellow/green. */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.type-onboarding {
+  background-color: rgba(91, 157, 255, 0.12);
+  color: var(--type-onboarding);
+}
+
+.type-cs {
+  background-color: rgba(185, 138, 255, 0.12);
+  color: var(--type-cs);
+}
+
+.type-suporte {
+  background-color: rgba(77, 217, 199, 0.12);
+  color: var(--type-suporte);
+}
+
+/* Sinal automático de "sem contato" (independente da criticidade manual) */
+.contact-alert-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.contact-alert-badge.atencao {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: var(--badge-yellow);
+}
+
+.contact-alert-badge.risco {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: var(--badge-red);
+}
+
+.btn-success-pulse {
+  animation: successPulse 400ms ease-out;
+}
+
+@keyframes successPulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.06); }
+  100% { transform: scale(1); }
 }
 
 /* Reminders List */
@@ -668,18 +765,169 @@ button, input, select, textarea {
   color: var(--text-secondary);
 }
 
+/* Custom Select (premium dropdown, replaces native <select>) */
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
+}
+
+.custom-select-trigger:hover {
+  border-color: #444;
+}
+
+.custom-select-trigger.open {
+  border-color: var(--green-primary);
+  box-shadow: 0 0 0 3px rgba(101, 255, 75, 0.12);
+  background-color: #131313;
+}
+
+.custom-select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.custom-select-placeholder {
+  color: var(--text-secondary);
+}
+
+.custom-select-dropdown {
+  background-color: #161616;
+  border: 1px solid #2E2E2E;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  padding: 6px;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: quickMenuIn 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.custom-select-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid #262626;
+  color: #666;
+}
+
+.custom-select-search input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.custom-select-search input::placeholder {
+  color: #555;
+}
+
+.custom-select-options {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+
+.custom-select-options::-webkit-scrollbar {
+  width: 7px;
+}
+
+.custom-select-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-select-options::-webkit-scrollbar-thumb {
+  background-color: #333;
+  border-radius: 10px;
+}
+
+.custom-select-options::-webkit-scrollbar-thumb:hover {
+  background-color: var(--green-primary);
+}
+
+.custom-select-empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.custom-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.custom-select-option.highlighted {
+  background-color: rgba(101, 255, 75, 0.08);
+}
+
+.custom-select-option.selected {
+  background-color: rgba(101, 255, 75, 0.12);
+  color: var(--green-primary);
+  font-weight: 600;
+}
+
+.custom-select-option svg {
+  color: var(--green-primary);
+  flex-shrink: 0;
+}
+
 .form-input, .form-select, .form-textarea {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   padding: 10px 14px;
   font-size: 14px;
-  transition: var(--transition);
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
+}
+
+.form-input:hover, .form-select:hover, .form-textarea:hover {
+  border-color: #444;
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   outline: none;
   border-color: var(--green-primary);
+  box-shadow: 0 0 0 3px rgba(101, 255, 75, 0.12);
+  background-color: #131313;
 }
 
 .checkbox-group {
@@ -897,7 +1145,7 @@ button, input, select, textarea {
   color: var(--text-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: var(--transition);
+  transition: color 150ms ease-out, border-color 150ms ease-out;
 }
 
 .tab-btn:hover {
@@ -928,6 +1176,12 @@ button, input, select, textarea {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
+  transition: border-color 150ms ease-out, background-color 150ms ease-out, transform 150ms ease-out;
+}
+
+.settings-list-item:hover {
+  border-color: #3A3A3A;
+  background-color: #151515;
 }
 
 /* Profile Section styling */
@@ -977,6 +1231,171 @@ button, input, select, textarea {
   font-size: 11px;
   color: var(--text-secondary);
   margin-top: 4px;
+}
+
+.preset-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #1B1B1B;
+  border: 1px solid #2E2E2E;
+  color: #ccc;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+}
+
+.preset-pill:hover {
+  border-color: #444;
+  color: #fff;
+}
+
+.preset-pill.active {
+  background-color: rgba(101, 255, 75, 0.12);
+  border-color: var(--green-primary);
+  color: var(--green-primary);
+  font-weight: 600;
+}
+
+.preset-pill.active svg {
+  color: var(--green-primary);
+}
+
+/* Nota de Reunião */
+.nota-reuniao-modal {
+  max-width: 1000px;
+  width: 100%;
+}
+
+.nota-reuniao-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.nota-reuniao-preview {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nota-reuniao-preview-box {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 16px;
+  min-height: 300px;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.nota-reuniao-preview-box pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ddd;
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .nota-reuniao-layout {
+    grid-template-columns: 1fr;
+  }
+  .nota-reuniao-preview {
+    position: static;
+  }
+}
+
+.nota-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: var(--surface-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.nota-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nota-section-header-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: rgba(101, 255, 75, 0.14);
+  color: var(--green-primary);
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.nota-section-header-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.nota-section-header-line {
+  flex: 1;
+  height: 0.5px;
+  background-color: var(--border-color);
+}
+
+.nota-module-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nota-add-dashed-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px dashed rgba(101, 255, 75, 0.4);
+  background-color: transparent;
+  color: var(--green-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.nota-add-dashed-btn:hover {
+  background-color: rgba(101, 255, 75, 0.08);
+  border-color: var(--green-primary);
+}
+
+/* Premium entrance for detail/dashboard cards */
+.detail-card, .timeline-tracker-container {
+  animation: cardFadeIn 280ms ease-out;
+}
+
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Animations */
@@ -1232,15 +1651,12 @@ button, input, select, textarea {
 
 /* Custom Date Picker */
 .datepicker-dropdown {
-  position: absolute;
-  top: 42px;
-  left: 0;
   background-color: #1B1B1B;
   border: 1px solid #2E2E2E;
   border-radius: 8px;
   padding: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  z-index: 1100;
+  z-index: 1400;
   width: 260px;
   display: flex;
   flex-direction: column;
@@ -1531,7 +1947,7 @@ button, input, select, textarea {
 .timeline-tracker-progress-val {
   font-size: 13px;
   font-weight: 600;
-  color: var(--green-primary);
+  color: var(--badge-green);
 }
 
 .timeline-tracker-steps {
@@ -1559,7 +1975,7 @@ button, input, select, textarea {
   top: 50%;
   transform: translateY(-50%);
   height: 4px;
-  background-color: var(--green-primary);
+  background-color: var(--badge-green);
   z-index: 2;
   transition: width 300ms ease-in-out;
 }
@@ -1586,8 +2002,8 @@ button, input, select, textarea {
 }
 
 .timeline-tracker-circle-completed {
-  background-color: var(--green-primary);
-  border-color: var(--green-primary);
+  background-color: var(--badge-green);
+  border-color: var(--badge-green);
   color: #000;
 }
 
@@ -1697,6 +2113,60 @@ button, input, select, textarea {
 .checklist-item input {
   accent-color: var(--green-primary);
   cursor: pointer;
+}
+
+/* Premium checkbox: custom box + animated checkmark */
+input[type="checkbox"].premium-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid #3A3A3A;
+  background-color: #1B1B1B;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin: 0;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, transform 100ms ease-out;
+}
+
+input[type="checkbox"].premium-check:hover {
+  border-color: var(--green-primary);
+}
+
+input[type="checkbox"].premium-check:checked {
+  background-color: var(--green-primary);
+  border-color: var(--green-primary);
+}
+
+input[type="checkbox"].premium-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #0A0A0A;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  animation: premiumCheckPop 180ms ease-out forwards;
+}
+
+input[type="checkbox"].premium-check:active {
+  transform: scale(0.9);
+}
+
+@keyframes premiumCheckPop {
+  from { transform: rotate(45deg) scale(0); }
+  to { transform: rotate(45deg) scale(1); }
+}
+
+/* Edit mode: a card actively being edited gets a subtle elevated, "focused" treatment */
+.edit-mode-active {
+  border-color: rgba(101, 255, 75, 0.35) !important;
+  box-shadow: 0 0 0 1px rgba(101, 255, 75, 0.12), 0 12px 28px rgba(0, 0, 0, 0.35);
+  transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
 }
 
 /* Vertical activity log timeline */
@@ -1860,6 +2330,12 @@ button, input, select, textarea {
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   cursor: grab;
+  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+}
+
+.settings-kanban-stage-row:hover {
+  border-color: #3A3A3A;
+  background-color: #151515;
 }
 
 .settings-kanban-stage-row:active {
@@ -1873,9 +2349,14 @@ button, input, select, textarea {
   align-items: center;
   padding: 12px 16px;
   background-color: var(--bg-primary);
-  border: 1px dashed var(--border-color);
+  border: 1px dashed rgba(101, 255, 75, 0.4);
   border-radius: var(--radius);
-  animation: fadeIn 150ms ease-out;
+  animation: settingsAddRowIn 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes settingsAddRowIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Detail header status color dot */
@@ -1887,8 +2368,8 @@ button, input, select, textarea {
   margin-right: 6px;
 }
 .status-dot-green {
-  background-color: var(--green-primary);
-  box-shadow: 0 0 6px var(--green-primary);
+  background-color: var(--badge-green);
+  box-shadow: 0 0 6px var(--badge-green);
 }
 .status-dot-red {
   background-color: var(--badge-red);
@@ -2013,10 +2494,354 @@ button, input, select, textarea {
   transition: all 150ms ease-in-out;
 }
 
+/* Quick Actions Menu (Sidebar) */
+.quick-action-trigger:active {
+  transform: scale(0.98);
+}
+
+.quick-action-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background-color: #161616;
+  border: 1px solid #2E2E2E;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  padding: 6px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transform-origin: top center;
+  animation: quickMenuIn 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes quickMenuIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.quick-action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.quick-action-item:hover {
+  background-color: rgba(101, 255, 75, 0.08);
+}
+
+.quick-action-item svg {
+  color: var(--green-primary);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.quick-action-item-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.quick-action-item-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
 .btn-action-small-arrow:hover {
   background-color: var(--green-primary);
   border-color: var(--green-primary);
   color: #000 !important;
+}
+
+/* ============================================================
+   Mobile shell (< 768px) — a second, purpose-built presentation for
+   phones, not a squeezed-down desktop. Rendered by MobileShell.jsx
+   instead of the fixed sidebar; each view branches its own JSX for
+   isMobile rather than relying on these rules to reflow the desktop
+   markup, since most desktop layout is done with inline styles (which
+   media queries can't touch). What lives here is either (a) the mobile
+   shell's own chrome (topbar/bottom nav/sheet/cards), used only by
+   mobile branches, or (b) narrow global overrides for the handful of
+   reusable CSS-class-based patterns (modals, .form-grid) that both
+   shells share.
+   ============================================================ */
+
+.mobile-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+}
+
+.mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 16px;
+  background-color: var(--card-surface);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.mobile-topbar-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.mobile-topbar-back:active {
+  background-color: var(--surface-hover);
+}
+
+.mobile-topbar-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-content {
+  flex: 1;
+  padding: 16px;
+  padding-bottom: calc(64px + 16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.mobile-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  height: 64px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background-color: var(--card-surface);
+  border-top: 1px solid var(--border-color);
+}
+
+.mobile-bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mobile-bottom-nav-item.active {
+  color: var(--green-primary);
+}
+
+.mobile-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background-color: rgba(0, 0, 0, 0.6);
+  animation: fadeIn 150ms ease-out;
+}
+
+.mobile-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  max-height: 80vh;
+  overflow-y: auto;
+  background-color: var(--card-surface);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  padding: 8px 8px calc(12px + env(safe-area-inset-bottom, 0px));
+  animation: slideUp 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.mobile-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--border-color);
+  margin: 8px auto 12px;
+}
+
+.mobile-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobile-sheet-item:active {
+  background-color: var(--surface-hover);
+}
+
+.mobile-sheet-item.danger {
+  color: var(--badge-red);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* Generic tappable card used by mobile list views (Clientes, Kanban,
+   Suporte, Oportunidades) in place of desktop tables/multi-column boards */
+.mobile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #161616;
+  border: 1px solid #252525;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.mobile-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mobile-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  background-color: #1C1C1C;
+  border: 1px solid #252525;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mobile-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(64px + 16px + env(safe-area-inset-bottom, 0px));
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: var(--green-primary);
+  color: #000;
+  border: none;
+  box-shadow: 0 6px 16px rgba(101, 255, 75, 0.35);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  /* Modals become full-screen sheets — using !important is deliberate
+     here: every call site passes its own inline maxWidth for the desktop
+     size, which a plain class rule can't outrank. */
+  .modal-overlay {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    height: 100vh !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-layout {
+    padding: 16px !important;
+  }
+
+  .tabs-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+
+  .tab-btn {
+    flex-shrink: 0;
+  }
+
+  .search-bar-row {
+    flex-wrap: wrap;
+  }
+
+  .settings-inline-add-row {
+    flex-wrap: wrap;
+  }
+
+  .profile-setup {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 

@@ -309,41 +309,73 @@ export default function App() {
   };
 
   const handleUpdateModuleChecklist = (id, checklist) => {
-    setModules(prev => prev.map(m => m.id === id ? { ...m, checklist } : m));
+    // Cada etapa ganha um identificador estável na primeira vez que o módulo
+    // é salvo. É ele que liga a etapa do modelo à cópia que está no cliente.
+    // Sem isso a ligação seria pelo texto — e como esta função roda a cada
+    // tecla digitada no campo da etapa, renomear derrubaria o progresso dos
+    // clientes já na primeira letra.
+    const modelo = (checklist || []).map(it =>
+      it.stepId ? it : { ...it, stepId: `st_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` }
+    );
+    setModules(prev => prev.map(m => m.id === id ? { ...m, checklist: modelo } : m));
 
     // O checklist do cliente é uma cópia do modelo, feita quando o módulo é
     // vinculado — e antes ela nunca mais era tocada. Resultado: editar as
     // etapas em Configurações não chegava a quem já tinha o módulo, e as
     // etapas novas nunca apareciam na Nota de Reunião. Aqui o modelo passa a
-    // valer também para os clientes atuais, sem perder o progresso deles:
-    // o que já existe mantém o marcado/desmarcado, o que é novo entra
+    // valer também para os clientes atuais, sem perder o progresso deles: o
+    // que já existe mantém o marcado/desmarcado, o que é novo entra
     // desmarcado, o que foi excluído do modelo sai, e a ordem passa a ser a
-    // do modelo. Etapa renomeada conta como outra etapa (a antiga sai, a nova
-    // entra), porque a correspondência é pelo texto da etapa.
+    // do modelo.
     const modObj = modules.find(m => m.id === id);
     if (!modObj) return;
     const modName = modObj.name;
-    const modelo = checklist || [];
+
+    // Cópias antigas de cliente não têm stepId, então a primeira ligação
+    // precisa ser pelo texto. Só que esta função roda a cada tecla: no
+    // primeiro caractere de um rename o texto novo já não casa com o do
+    // cliente. Por isso a busca também tenta o rótulo que a etapa tinha no
+    // modelo antes desta edição — é o que ainda está guardado no cliente.
+    // Depois dessa primeira vez o item do cliente sai daqui já com stepId, e
+    // as edições seguintes casam por ele.
+    const anterior = modObj.checklist || [];
+    const anteriorPorId = new Map(anterior.filter(it => it.stepId).map(it => [it.stepId, it]));
+    const rotuloAnteriorDe = (modeloItem, idx) => {
+      const ant = (modeloItem.stepId && anteriorPorId.get(modeloItem.stepId)) || anterior[idx];
+      return ant?.label;
+    };
+
+    const casar = (lista) => {
+      const porId = new Map(lista.filter(it => it.stepId).map(it => [it.stepId, it]));
+      const porTexto = new Map(lista.map(it => [it.label, it]));
+      return (modeloItem, idx) => {
+        if (modeloItem.stepId && porId.has(modeloItem.stepId)) return porId.get(modeloItem.stepId);
+        if (porTexto.has(modeloItem.label)) return porTexto.get(modeloItem.label);
+        const rotuloAntigo = rotuloAnteriorDe(modeloItem, idx);
+        return rotuloAntigo ? porTexto.get(rotuloAntigo) : undefined;
+      };
+    };
 
     setClients(prev => prev.map(c => {
       if (!(c.activeModules || []).includes(modName)) return c;
 
-      const atuais = new Map(((c.checklists || {})[modName] || []).map(it => [it.label, it]));
-      const jaReportados = new Map(((c.checklistBaseline || {})[modName] || []).map(it => [it.label, it]));
+      const acharAtual = casar((c.checklists || {})[modName] || []);
+      const acharReportado = casar((c.checklistBaseline || {})[modName] || []);
 
-      const novoChecklist = modelo.map(modeloItem => {
-        const existente = atuais.get(modeloItem.label);
-        // Mantém o estado do cliente e absorve ajustes de texto do modelo
-        // (doneText/pendingText), que só existem no modelo.
-        return existente ? { ...modeloItem, checked: !!existente.checked } : { ...modeloItem, checked: false };
+      const novoChecklist = modelo.map((modeloItem, idx) => {
+        const existente = acharAtual(modeloItem, idx);
+        return { ...modeloItem, checked: existente ? !!existente.checked : false };
       });
 
       // O baseline guarda o que já foi reportado em nota. Etapa nova não
       // entra aqui de propósito: assim, quando for marcada, ela aparece como
       // "realizado" na próxima nota em vez de nascer já reportada.
       const novoBaseline = modelo
-        .filter(modeloItem => jaReportados.has(modeloItem.label))
-        .map(modeloItem => ({ ...modeloItem, checked: !!jaReportados.get(modeloItem.label).checked }));
+        .map((modeloItem, idx) => {
+          const reportado = acharReportado(modeloItem, idx);
+          return reportado ? { ...modeloItem, checked: !!reportado.checked } : null;
+        })
+        .filter(Boolean);
 
       return {
         ...c,

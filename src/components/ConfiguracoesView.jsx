@@ -525,33 +525,48 @@ export default function ConfiguracoesView({
                           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Nenhuma etapa configurada ainda.</span>
                         )}
                         {checklist.map((step, idx) => (
-                          <div key={idx} className="vo-disable" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <input
-                              type="text" className="form-input" style={{ flex: 1, fontSize: '13px' }}
-                              value={step.label}
-                              onChange={e => {
-                                const updated = checklist.map((s, i) => i === idx ? { ...s, label: e.target.value } : s);
-                                onUpdateModuleChecklist(mod.id, updated);
-                              }}
-                            />
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#888', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                          <div key={idx} className="vo-disable" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                               <input
-                                type="checkbox" className="premium-check"
-                                checked={!!step.checked}
-                                onChange={() => {
-                                  const updated = checklist.map((s, i) => i === idx ? { ...s, checked: !s.checked } : s);
+                                type="text" className="form-input" style={{ flex: 1, fontSize: '13px' }}
+                                value={step.label}
+                                onChange={e => {
+                                  const updated = checklist.map((s, i) => i === idx ? { ...s, label: e.target.value } : s);
                                   onUpdateModuleChecklist(mod.id, updated);
                                 }}
                               />
-                              Já vem marcado
-                            </label>
-                            <button
-                              className="btn-danger-icon"
-                              onClick={() => onUpdateModuleChecklist(mod.id, checklist.filter((_, i) => i !== idx))}
-                              title="Remover etapa"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#888', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                                <input
+                                  type="checkbox" className="premium-check"
+                                  checked={!!step.checked}
+                                  onChange={() => {
+                                    const updated = checklist.map((s, i) => i === idx ? { ...s, checked: !s.checked } : s);
+                                    onUpdateModuleChecklist(mod.id, updated);
+                                  }}
+                                />
+                                Já vem marcado
+                              </label>
+                              <button
+                                className="btn-danger-icon"
+                                onClick={() => onUpdateModuleChecklist(mod.id, checklist.filter((_, i) => i !== idx))}
+                                title="Remover etapa"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                            {/* Só para etapas cujo texto não serve na nota do
+                                cliente — normalmente instrução interna entre
+                                parênteses. Em branco, vale a etapa acima. */}
+                            <input
+                              type="text" className="form-input"
+                              style={{ fontSize: '12px', padding: '7px 12px', color: '#aaa', marginLeft: '2px' }}
+                              placeholder={`Como aparece na nota (opcional) — vazio usa "${step.label || 'a etapa acima'}"`}
+                              value={step.noteText || ''}
+                              onChange={e => {
+                                const updated = checklist.map((s, i) => i === idx ? { ...s, noteText: e.target.value } : s);
+                                onUpdateModuleChecklist(mod.id, updated);
+                              }}
+                            />
                           </div>
                         ))}
                         <div className="vo-hide" style={{ display: 'flex', gap: '8px' }}>

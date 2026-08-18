@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
-import { getTodayBR, getChecklistDiff, getItemDoneText, getItemPendingText, OPPORTUNITY_STATUS_OPTIONS, getClientCrmLink } from '../utils';
+import { getTodayBR, getChecklistDiff, getItemNoteText, OPPORTUNITY_STATUS_OPTIONS, getClientCrmLink } from '../utils';
 
 const STATUS_OPTIONS = [
   { value: 'Em andamento', emoji: '🟢' },
@@ -108,7 +108,9 @@ function computeGroupedLines(diff, done) {
     if (entries.length === 0) return;
     groups.push({
       groupName: m.moduleName,
-      lines: entries.map(({ item }) => done ? getItemDoneText(item) : getItemPendingText(item))
+      // Mesmo texto nas duas seções: o cabeçalho (REALIZADO / PENDÊNCIAS) já
+      // diz o estado, então a etapa entra como foi escrita, sem sufixo.
+      lines: entries.map(({ item }) => getItemNoteText(item))
     });
   });
   return groups;

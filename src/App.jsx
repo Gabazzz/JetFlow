@@ -93,30 +93,39 @@ export default function App() {
   // carregamento dos dados de propósito: RLS libera as linhas já em aal1
   // (o JWT tem o auth.uid() válido), então checar só na hora de desenhar a
   // tela deixaria os 62 clientes no navegador antes do segundo fator.
+  //
+  // A dependência é userId (string), e não o objeto session: o Supabase
+  // renova o token de tempos em tempos e ao voltar o foco para a aba, e cada
+  // renovação entrega um objeto novo. Reagir ao objeto fazia a trava voltar
+  // para 'checking' a cada renovação, derrubando o dataReady (tela piscando)
+  // e disparando um loadAllData que sobrescrevia o estado local — apagando o
+  // que a pessoa estava preenchendo. Reavaliar depois do 2FA fica por conta
+  // do mfaAttempt.
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setMfaGate({ userId: null, status: 'ok' });
       return;
     }
-    const uid = session.user.id;
     let cancelled = false;
-    setMfaGate({ userId: uid, status: 'checking' });
+    // Só volta para 'checking' quando é outro usuário; reavaliar o mesmo
+    // usuário acontece em silêncio, sem piscar a tela.
+    setMfaGate(prev => (prev.userId === userId ? prev : { userId, status: 'checking' }));
     (async () => {
       const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (cancelled) return;
       if (error) {
         // Sem resposta confiável sobre o nível, não trava o acesso — a conta
         // sem 2FA cadastrado ficaria presa fora do app por um erro de rede.
-        setMfaGate({ userId: uid, status: 'ok' });
+        setMfaGate({ userId, status: 'ok' });
         return;
       }
       setMfaGate({
-        userId: uid,
+        userId,
         status: data.nextLevel === 'aal2' && data.currentLevel !== 'aal2' ? 'required' : 'ok'
       });
     })();
     return () => { cancelled = true; };
-  }, [session, mfaAttempt]);
+  }, [userId, mfaAttempt]);
 
   // Load everything for the signed-in user once, right after login.
   useEffect(() => {

@@ -168,15 +168,6 @@ export const OPPORTUNITY_STATUS_OPTIONS = [
   'Sem interesse'
 ];
 
-export const OPPORTUNITY_STATUS_META = {
-  'Interesse demonstrado': { badgeClass: 'badge-atencao' },
-  'Solicitar abordagem comercial': { badgeClass: 'badge-atencao' },
-  'Encaminhado ao comercial': { badgeClass: 'badge-atencao' },
-  'Em negociação': { badgeClass: 'badge-atencao' },
-  'Convertido': { badgeClass: 'badge-estavel' },
-  'Sem interesse': { badgeClass: 'badge-critico' }
-};
-
 // Whether a client has finished onboarding — i.e. sits on the last
 // configured Kanban stage (stages is the account's own ordered list, since
 // stage names are fully customizable in Configurações > Kanban). Used to

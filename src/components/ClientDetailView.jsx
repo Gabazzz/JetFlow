@@ -96,8 +96,11 @@ export default function ClientDetailView({
   const [plan, setPlan] = useState(client.plan);
   const [activeModules, setActiveModules] = useState(client.activeModules || []);
 
-  // Offers States
-  const [interestOffers, setInterestOffers] = useState(client.interestOffers || []);
+  // Offers States — interestOffers em si não tem buffer local: lido direto
+  // de client.interestOffers a cada render, porque também pode ser
+  // atualizado por fora (upsell marcado na Nota de Reunião com este mesmo
+  // cliente aberto) e um espelho em useState ficaria desatualizado.
+  const interestOffers = client.interestOffers || [];
   const [selectedNewOffer, setSelectedNewOffer] = useState('');
   const [newOfferStatus, setNewOfferStatus] = useState(OPPORTUNITY_STATUS_OPTIONS[0]);
 
@@ -176,20 +179,17 @@ export default function ClientDetailView({
   const handleAddOffer = () => {
     if (!selectedNewOffer) return;
     const updated = [...interestOffers, { id: `io_${Date.now()}`, name: selectedNewOffer, status: newOfferStatus }];
-    setInterestOffers(updated);
     onUpdateClient(client.id, { interestOffers: updated });
     setSelectedNewOffer('');
   };
 
   const handleRemoveOffer = (id) => {
     const updated = interestOffers.filter(o => o.id !== id);
-    setInterestOffers(updated);
     onUpdateClient(client.id, { interestOffers: updated });
   };
 
   const handleOfferStatusChange = (id, status) => {
     const updated = interestOffers.map(o => o.id === id ? { ...o, status } : o);
-    setInterestOffers(updated);
     onUpdateClient(client.id, { interestOffers: updated });
   };
 

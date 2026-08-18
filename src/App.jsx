@@ -18,7 +18,8 @@ import {
   getDateStatus,
   getTodayBR,
   getNowTimeBR,
-  addDaysToBRDate
+  addDaysToBRDate,
+  OPPORTUNITY_STATUS_OPTIONS
 } from './utils';
 
 import { Bell, X, Plus } from 'lucide-react';
@@ -381,7 +382,7 @@ export default function App() {
       if (c.id === clientId) {
         return {
           ...c,
-          interestOffers: [...(c.interestOffers || []), { id: `io_${Date.now()}`, name: offerName, status: 'Interessado' }]
+          interestOffers: [...(c.interestOffers || []), { id: `io_${Date.now()}`, name: offerName, status: OPPORTUNITY_STATUS_OPTIONS[0] }]
         };
       }
       return c;

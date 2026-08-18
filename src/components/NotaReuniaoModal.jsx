@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Sparkles, Eraser, Copy, RefreshCw, Building2, Calendar,
-  Clock, Users, DollarSign, Plus, Trash2
+  Clock, Users, DollarSign, Plus, Trash2, Link
 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 import CustomDatePicker from './CustomDatePicker';
@@ -339,9 +339,17 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
 
             {/* Client context — obrigatório, fora da numeração */}
             {contextClient ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', backgroundColor: '#1E351F', border: '1px solid rgba(101, 255, 75, 0.3)', borderRadius: '8px' }}>
-                <Building2 size={15} style={{ color: 'var(--green-primary)' }} />
-                <span style={{ fontSize: '13px', color: '#fff' }}>Cliente: <strong style={{ color: 'var(--green-primary)' }}>{contextClient.name}</strong></span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '10px 14px', backgroundColor: '#1E351F', border: '1px solid rgba(101, 255, 75, 0.3)', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Building2 size={15} style={{ color: 'var(--green-primary)' }} />
+                  <span style={{ fontSize: '13px', color: '#fff' }}>Cliente: <strong style={{ color: 'var(--green-primary)' }}>{contextClient.name}</strong></span>
+                </div>
+                {contextClient.quickLinks?.crm && (
+                  <a href={contextClient.quickLinks.crm} target="_blank" rel="noreferrer" className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', gap: '6px' }}>
+                    <Link size={12} />
+                    <span>Acesso ao CRM</span>
+                  </a>
+                )}
               </div>
             ) : (
               <div className="form-group">
@@ -353,6 +361,12 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
                   options={clients.map(c => ({ value: c.id, label: c.name }))}
                 />
                 {showValidation && !client && <span style={{ fontSize: '11px', color: 'var(--badge-red)' }}>Selecione o cliente.</span>}
+                {client?.quickLinks?.crm && (
+                  <a href={client.quickLinks.crm} target="_blank" rel="noreferrer" className="btn-secondary" style={{ marginTop: '8px', alignSelf: 'flex-start', padding: '5px 10px', fontSize: '11px', gap: '6px' }}>
+                    <Link size={12} />
+                    <span>Acesso ao CRM</span>
+                  </a>
+                )}
               </div>
             )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, Video, MapPin, ExternalLink, RefreshCw, ChevronLeft, ChevronRight, LogOut, AlertCircle, Plus, X, Users, Clock as ClockIcon, Pencil, Trash2 } from 'lucide-react';
+import { Calendar, Video, MapPin, ExternalLink, RefreshCw, ChevronLeft, ChevronRight, LogOut, AlertCircle, Plus, X, Users, Clock as ClockIcon, Pencil, Trash2, Link, Copy, Check } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 import CustomSelect from './CustomSelect';
 import { supabase, SUPABASE_URL } from '../lib/supabaseClient';
@@ -80,6 +80,14 @@ function closestDurationOption(minutes) {
   , DURATION_OPTIONS[0].value);
 }
 
+// Same "attendee e-mail matches a cadastrado client" logic used to prefill
+// the edit modal — reused here to surface that client's CRM quick link
+// straight on the event row, without making the user open the client 360.
+function matchClientForEvent(ev, clients) {
+  const attendees = ev.attendees || [];
+  return clients.find(c => c.email && attendees.includes(c.email)) || null;
+}
+
 export default function AgendaView({ clients = [], accountEmail = '', profile, viewOnly, onUpdateClient, onAddClientActivity }) {
   const [dateBR, setDateBR] = useState(getTodayBR());
   const [status, setStatus] = useState({ loading: true, connected: false, email: null });
@@ -104,6 +112,7 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
   const [createReauthRequired, setCreateReauthRequired] = useState(false);
   const [createdEvent, setCreatedEvent] = useState(null);
   const [deletingEventId, setDeletingEventId] = useState(null);
+  const [copiedLinkEventId, setCopiedLinkEventId] = useState(null);
 
   // Other timed events on the day being scheduled — feeds the conflict
   // check below. Excludes the event currently being edited (so an
@@ -345,6 +354,18 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
     }
   };
 
+  const handleCopyMeetLink = async (ev) => {
+    if (!ev.meetLink) return;
+    const message = `Segue abaixo o link da nossa reunião:\n${ev.meetLink}`;
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopiedLinkEventId(ev.id);
+      setTimeout(() => setCopiedLinkEventId(null), 2500);
+    } catch {
+      alert('Não foi possível copiar automaticamente — copie o link manualmente.');
+    }
+  };
+
   const handleDeleteEvent = async (ev) => {
     if (!window.confirm(`Excluir "${ev.title}"? Um cancelamento será enviado aos participantes.`)) return;
     setDeletingEventId(ev.id);
@@ -427,7 +448,9 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {events.map(ev => (
+          {events.map(ev => {
+            const evClient = matchClientForEvent(ev, clients);
+            return (
             <div key={ev.id} style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--green-primary)', minWidth: '90px' }}>
@@ -443,6 +466,11 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {evClient?.quickLinks?.crm && (
+                  <a href={evClient.quickLinks.crm} target="_blank" rel="noreferrer" className="btn-icon" title={`Acesso ao CRM — ${evClient.name}`}>
+                    <Link size={14} />
+                  </a>
+                )}
                 {!ev.allDay && (
                   <button className="btn-icon vo-hide" onClick={() => openEditMeetingModal(ev)} title="Editar reunião">
                     <Pencil size={14} />
@@ -462,6 +490,15 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
                   </a>
                 )}
                 {ev.meetLink && (
+                  <button
+                    className="btn-icon"
+                    onClick={() => handleCopyMeetLink(ev)}
+                    title="Copiar link da reunião"
+                  >
+                    {copiedLinkEventId === ev.id ? <Check size={14} style={{ color: 'var(--green-primary)' }} /> : <Copy size={14} />}
+                  </button>
+                )}
+                {ev.meetLink && (
                   <a href={ev.meetLink} target="_blank" rel="noreferrer" className="btn-primary" style={{ padding: '8px 14px', fontSize: '12px' }}>
                     <Video size={13} />
                     <span>Entrar no Meet</span>
@@ -469,7 +506,8 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

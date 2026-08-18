@@ -106,6 +106,7 @@ export default function ClientDetailView({
   const interestOffers = client.interestOffers || [];
   const [selectedNewOffer, setSelectedNewOffer] = useState('');
   const [newOfferStatus, setNewOfferStatus] = useState(OPPORTUNITY_STATUS_OPTIONS[0]);
+  const [isAddOfferOpen, setIsAddOfferOpen] = useState(false);
 
   // SLA Form States
   const [criticality, setCriticality] = useState(client.criticality);
@@ -179,11 +180,14 @@ export default function ClientDetailView({
     setActiveModules(prev => prev.includes(modName) ? prev.filter(m => m !== modName) : [...prev, modName]);
   };
 
-  const handleAddOffer = () => {
+  const handleAddOfferSubmit = (e) => {
+    e.preventDefault();
     if (!selectedNewOffer) return;
     const updated = [...interestOffers, { id: `io_${Date.now()}`, name: selectedNewOffer, status: newOfferStatus }];
     onUpdateClient(client.id, { interestOffers: updated });
     setSelectedNewOffer('');
+    setNewOfferStatus(OPPORTUNITY_STATUS_OPTIONS[0]);
+    setIsAddOfferOpen(false);
   };
 
   const handleRemoveOffer = (id) => {
@@ -708,11 +712,21 @@ export default function ClientDetailView({
 
           {/* Card: Interesse em Ofertas (Oportunidades) */}
           <div className="detail-card" style={{ backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '8px', padding: '20px' }}>
-            <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 16px' }}>
-              INTERESSE EM OFERTAS
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>
+                INTERESSE EM OFERTAS
+              </h3>
+              <button
+                className="btn-secondary vo-hide"
+                style={{ padding: '4px 8px', fontSize: '11px', border: '1px solid #333' }}
+                onClick={() => { setSelectedNewOffer(''); setNewOfferStatus(OPPORTUNITY_STATUS_OPTIONS[0]); setIsAddOfferOpen(true); }}
+              >
+                <Plus size={11} />
+                <span>Novo</span>
+              </button>
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: interestOffers.length > 0 ? '14px' : 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {interestOffers.map(offer => (
                 <div key={offer.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '10px 12px', backgroundColor: '#1B1B1B', border: '1px solid #2A2A2A', borderRadius: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
@@ -733,25 +747,6 @@ export default function ClientDetailView({
               {interestOffers.length === 0 && (
                 <span style={{ color: 'var(--text-secondary)', fontSize: '12px', textAlign: 'center', padding: '8px 0' }}>Nenhuma oportunidade registrada.</span>
               )}
-            </div>
-
-            <div className="settings-inline-add-row vo-hide">
-              <CustomSelect
-                value={selectedNewOffer}
-                onChange={setSelectedNewOffer}
-                placeholder="Selecionar oferta..."
-                options={(availableOffers || []).filter(o => !interestOffers.some(io => io.name === o.name)).map(o => ({ value: o.name, label: o.name }))}
-                style={{ flex: 1 }}
-              />
-              <CustomSelect
-                value={newOfferStatus}
-                onChange={setNewOfferStatus}
-                options={OPPORTUNITY_STATUS_OPTIONS}
-                style={{ flex: '0 0 190px' }}
-              />
-              <button type="button" className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={handleAddOffer} title="Adicionar oportunidade">
-                <Plus size={16} />
-              </button>
             </div>
           </div>
 
@@ -1480,6 +1475,39 @@ export default function ClientDetailView({
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={() => setIsEditingLinks(false)}>Cancelar</button>
                 <button type="submit" className="btn-primary">Salvar Links</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Opportunity Modal */}
+      {isAddOfferOpen && (
+        <div className="modal-overlay" onClick={() => setIsAddOfferOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Nova Oportunidade</h3>
+              <button className="btn-icon" onClick={() => setIsAddOfferOpen(false)}><X size={16} /></button>
+            </div>
+            <form onSubmit={handleAddOfferSubmit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Oferta *</label>
+                  <CustomSelect
+                    value={selectedNewOffer}
+                    onChange={setSelectedNewOffer}
+                    placeholder="Selecionar oferta..."
+                    options={(availableOffers || []).filter(o => !interestOffers.some(io => io.name === o.name)).map(o => ({ value: o.name, label: o.name }))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <CustomSelect value={newOfferStatus} onChange={setNewOfferStatus} options={OPPORTUNITY_STATUS_OPTIONS} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setIsAddOfferOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn-primary" disabled={!selectedNewOffer}>Salvar</button>
               </div>
             </form>
           </div>

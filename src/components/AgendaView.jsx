@@ -401,7 +401,7 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
           <button className="btn-icon" onClick={() => shiftDay(1)} title="Próximo dia"><ChevronRight size={16} /></button>
           <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => setDateBR(getTodayBR())}>Hoje</button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button className="btn-primary vo-hide" onClick={openNewMeetingModal}>
             <Plus size={16} />
             <span>Nova Reunião</span>

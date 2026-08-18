@@ -408,7 +408,7 @@ export default function TarefasView({
           gap: '10px'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
           {item.kind === 'contactAlert' ? (
             <div style={{ marginTop: '2px', flexShrink: 0, width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Resolve sozinho ao registrar um novo contato com o cliente">
               <Clock size={14} style={{ color: isOverdue ? '#EF4444' : 'var(--badge-yellow)' }} />

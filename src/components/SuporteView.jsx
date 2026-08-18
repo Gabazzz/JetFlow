@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, X, LifeBuoy, ArrowRight, RotateCcw, Mail, MessageCircle, LayoutGrid, Link, Edit2, Check, Trash2 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
+import useIsMobile from '../hooks/useIsMobile';
 
 const PRIORITY_BADGE = {
   'Urgente': 'badge-critico',
@@ -22,6 +23,7 @@ const COLUMNS = [
 ];
 
 export default function SuporteView({ clients, tickets, viewOnly, onAddTicket, onUpdateTicketStatus, onUpdateTicketLink, onRemoveTicket, onNavigate }) {
+  const isMobile = useIsMobile();
   const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
   const [tClientId, setTClientId] = useState('');
   const [tSubject, setTSubject] = useState('');
@@ -48,7 +50,7 @@ export default function SuporteView({ clients, tickets, viewOnly, onAddTicket, o
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <LifeBuoy size={20} style={{ color: 'var(--green-primary)' }} />
           <div>
@@ -65,7 +67,7 @@ export default function SuporteView({ clients, tickets, viewOnly, onAddTicket, o
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '20px', alignItems: 'start' }}>
         {COLUMNS.map(col => {
           const colTickets = tickets.filter(t => t.status === col.status);
           return (

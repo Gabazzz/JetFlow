@@ -7,7 +7,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' em vez de 'autoUpdate': com autoUpdate, assim que um deploy
+      // novo era detectado o service worker recarregava a aba sozinho — e
+      // quem estivesse no meio de uma Nota de Reunião ou de um cadastro
+      // perdia tudo. Aqui a versão nova fica pronta em segundo plano e passa
+      // a valer no próximo carregamento natural da página, sem interromper
+      // ninguém no meio de um preenchimento.
+      registerType: 'prompt',
       includeAssets: ['favicon.png', 'favicon.svg'],
       manifest: {
         name: 'JetFlow — Gestão de Implantação & Onboarding',

@@ -470,12 +470,10 @@ export default function KanbanView({ clients, stages, viewOnly, onUpdateClientSt
                                 className="btn-danger-icon vo-hide"
                                 style={{ width: '20px', height: '20px' }}
                                 title="Excluir cliente"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(`Excluir "${client.name}"? Essa ação não pode ser desfeita.`)) {
-                                    onRemoveClient(client.id);
-                                  }
-                                }}
+                                // A confirmação vive no App, que sabe quantos
+                                // chamados e tarefas somem junto — assim a
+                                // pergunta é a mesma em todas as telas.
+                                onClick={(e) => { e.stopPropagation(); onRemoveClient(client.id); }}
                               >
                                 <Trash2 size={11} />
                               </button>

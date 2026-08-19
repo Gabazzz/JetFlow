@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield, X, MessageSquarePlus, Target as TargetIcon, ShieldAlert, MoreHorizontal, Download, Upload } from 'lucide-react';
+import { Search, Plus, List, Kanban, Check, Edit2, Phone, Shield, X, MessageSquarePlus, Target as TargetIcon, ShieldAlert, MoreHorizontal, Download, Upload, Trash2 } from 'lucide-react';
 import KanbanView from './KanbanView';
 import ImportExportClientsModal from './ImportExportClientsModal';
 import { getClientPhase, PHASE_META, getDemandType, getTodayBR, getContactAlert } from '../utils';
@@ -23,7 +23,8 @@ export default function ClientsListView({
   onRegisterContact,
   onOpenNewLeadModal,
   onEditStage,
-  onRemoveStage
+  onRemoveStage,
+  onRemoveClient
 }) {
   const todayStr = getTodayBR();
   const isMobile = useIsMobile();
@@ -197,7 +198,19 @@ export default function ClientsListView({
                 <div key={client.id} className="mobile-card" onClick={() => onNavigate(`clientes/${client.id}`)} style={{ cursor: 'pointer' }}>
                   <div className="mobile-card-row">
                     <span style={{ fontWeight: '700', color: '#fff', fontSize: '14px' }}>{client.name}</span>
-                    <span className={`badge ${badgeClass}`} style={{ fontSize: '9px', flexShrink: 0 }}>{client.criticality}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <span className={`badge ${badgeClass}`} style={{ fontSize: '9px' }}>{client.criticality}</span>
+                      {onRemoveClient && (
+                        <button
+                          className="btn-danger-icon vo-hide"
+                          style={{ width: '26px', height: '26px' }}
+                          onClick={(e) => { e.stopPropagation(); onRemoveClient(client.id); }}
+                          title="Excluir cliente"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{client.cnpj || 'Sem CNPJ'} · {client.plan}</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -346,6 +359,16 @@ export default function ClientsListView({
                           >
                             Ver detalhes →
                           </button>
+                          {onRemoveClient && (
+                            <button
+                              className="btn-danger-icon vo-hide"
+                              style={{ width: '26px', height: '26px' }}
+                              onClick={(e) => { e.stopPropagation(); onRemoveClient(client.id); }}
+                              title="Excluir cliente"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

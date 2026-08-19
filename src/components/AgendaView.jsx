@@ -85,7 +85,36 @@ function closestDurationOption(minutes) {
 // straight on the event row, without making the user open the client 360.
 function matchClientForEvent(ev, clients) {
   const attendees = ev.attendees || [];
-  return clients.find(c => c.email && attendees.includes(c.email)) || null;
+  const porEmail = clients.find(c => c.email && attendees.includes(c.email));
+  if (porEmail) return porEmail;
+
+  // Casar só pelo e-mail do convidado deixava de fora toda reunião criada
+  // direto no Google, ou marcada com outro endereço — e aí o atalho para o
+  // CRM simplesmente não aparecia. O título é a segunda tentativa.
+  //
+  // O nome cadastrado costuma ser "Contato, EMPRESA LTDA (Deal 123)", que
+  // dificilmente aparece inteiro num título. Por isso a busca também usa os
+  // pedaços: o nome do contato e o da empresa. O trecho precisa ter 6+
+  // caracteres e vence o mais longo — mandar para o CRM do cliente errado
+  // seria pior do que não mostrar o botão.
+  const titulo = (ev.title || '').toLowerCase();
+  if (!titulo) return null;
+
+  const candidatos = [];
+  clients.forEach(c => {
+    const nome = (c.name || '').trim();
+    if (!nome) return;
+    const semDeal = nome.replace(/\([^)]*\)/g, ' ');
+    [nome, ...semDeal.split(',')].forEach(parte => {
+      const trecho = parte.trim().toLowerCase();
+      if (trecho.length >= 6) candidatos.push({ client: c, trecho });
+    });
+  });
+
+  const achado = candidatos
+    .sort((a, b) => b.trecho.length - a.trecho.length)
+    .find(({ trecho }) => titulo.includes(trecho));
+  return achado ? achado.client : null;
 }
 
 export default function AgendaView({ clients = [], accountEmail = '', profile, viewOnly, onUpdateClient, onAddClientActivity }) {
@@ -468,8 +497,16 @@ export default function AgendaView({ clients = [], accountEmail = '', profile, v
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {evCrmLink && (
-                  <a href={evCrmLink} target="_blank" rel="noreferrer" className="btn-icon" title={`Acesso ao CRM — ${evClient.name}`}>
-                    <Link size={14} />
+                  <a
+                    href={evCrmLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-secondary"
+                    style={{ padding: '7px 12px', fontSize: '12px', gap: '6px', whiteSpace: 'nowrap' }}
+                    title={`Abrir no Active — ${evClient.name}`}
+                  >
+                    <Link size={13} />
+                    <span>Active</span>
                   </a>
                 )}
                 {!ev.allDay && (

@@ -51,6 +51,14 @@ function ModulePillGrid({ groups, onToggle, emptyText }) {
       {groups.map(g => (
         <div key={g.groupName}>
           <span className="nota-module-group-label">{g.groupName}</span>
+          {g.concluido && (
+            <span
+              title="Módulo concluído — a nota mostra só o aviso de conclusão"
+              style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--green-primary)' }}
+            >
+              ✅ concluído
+            </span>
+          )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
             {g.items.map(it => (
               <button
@@ -74,6 +82,10 @@ function buildPillGroups(moduleGroups, done) {
     .filter(m => (done ? m.done.length > 0 : m.pending.length > 0))
     .map(m => ({
       groupName: m.moduleName,
+      // Mesma regra da nota: sem pendência nenhuma, o módulo fechou. Aqui é só
+      // um selo ao lado do nome — as etapas continuam listadas e clicáveis,
+      // senão não daria para desmarcar nada depois de fechar o módulo.
+      concluido: done && m.pending.length === 0,
       items: (done ? m.done : m.pending).map(({ item, idx }) => ({
         key: `${m.moduleName}__${idx}`,
         label: item.label,
@@ -108,6 +120,11 @@ function computeGroupedLines(diff, done) {
     if (entries.length === 0) return;
     groups.push({
       groupName: m.moduleName,
+      // Sem nenhuma pendência = o módulo fechou, e aí a nota diz isso em uma
+      // linha em vez de listar as etapas. Só aparece na reunião em que ele
+      // fecha: módulo concluído antes já sai do diff e nem chega aqui, então
+      // o aviso não se repete a cada nota.
+      concluido: done && m.pending.length === 0,
       // Mesmo texto nas duas seções: o cabeçalho (REALIZADO / PENDÊNCIAS) já
       // diz o estado, então a etapa entra como foi escrita, sem sufixo.
       lines: entries.map(({ item }) => getItemNoteText(item))
@@ -122,6 +139,10 @@ function pushGroupedSection(lines, title, groups) {
   lines.push(title);
   groups.forEach((g, i) => {
     if (i > 0) lines.push('');
+    if (g.concluido) {
+      lines.push(`✅ ${g.groupName} concluído!`);
+      return;
+    }
     lines.push(`${g.groupName}:`);
     g.lines.forEach(l => lines.push(`• ${l}`));
   });

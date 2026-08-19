@@ -431,8 +431,41 @@ export default function App() {
     setClients(prev => [newClient, ...prev]);
   };
 
+  // Excluir o cliente leva junto os chamados dele: antes ficavam órfãos no
+  // quadro de Chamados, aparecendo para sempre como "Cliente removido".
   const handleRemoveClient = (clientId) => {
     setClients(prev => prev.filter(c => c.id !== clientId));
+    setTickets(prev => prev.filter(t => t.clientId !== clientId));
+  };
+
+  // Quanto some junto com o cliente — usado para avisar antes de excluir,
+  // já que a exclusão não tem desfazer.
+  const getClientRemovalImpact = (clientId) => {
+    const client = clients.find(c => c.id === clientId);
+    return {
+      nome: client?.name || '',
+      chamados: tickets.filter(t => t.clientId === clientId).length,
+      tarefas: (client?.tasks || []).length,
+      lembretes: (client?.reminders || []).length
+    };
+  };
+
+  // Texto único de confirmação, para a pergunta ser a mesma em qualquer tela.
+  const confirmRemoveClient = (clientId) => {
+    const { nome, chamados, tarefas, lembretes } = getClientRemovalImpact(clientId);
+    const junto = [
+      chamados > 0 ? `${chamados} chamado${chamados > 1 ? 's' : ''} de suporte` : null,
+      tarefas > 0 ? `${tarefas} tarefa${tarefas > 1 ? 's' : ''}` : null,
+      lembretes > 0 ? `${lembretes} lembrete${lembretes > 1 ? 's' : ''}` : null
+    ].filter(Boolean);
+
+    const detalhe = junto.length
+      ? `\n\nSerão apagados junto: ${junto.join(', ')}.`
+      : '';
+
+    if (!window.confirm(`Excluir "${nome}"?${detalhe}\n\nEssa ação não pode ser desfeita.`)) return false;
+    handleRemoveClient(clientId);
+    return true;
   };
 
   const handleImportClients = ({ created, updated }) => {
@@ -845,7 +878,7 @@ export default function App() {
           onUpdateClientNextAction={handleUpdateClientNextAction}
           onEditStage={handleEditStage}
           onRemoveStage={handleRemoveStage}
-          onRemoveClient={handleRemoveClient}
+          onRemoveClient={confirmRemoveClient}
           onNavigate={handleNavigate}
         />
       );
@@ -863,6 +896,7 @@ export default function App() {
           viewOnly={viewOnly}
           onAddClient={handleAddClient}
           onImportClients={handleImportClients}
+          onRemoveClient={confirmRemoveClient}
           onNavigate={handleNavigate}
           onUpdateClientStage={handleUpdateClientStage}
           onUpdateClientNextAction={handleUpdateClientNextAction}
@@ -889,6 +923,11 @@ export default function App() {
             profile={profile}
             viewOnly={viewOnly}
             availableOffers={offers}
+            // Excluir daqui deixaria a tela apontando para um cliente que não
+            // existe mais, então volta para a lista quando a exclusão ocorre.
+            onRemoveClient={(clientId) => {
+              if (confirmRemoveClient(clientId)) handleNavigate('clientes');
+            }}
             onUpdateClient={handleUpdateClient}
             onRegisterContact={handleRegisterContact}
             onAddReminder={handleAddClientReminder}

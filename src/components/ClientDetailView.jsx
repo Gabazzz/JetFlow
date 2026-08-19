@@ -30,7 +30,8 @@ export default function ClientDetailView({
   onAddTicket,
   onUpdateTicketStatus,
   onUpdateTicketLink,
-  onNavigate
+  onNavigate,
+  onRemoveClient
 }) {
   const todayStr = getTodayBR();
   const isMobile = useIsMobile();
@@ -441,6 +442,20 @@ export default function ClientDetailView({
             <MessageSquarePlus size={14} strokeWidth={2.5} />
             <span>Registrar Contato</span>
           </button>
+
+          {/* Excluir fica por último e só como ícone: é destrutivo e não tem
+              desfazer, então não disputa espaço com as ações do dia a dia.
+              Quem confirma a exclusão é o App, que sabe o que some junto. */}
+          {onRemoveClient && (
+            <button
+              className="btn-danger-icon vo-hide"
+              style={{ width: '34px', height: '34px' }}
+              title="Excluir cliente"
+              onClick={() => onRemoveClient(client.id)}
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
         </div>
       </div>
 

@@ -376,6 +376,14 @@ export default function NotaReuniaoModal({ clients, contextClient, profile, avai
   // Marcar itens aqui dentro já grava no checklist real na hora; isso só
   // controla o que conta como "já reportado" pela próxima nota.
   const handleClose = () => {
+    // Um clique fora do modal fecha a nota. Trocar de cliente e "Limpar" já
+    // avisavam antes de descartar o preenchimento; fechar não avisava nada —
+    // e era o jeito mais fácil de perder participantes, observações e links
+    // sem querer. (Nota já gerada tem o aviso próprio, logo abaixo.)
+    if (!hasGenerated && isFormDirty() &&
+        !window.confirm('Fechar sem gerar a nota?\nO que você preencheu será descartado.')) {
+      return;
+    }
     if (client && hasGenerated) {
       // Copiada: a nota foi entregue, então os itens contam como reportados.
       // Gerada mas não copiada: antes isso avançava o baseline do mesmo jeito,

@@ -104,11 +104,15 @@ export default function DashboardView({
   // pra comparar com uma string fixa como 'Finalizado').
   const activeClients = clients.filter(c => !isClientPostOnboarding(c, stages));
 
-  // Pending tasks
+  // Pending tasks — só as que ainda estão abertas. Concluir uma tarefa marca
+  // completed no lugar de apagá-la, então sem esse filtro o KPI "Próximas
+  // Tarefas" só crescia e a lista mostrava como pendente o que já tinha sido
+  // feito. As demais telas (Cliente 360, Minha Fila) já filtravam assim.
   const pendingTasks = [];
   clients.forEach(c => {
     if (c.tasks) {
       c.tasks.forEach(t => {
+        if (t.completed) return;
         pendingTasks.push({
           clientName: c.name,
           clientId: c.id,

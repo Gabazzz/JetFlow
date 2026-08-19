@@ -87,25 +87,80 @@ export default function ConfiguracoesView({
     if (e.key === 'Escape') cancelFn();
   };
 
+  // Planos, módulos e ofertas são ligados aos clientes pelo NOME, não pelo id:
+  // client.plan é o nome do plano, client.activeModules e as chaves de
+  // client.checklists são nomes de módulo, e client.interestOffers[].name é o
+  // nome da oferta. Dois itens com o mesmo nome viram o mesmo registro do
+  // ponto de vista do cliente — renomear ou excluir "um" mexe nos dois. A
+  // mesma checagem que as etapas do Kanban já tinham.
+  const nomeJaExiste = (lista, nome, ignorarId = null) =>
+    (lista || []).some(i => i.id !== ignorarId && (i.name || '').trim().toLowerCase() === nome.toLowerCase());
+
+  const avisarDuplicado = (rotulo) => {
+    window.alert(`Já existe ${rotulo} com esse nome.`);
+    return false;
+  };
+
   // Plans
   const confirmAddPlan = () => {
-    if (!newPlanName.trim()) return;
-    onAddPlan({ id: `plan_${Date.now()}`, name: newPlanName });
+    const name = newPlanName.trim();
+    if (!name) return;
+    if (nomeJaExiste(plans, name)) return avisarDuplicado('um plano');
+    onAddPlan({ id: `plan_${Date.now()}`, name });
     setNewPlanName(''); setAddingPlan(false);
   };
 
   // Modules
   const confirmAddModule = () => {
-    if (!newModuleName.trim()) return;
-    onAddModule({ id: `mod_${Date.now()}`, name: newModuleName });
+    const name = newModuleName.trim();
+    if (!name) return;
+    if (nomeJaExiste(modules, name)) return avisarDuplicado('um módulo');
+    onAddModule({ id: `mod_${Date.now()}`, name });
     setNewModuleName(''); setAddingModule(false);
   };
 
   // Offers
   const confirmAddOffer = () => {
-    if (!newOfferName.trim()) return;
-    onAddOffer({ id: `off_${Date.now()}`, name: newOfferName });
+    const name = newOfferName.trim();
+    if (!name) return;
+    if (nomeJaExiste(offers, name)) return avisarDuplicado('uma oferta');
+    onAddOffer({ id: `off_${Date.now()}`, name });
     setNewOfferName(''); setAddingOffer(false);
+  };
+
+  // Renomear passa pela mesma checagem: sem isso dava para contornar o
+  // bloqueio do cadastro só editando um item para o nome de outro.
+  const confirmEditCatalogItem = (lista, rotulo, id, nomeDigitado, aplicar, fechar) => {
+    const name = (nomeDigitado || '').trim();
+    if (!name) return;
+    if (nomeJaExiste(lista, name, id)) { avisarDuplicado(rotulo); return; }
+    aplicar(id, name);
+    fechar();
+  };
+
+  const confirmRenameModule = (id) =>
+    confirmEditCatalogItem(modules, 'um módulo', id, editModuleName, onEditModule, () => setEditingModuleId(null));
+
+  // Excluir uma etapa do modelo também apaga essa etapa do checklist de todo
+  // cliente que já tem o módulo — inclusive o que estiver marcado nela. Antes
+  // isso acontecia num clique só, sem aviso e sem desfazer.
+  const confirmRemoveStep = (mod, idx) => {
+    const etapa = (mod.checklist || [])[idx];
+    if (!window.confirm(
+      `Remover a etapa "${etapa?.label || ''}" do módulo ${mod.name}?\n\n` +
+      'Ela sai também do checklist dos clientes que já têm esse módulo, junto com o que estiver marcado nela.\n\n' +
+      'Essa ação não pode ser desfeita.'
+    )) return;
+    onUpdateModuleChecklist(mod.id, (mod.checklist || []).filter((_, i) => i !== idx));
+  };
+
+  // Excluir um item do catálogo respinga em todos os clientes (o módulo sai
+  // de activeModules, a oferta some das oportunidades) e não tem desfazer —
+  // então pergunta antes, como já acontecia com as etapas do Kanban.
+  const confirmRemoveCatalogItem = (lista, id, aviso, remover) => {
+    const item = (lista || []).find(i => i.id === id);
+    if (!window.confirm(`Excluir "${item?.name || ''}"?\n\n${aviso}\n\nEssa ação não pode ser desfeita.`)) return;
+    remover(id);
   };
 
   // Stages
@@ -449,9 +504,9 @@ export default function ConfiguracoesView({
           getKey: p => p.id, getName: p => p.name,
           editingId: editingPlanId, editName: editPlanName, setEditName: setEditPlanName,
           onStartEdit: (p) => { setEditingPlanId(p.id); setEditPlanName(p.name); },
-          onConfirmEdit: (id) => { onEditPlan(id, editPlanName); setEditingPlanId(null); },
+          onConfirmEdit: (id) => confirmEditCatalogItem(plans, 'um plano', id, editPlanName, onEditPlan, () => setEditingPlanId(null)),
           onCancelEdit: () => setEditingPlanId(null),
-          onRemove: onRemovePlan,
+          onRemove: (id) => confirmRemoveCatalogItem(plans, id, 'Os clientes que estão nesse plano continuam cadastrados, mas ficam sem plano válido.', onRemovePlan),
           isAdding: addingPlan, setIsAdding: setAddingPlan,
           newName: newPlanName, setNewName: setNewPlanName,
           onConfirmAdd: confirmAddPlan
@@ -503,7 +558,15 @@ export default function ConfiguracoesView({
                         </button>
                         <div className="vo-hide" style={{ display: 'flex', gap: '8px' }}>
                           <button className="btn-icon" onClick={() => { setEditingModuleId(mod.id); setEditModuleName(mod.name); }} title="Renomear"><Edit2 size={14} /></button>
-                          <button className="btn-danger-icon" onClick={() => onRemoveModule(mod.id)} title="Remover"><Trash2 size={14} /></button>
+                          <button
+                            className="btn-danger-icon"
+                            onClick={() => confirmRemoveCatalogItem(
+                              modules, mod.id,
+                              'Ele sai dos Módulos Contratados de todos os clientes que o têm, junto com o checklist e o progresso deles nesse módulo.',
+                              onRemoveModule
+                            )}
+                            title="Remover"
+                          ><Trash2 size={14} /></button>
                         </div>
                       </div>
                     ) : (
@@ -512,9 +575,9 @@ export default function ConfiguracoesView({
                           type="text" className="form-input" style={{ flex: 1 }}
                           value={editModuleName} onChange={e => setEditModuleName(e.target.value)}
                           autoFocus
-                          onKeyDown={e => { if (e.key === 'Enter') { onEditModule(mod.id, editModuleName); setEditingModuleId(null); } if (e.key === 'Escape') setEditingModuleId(null); }}
+                          onKeyDown={e => { if (e.key === 'Enter') confirmRenameModule(mod.id); if (e.key === 'Escape') setEditingModuleId(null); }}
                         />
-                        <button className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={() => { onEditModule(mod.id, editModuleName); setEditingModuleId(null); }}><Check size={14} /></button>
+                        <button className="btn-icon" style={{ color: 'var(--green-primary)' }} onClick={() => confirmRenameModule(mod.id)}><Check size={14} /></button>
                         <button className="btn-icon" style={{ color: 'var(--badge-red)' }} onClick={() => setEditingModuleId(null)}><X size={14} /></button>
                       </div>
                     )}
@@ -548,7 +611,7 @@ export default function ConfiguracoesView({
                               </label>
                               <button
                                 className="btn-danger-icon"
-                                onClick={() => onUpdateModuleChecklist(mod.id, checklist.filter((_, i) => i !== idx))}
+                                onClick={() => confirmRemoveStep(mod, idx)}
                                 title="Remover etapa"
                               >
                                 <Trash2 size={13} />
@@ -614,9 +677,9 @@ export default function ConfiguracoesView({
           getKey: o => o.id, getName: o => o.name,
           editingId: editingOfferId, editName: editOfferName, setEditName: setEditOfferName,
           onStartEdit: (o) => { setEditingOfferId(o.id); setEditOfferName(o.name); },
-          onConfirmEdit: (id) => { onEditOffer(id, editOfferName); setEditingOfferId(null); },
+          onConfirmEdit: (id) => confirmEditCatalogItem(offers, 'uma oferta', id, editOfferName, onEditOffer, () => setEditingOfferId(null)),
           onCancelEdit: () => setEditingOfferId(null),
-          onRemove: onRemoveOffer,
+          onRemove: (id) => confirmRemoveCatalogItem(offers, id, 'Ela também sai da lista de oportunidades de todos os clientes que demonstraram interesse.', onRemoveOffer),
           isAdding: addingOffer, setIsAdding: setAddingOffer,
           newName: newOfferName, setNewName: setNewOfferName,
           onConfirmAdd: confirmAddOffer

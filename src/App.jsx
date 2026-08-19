@@ -221,7 +221,10 @@ export default function App() {
   const [newWhatsapp, setNewWhatsapp] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newEntryDate, setNewEntryDate] = useState(() => getTodayBR());
-  const [newPlan, setNewPlan] = useState('Pro');
+  // Vazio = "ainda não escolhi", e aí vale o primeiro plano cadastrado. Antes
+  // era 'Pro' fixo: numa conta sem um plano com esse nome, o campo abria em
+  // branco e o cliente nascia com um plano que não existe no catálogo.
+  const [newPlan, setNewPlan] = useState('');
   const [newCriticality, setNewCriticality] = useState('Estável');
   const [newJustification, setNewJustification] = useState('');
   const [newSelectedModules, setNewSelectedModules] = useState([]);
@@ -362,9 +365,13 @@ export default function App() {
       const acharAtual = casar((c.checklists || {})[modName] || []);
       const acharReportado = casar((c.checklistBaseline || {})[modName] || []);
 
+      // Etapa que o cliente já tem mantém o marcado/desmarcado dele. Etapa
+      // nova entra com o que estiver em "Já vem marcado" no modelo — era o
+      // único lugar onde essa opção não valia: cliente novo nascia com ela
+      // marcada, quem já tinha o módulo recebia a etapa sempre desmarcada.
       const novoChecklist = modelo.map((modeloItem, idx) => {
         const existente = acharAtual(modeloItem, idx);
-        return { ...modeloItem, checked: existente ? !!existente.checked : false };
+        return { ...modeloItem, checked: existente ? !!existente.checked : !!modeloItem.checked };
       });
 
       // O baseline guarda o que já foi reportado em nota. Etapa nova não
@@ -1101,6 +1108,7 @@ export default function App() {
     <form onSubmit={(e) => {
       e.preventDefault();
       const nextContact = calculateNextContactDate(newCriticality, newEntryDate);
+      const planoEscolhido = newPlan || plans[0]?.name || '';
 
       // Populate checklists from each module's configured template
       const clientChecklists = {};
@@ -1119,13 +1127,17 @@ export default function App() {
         whatsapp: newWhatsapp,
         email: newEmail,
         entryDate: newEntryDate,
-        plan: newPlan,
+        plan: planoEscolhido,
         criticality: newCriticality,
         criticalityJustification: newJustification,
         activeModules: newSelectedModules,
         observations: newObservations,
         responsible: profile.name,
-        stage: 'Novo',
+        // Primeira coluna do Kanban da conta, não o nome fixo "Novo": as
+        // etapas são renomeáveis em Configurações, e um cliente criado numa
+        // etapa que não existe some do quadro — sem coluna para ele aparecer.
+        // A importação por planilha já fazia assim.
+        stage: stages[0] || 'Novo',
         nextAction: 'Reunião de Alinhamento inicial',
         nextContactDate: nextContact,
         checklists: clientChecklists,
@@ -1161,7 +1173,7 @@ export default function App() {
       setNewWhatsapp('');
       setNewEmail('');
       setNewEntryDate(getTodayBR());
-      setNewPlan('Pro');
+      setNewPlan('');
       setNewCriticality('Estável');
       setNewJustification('');
       setNewSelectedModules([]);
@@ -1227,7 +1239,7 @@ export default function App() {
           </div>
           <div className="form-group">
             <label className="form-label">Plano</label>
-            <CustomSelect value={newPlan} onChange={setNewPlan} options={plans.map(p => ({ value: p.name, label: p.name }))} />
+            <CustomSelect value={newPlan || plans[0]?.name || ''} onChange={setNewPlan} options={plans.map(p => ({ value: p.name, label: p.name }))} />
           </div>
           <div className="form-group">
             <label className="form-label">Nível de Criticidade</label>
@@ -1397,18 +1409,25 @@ export default function App() {
                               </span>
                             </div>
                             <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{item.title}</span>
-                            <button 
-                              className="btn-primary" 
+                            {/* O botão fazia coisas diferentes com o mesmo
+                                rótulo: no lembrete personalizado ele apagava o
+                                lembrete (sem perguntar), não registrava contato
+                                nenhum. Agora cada tipo diz o que faz — e apagar
+                                pede confirmação, já que não tem desfazer. */}
+                            <button
+                              className="btn-primary"
                               style={{ padding: '4px 8px', fontSize: '11px', alignSelf: 'flex-start', marginTop: '4px' }}
                               onClick={() => {
                                 if (item.type === 'custom') {
-                                  handleRemoveClientReminder(item.clientId, item.id);
+                                  if (window.confirm(`Concluir e remover o lembrete "${item.title}"?\n\nEssa ação não pode ser desfeita.`)) {
+                                    handleRemoveClientReminder(item.clientId, item.id);
+                                  }
                                 } else {
                                   handleRegisterContact(item.clientId, 'Contato de ciclo registrado');
                                 }
                               }}
                             >
-                              Registrar Contato
+                              {item.type === 'custom' ? 'Concluir Lembrete' : 'Registrar Contato'}
                             </button>
                           </div>
                         ))
